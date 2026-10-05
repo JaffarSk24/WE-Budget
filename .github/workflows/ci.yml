@@ -30,8 +30,11 @@ jobs:
       - run: npm run lint
       - run: npm test
 
+  # Not on pushes to main: main only receives what already passed on
+  # develop, and the published installer is checked by release-check.yml.
   windows-install:
     name: Windows install with Microsoft Defender
+    if: github.event_name != 'push' || github.ref_name != 'main'
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
