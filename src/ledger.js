@@ -9,7 +9,7 @@
 //    touch account balances.
 
 import { live } from './model.js';
-import { addDays, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
+import { addDays, addMonthsToMonth, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
 
 const OPEN_STATUSES = ['planned', 'reserved'];
 
@@ -286,4 +286,92 @@ export function categorySpentInMonth(data, categoryId, month) {
     .filter(e => e.categoryId === categoryId && e.type === 'expense' && e.status === 'done'
       && monthOf(e.date) === month && !e.isTransit && !e.isAdjustment)
     .reduce((s, e) => s + (e.amount || 0), 0);
+}
+
+// Progress of a savings goal: what lies on its envelope (the whole group when
+// the account has envelopes), what is left, and how much to set aside per
+// month to make it by the deadline (the current month counts).
+export function goalProgress(data, goal, today) {
+  const summaries = accountSummaries(data, today);
+  const s = goal.accountId ? summaries.get(goal.accountId) : null;
+  const hasEnvelopes = goal.accountId && live(data.accounts).some(a => a.parentId === goal.accountId);
+  const saved = s ? (hasEnvelopes ? s.totalBalance : s.ownBalance) : 0;
+  const target = goal.targetAmount || 0;
+  const remaining = Math.max(0, target - saved);
+  const percent = target > 0 ? Math.min(100, Math.floor((Math.max(0, saved) / target) * 100)) : 0;
+  let monthsLeft = null;
+  let perMonth = null;
+  let late = false;
+  if (goal.deadline) {
+    const [ty, tm] = today.split('-').map(Number);
+    const [dy, dm] = goal.deadline.split('-').map(Number);
+    monthsLeft = (dy - ty) * 12 + (dm - tm) + 1;
+    late = goal.deadline < today && remaining > 0;
+    if (monthsLeft < 1) monthsLeft = 0;
+    perMonth = remaining > 0 ? (monthsLeft > 0 ? Math.ceil(remaining / monthsLeft) : remaining) : 0;
+  }
+  return { saved, target, remaining, percent, monthsLeft, perMonth, late, reached: target > 0 && remaining === 0 };
+}
+
+// ---------- analytics ----------
+
+// What counts as real money in analytics: incomes and expenses that took
+// place, without pass-through money, transfers between own accounts and
+// reconciliation adjustments (those are shown apart).
+function realFlow(e) {
+  return e.status === 'done' && !e.isTransit && !e.isAdjustment && (e.type === 'income' || e.type === 'expense');
+}
+
+// Month by month from `fromMonth` to `toMonth`: what came in and went out,
+// the plan for expenses (planned amounts of planned payments not
+// cancelled; quick expenses were never planned) and the sum of adjustments.
+export function analyticsByMonth(data, fromMonth, toMonth) {
+  const rows = new Map();
+  for (let m = fromMonth; m <= toMonth; m = addMonthsToMonth(m, 1)) {
+    rows.set(m, { month: m, income: 0, expense: 0, plan: 0, adjustments: 0 });
+  }
+  live(data.entries).forEach(e => {
+    const row = rows.get(monthOf(e.date));
+    if (!row) return;
+    if (e.isAdjustment) {
+      if (e.status === 'done') row.adjustments += (e.type === 'expense' ? -1 : 1) * (e.amount || 0);
+      return;
+    }
+    if (e.status === 'cancelled' || e.isTransit || e.type === 'transfer') return;
+    if (e.type === 'expense' && !e.isQuick) row.plan += e.plannedAmount ?? e.amount ?? 0;
+    if (realFlow(e)) row[e.type] += e.amount || 0;
+  });
+  return [...rows.values()];
+}
+
+// Totals per category for a period, largest first.
+export function categoryBreakdown(data, fromDay, toDay, type = 'expense') {
+  const totals = new Map();
+  live(data.entries).forEach(e => {
+    if (e.type !== type || !realFlow(e) || e.date < fromDay || e.date > toDay) return;
+    const key = e.categoryId || null;
+    totals.set(key, (totals.get(key) || 0) + (e.amount || 0));
+  });
+  return [...totals.entries()]
+    .map(([categoryId, amount]) => ({ categoryId, amount }))
+    .filter(r => r.amount !== 0)
+    .sort((a, b) => b.amount - a.amount);
+}
+
+// Average per month of each category over the `n` full months before
+// `month` (the month in progress would pull the average down).
+export function categoryAverages(data, month, n, type = 'expense') {
+  const from = firstDayOfMonth(addMonthsToMonth(month, -n));
+  const to = lastDayOfMonth(addMonthsToMonth(month, -1));
+  return new Map(categoryBreakdown(data, from, to, type).map(r => [r.categoryId, Math.round(r.amount / n)]));
+}
+
+// The first month with any real income or expense: where "all history"
+// starts.
+export function firstFlowMonth(data) {
+  let first = null;
+  live(data.entries).forEach(e => {
+    if (realFlow(e) && (!first || e.date < first)) first = e.date;
+  });
+  return first ? monthOf(first) : null;
 }

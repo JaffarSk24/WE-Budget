@@ -27,6 +27,8 @@ export const DEFAULT_SETTINGS = {
   // The app's own calendar in Google Calendar, shared by all devices.
   reminderCalendarId: null,
   morningDigest: false,
+  // Free money in the menu bar of the Mac (the notification area on Windows).
+  menuBarFree: true,
   onboarded: false
 };
 

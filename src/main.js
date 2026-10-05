@@ -20,6 +20,8 @@ import { renderMonth, handleMonthKey } from './views/month.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTemplates } from './views/templates.js';
 import { renderSettings } from './views/settings.js';
+import { renderAnalytics } from './views/analytics.js';
+import { renderGoals } from './views/goals.js';
 import { renderWelcome } from './views/welcome.js';
 import { openQuickExpense, openEntryModal } from './modals.js';
 import { todayKey } from './dates.js';
@@ -29,6 +31,7 @@ import { sync, initSyncStatus, initSyncBanner } from './cloud.js';
 import { initUpdates, onUpdateChange } from './updates.js';
 import { initReminders, onReminderChange } from './reminder-sync.js';
 import { initNotifications } from './notify.js';
+import { initTray } from './tray.js';
 import { finishRedirectSignIn } from './web/cloud-web.js';
 import { isPhoneLayout, initPhone } from './views/phone.js';
 
@@ -39,10 +42,12 @@ const VIEWS = {
   month: renderMonth,
   accounts: renderAccounts,
   templates: renderTemplates,
+  analytics: renderAnalytics,
+  goals: renderGoals,
   settings: renderSettings,
   welcome: renderWelcome
 };
-const NAV_ORDER = ['overview', 'month', 'accounts', 'templates', 'settings'];
+const NAV_ORDER = ['overview', 'month', 'accounts', 'templates', 'analytics', 'goals', 'settings'];
 const LAST_VIEW_KEY = 'we-budget-last-view';
 
 let current = null;
@@ -105,7 +110,7 @@ function initKeys() {
       else openQuickExpense();
       return;
     }
-    if (mod && !e.shiftKey && /^[1-5]$/.test(e.key) && !needsWelcome()) {
+    if (mod && !e.shiftKey && /^[1-7]$/.test(e.key) && !needsWelcome()) {
       e.preventDefault();
       window.location.hash = '#' + NAV_ORDER[Number(e.key) - 1];
       return;
@@ -189,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .catch(e => console.error('sync init failed', e))
     .finally(() => initReminders());
   initNotifications();
+  if (!phone) initTray();
   registerServiceWorker();
   setInterval(checkDay, 60 * 1000);
   window.addEventListener('focus', checkDay);

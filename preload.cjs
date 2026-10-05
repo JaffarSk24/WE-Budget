@@ -40,7 +40,9 @@ contextBridge.exposeInMainWorld('weUpdates', {
 contextBridge.exposeInMainWorld('weApp', {
   info: () => ipcRenderer.invoke('app:info'),
   onBeforeClose: (callback) => ipcRenderer.on('app:before-close', () => callback()),
-  closeReady: () => ipcRenderer.send('app:close-ready')
+  closeReady: () => ipcRenderer.send('app:close-ready'),
+  setTray: (state) => ipcRenderer.send('app:tray', state),
+  onQuickExpense: (callback) => ipcRenderer.on('app:quick-expense', () => callback())
 });
 
 contextBridge.exposeInMainWorld('wePlatform', {

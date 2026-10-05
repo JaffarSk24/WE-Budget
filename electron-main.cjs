@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, shell, screen, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, shell, screen, Menu, nativeImage, Tray } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -167,6 +167,7 @@ function initUpdatesIpc() {
     if (result.ok && result.quit) setTimeout(() => app.quit(), 100);
     return result;
   });
+  ipcMain.on('app:tray', (_e, state) => updateTray(state));
   ipcMain.handle('app:info', () => ({
     version: app.getVersion(),
     packaged: app.isPackaged,
@@ -224,6 +225,57 @@ function buildAppMenu() {
     { role: 'editMenu' },
     { role: 'windowMenu' }
   ]));
+}
+
+// --- Menu bar (tray): free money and a quick expense ---
+// The page sends what to show; macOS puts the text next to a template icon
+// in the menu bar, Windows shows the icon in the notification area with the
+// text as its tooltip.
+let tray = null;
+
+function trayImage() {
+  // Native code reads the image, and it cannot look inside app.asar: the
+  // build unpacks these files.
+  const dir = path.join(__dirname, 'assets').replace('app.asar', 'app.asar.unpacked');
+  if (process.platform === 'darwin') {
+    const image = nativeImage.createFromPath(path.join(dir, 'trayTemplate.png'));
+    image.setTemplateImage(true);
+    return image;
+  }
+  const icon = path.join(__dirname, 'icon.png').replace('app.asar', 'app.asar.unpacked');
+  return nativeImage.createFromPath(icon).resize({ width: 16, height: 16 });
+}
+
+function updateTray(state) {
+  if (!state || !state.show) {
+    if (tray) { tray.destroy(); tray = null; }
+    return;
+  }
+  try {
+    if (!tray) {
+      tray = new Tray(trayImage());
+      tray.on('click', () => { if (process.platform !== 'darwin') showMainWindow(); });
+    }
+    if (process.platform === 'darwin') tray.setTitle(String(state.title || ''), { fontType: 'monospacedDigit' });
+    tray.setToolTip(String(state.tooltip || 'WE Budget'));
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: String(state.free || ''), enabled: false },
+      { type: 'separator' },
+      {
+        label: String(state.quick || 'Quick expense'),
+        click: () => {
+          showMainWindow();
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quick-expense');
+        }
+      },
+      { label: String(state.open || 'Open WE Budget'), click: () => showMainWindow() },
+      { type: 'separator' },
+      { label: String(state.quit || 'Quit'), click: () => app.quit() }
+    ]));
+  } catch (e) {
+    // A tray problem must never stop the app.
+    console.error('[tray]', e.message);
+  }
 }
 
 function showMainWindow() {

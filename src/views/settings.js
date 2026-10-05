@@ -221,9 +221,17 @@ export function renderSettings(root) {
   root.appendChild(syncSection());
   root.appendChild(remindersSection());
 
+  let menuBar = null;
+  if (window.weApp && typeof window.weApp.setTray === 'function') {
+    const windows = window.wePlatform && window.wePlatform.os === 'win32';
+    const box = h('input', { type: 'checkbox', checked: s.menuBarFree !== false });
+    box.addEventListener('change', () => store.updateSettings({ menuBarFree: box.checked }));
+    menuBar = settingRow(t(windows ? 'tray-title-win' : 'tray-title'), checkboxLabel(box, t(windows ? 'tray-setting-win' : 'tray-setting')), t('tray-hint'));
+  }
   root.appendChild(section(t('settings-look'), 'palette',
     settingRow(t('settings-language'), language),
-    settingRow(t('settings-theme'), theme)));
+    settingRow(t('settings-theme'), theme),
+    menuBar));
 
   root.appendChild(section(t('settings-accounting'), 'calculator',
     settingRow(t('settings-tracking'), tracking, t('settings-tracking-hint')),

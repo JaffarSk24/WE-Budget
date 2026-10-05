@@ -18,6 +18,9 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Overview.** Free money right now, the first payment there will not be enough money for, the next seven days and a forecast of free money.
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
 - **Small expenses** with optional monthly limits per category.
+- **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
+- **Goals**: an amount, the envelope you save on and a date; the app shows how far you are and how much to set aside per month.
+- **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick expense in its menu.
 - **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
 - **Sync** between computers and the phone through a hidden app folder on your Google Drive.
 - **Phone app**: today's and overdue payments, marking them, quick expenses and what is free, added to the home screen of an iPhone or an Android phone.
@@ -116,7 +119,7 @@ A typical routine:
 |---|---|
 | Cmd/Ctrl+N | Quick expense |
 | Shift+Cmd/Ctrl+N | New item |
-| Cmd/Ctrl+1 to 5 | Switch section |
+| Cmd/Ctrl+1 to 7 | Switch section |
 | Up, Down | Move between rows of the month |
 | Space | Mark the row done, or undo |
 | R | Set money aside for the row, or undo |
@@ -191,6 +194,7 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `src/sync/` | Merging budgets and the sync cycle |
 | `src/reminders.js`, `src/reminder-sync.js`, `src/notify.js` | Reminders in Google Calendar, notifications on the computer |
 | `src/web/`, `src/views/phone.js` | Google sign-in and Drive in the browser, the phone screens |
+| `src/views/analytics.js`, `src/views/goals.js`, `src/tray.js` | Analytics, goals, the menu bar |
 | `src/views/` | Screens |
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |
 | `src/import/` | Spreadsheet import |
