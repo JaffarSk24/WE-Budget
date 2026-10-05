@@ -1,0 +1,41 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules
+node_modules.nosync/
+
+# Build outputs
+dist/
+build/
+release/
+
+# Editors and OS
+.idea/
+.vscode/
+*.sw?
+.DS_Store
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Personal data and owner-specific configuration: never committed.
+# The repository is public; the owner's real budget, the import rules for
+# their spreadsheet and all credentials live only on their machines.
+private/
+*.local.json
+oauth-credentials.json
+google-credentials.json
+vapid-keys.json
+import-rules.json
+
+# Owner's working notes in Russian with real figures from their budget.
+CLAUDE.md
+docs/ТЗ.md
+
+# Local tooling
+.claude/

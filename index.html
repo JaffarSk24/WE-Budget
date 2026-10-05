@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WE Budget</title>
+  <link rel="icon" type="image/webp" href="./favicon.webp">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <div id="app-container">
+    <aside>
+      <div class="logo-container">
+        <div class="logo-icon">
+          <img src="./white-eagles-logo-white.webp" alt="White Eagles" width="26" height="26">
+        </div>
+        <div>
+          <span class="logo-text">WE Budget</span>
+          <span class="logo-sub">White Eagles</span>
+        </div>
+      </div>
+
+      <nav id="main-nav">
+        <a class="nav-item" data-view="overview"><i data-lucide="layout-dashboard"></i><span data-i18n="nav-overview"></span></a>
+        <a class="nav-item" data-view="month"><i data-lucide="calendar-days"></i><span data-i18n="nav-month"></span></a>
+        <a class="nav-item" data-view="accounts"><i data-lucide="wallet"></i><span data-i18n="nav-accounts"></span></a>
+        <a class="nav-item" data-view="templates"><i data-lucide="repeat"></i><span data-i18n="nav-templates"></span></a>
+        <a class="nav-item" data-view="settings"><i data-lucide="settings"></i><span data-i18n="nav-settings"></span></a>
+      </nav>
+
+      <button class="btn btn-primary quick-add-btn" id="quick-add-btn" type="button">
+        <i data-lucide="plus"></i><span data-i18n="quick-add"></span>
+      </button>
+
+      <div class="sidebar-footer">
+        WE Budget <span id="app-version"></span><br>
+        <a href="https://whiteeagles.sk/" target="_blank" rel="noopener">White Eagles &amp; Co. s.r.o.</a>
+      </div>
+    </aside>
+
+    <main>
+      <section id="view-overview" class="view-panel"></section>
+      <section id="view-month" class="view-panel"></section>
+      <section id="view-accounts" class="view-panel"></section>
+      <section id="view-templates" class="view-panel"></section>
+      <section id="view-settings" class="view-panel"></section>
+      <section id="view-welcome" class="view-panel"></section>
+    </main>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
