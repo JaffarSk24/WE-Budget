@@ -9,7 +9,7 @@ import {
   COLLECTIONS, defaultCategories, emptyData, hasAnyData, live, makeAccount, makeEntry,
   newId, normalizeData, nowIso
 } from './model.js';
-import { generationHorizon, pendingGeneration, futureOpenEntries } from './schedule.js';
+import { generationHorizon, pendingGeneration, futureOpenEntries, amountFor } from './schedule.js';
 import { buildAllocation } from './allocation.js';
 import { buildReconciliation } from './reconcile.js';
 import { todayKey, addDays } from './dates.js';
@@ -268,8 +268,8 @@ export class Store {
         future.forEach(e => Object.assign(e, {
           title: template.title,
           type: template.type,
-          amount: template.amount,
-          plannedAmount: template.amount,
+          amount: amountFor(template, e.occurrence || e.date),
+          plannedAmount: amountFor(template, e.occurrence || e.date),
           accountId: template.accountId,
           toAccountId: template.type === 'transfer' ? template.toAccountId : null,
           categoryId: template.categoryId,
@@ -320,6 +320,67 @@ export class Store {
       }
       e.updatedAt = now;
       return e;
+    });
+  }
+
+  // ---------- several entries at once ----------
+
+  // Status for many entries in one step (one undo). Entries that cannot take
+  // the status are skipped: only expenses can be set aside, a transfer is
+  // either planned or done. Returns how many changed.
+  bulkSetStatus(ids, status) {
+    return this.commit(data => {
+      const now = nowIso();
+      let changed = 0;
+      ids.forEach(id => {
+        const e = data.entries.find(x => x.id === id && !x.deleted);
+        if (!e || e.status === status) return;
+        if (status === 'reserved' && (e.type !== 'expense' || e.status !== 'planned')) return;
+        if (status === 'done') {
+          if (e.status === 'cancelled') return;
+          e.doneAt = now;
+        } else if (status === 'planned') {
+          Object.assign(e, { doneAt: null, reservedAt: null, allocationId: null });
+        } else if (status === 'reserved') {
+          e.reservedAt = now;
+        } else if (status === 'cancelled') {
+          e.doneAt = null;
+        }
+        e.status = status;
+        e.updatedAt = now;
+        changed++;
+      });
+      return changed;
+    });
+  }
+
+  // The same fields for many entries (date, account). `skip` lets the caller
+  // leave out entries the patch does not fit.
+  bulkUpdate(ids, patch, { skip = null } = {}) {
+    return this.commit(data => {
+      const now = nowIso();
+      let changed = 0;
+      ids.forEach(id => {
+        const e = data.entries.find(x => x.id === id && !x.deleted);
+        if (!e || (skip && skip(e))) return;
+        Object.assign(e, typeof patch === 'function' ? patch(e) : patch, { updatedAt: now });
+        changed++;
+      });
+      return changed;
+    });
+  }
+
+  bulkRemove(ids) {
+    return this.commit(data => {
+      const now = nowIso();
+      let changed = 0;
+      ids.forEach(id => {
+        const e = data.entries.find(x => x.id === id && !x.deleted);
+        if (!e) return;
+        Object.assign(e, { deleted: true, updatedAt: now });
+        changed++;
+      });
+      return changed;
     });
   }
 

@@ -102,7 +102,7 @@ export const en = {
   'show-cancelled': 'Show cancelled',
   'entry-add': 'Item',
   'month-empty': 'Nothing in this month yet. Add an item or a recurring payment.',
-  'month-keys': 'Keys: ↑ ↓ select a row, Space mark done, R set aside, Enter edit, Delete remove, N new item, ← → months, {mod}N quick expense',
+  'month-keys': 'Keys: ↑ ↓ row, Space mark done, R set aside, X select, {mod}A select all, Esc clear, Enter edit, Delete remove, N new item, ← → months, {mod}N quick expense. Shift-click selects a range.',
 
   // Overview
   'kpi-free': 'Free',
@@ -416,5 +416,43 @@ export const en = {
   // Welcome, cloud
   'welcome-cloud': 'My budget is in the cloud',
   'welcome-cloud-hint': 'If you keep the budget on another computer, sign in with the same Google account and it comes here.',
-  'welcome-cloud-empty': 'There is no budget in the cloud for this account yet. Start from scratch or load a file, and it will be saved to the cloud.'
+  'welcome-cloud-empty': 'There is no budget in the cloud for this account yet. Start from scratch or load a file, and it will be saved to the cloud.',
+
+  // Selection in the month view
+  'sel-region': 'Selected items',
+  'sel-row': 'Select item',
+  'sel-all': 'Select all items of the month',
+  'sel-count-one': '{n} item selected',
+  'sel-count-few': '{n} items selected',
+  'sel-count-many': '{n} items selected',
+  'sel-expense': 'out',
+  'sel-income': 'in',
+  'sel-by-account': 'Expenses by account:',
+  'sel-done': 'Done',
+  'sel-reserve': 'Set aside',
+  'sel-planned': 'Back to plan',
+  'sel-cancel': 'Cancel',
+  'sel-date': 'Date',
+  'sel-account': 'Account',
+  'sel-split': 'Split',
+  'sel-clear': 'Clear selection',
+  'toast-bulk-done': 'Marked as done: {n}',
+  'toast-bulk-reserved': 'Set aside: {n}',
+  'toast-bulk-planned': 'Back to the plan: {n}',
+  'toast-bulk-cancelled': 'Cancelled: {n}',
+  'toast-bulk-deleted': 'Deleted: {n}',
+  'toast-bulk-moved': 'Moved: {n}',
+  'toast-bulk-account': 'Account changed: {n}',
+  'bulk-date-title': 'Move items: {n}',
+  'bulk-date-mode-set': 'To a date',
+  'bulk-date-mode-shift': 'Shift',
+  'bulk-date-new': 'New date',
+  'bulk-date-days': 'By how many days',
+  'bulk-date-days-hint': 'Negative means earlier, for example -3',
+  'bulk-account-title': 'Change account: {n}',
+  'bulk-account-none': 'Only transfers are selected; their accounts are changed in the item itself',
+  'bulk-account-transfers': 'Transfers among the selected stay as they are: they have two accounts.',
+  'err-days': 'Enter a number of days other than zero',
+  'template-fill-gaps': 'Show it in the other months too, with a zero amount',
+  'sched-fill-gaps': 'zero in other months'
 };

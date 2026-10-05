@@ -143,6 +143,16 @@ export function importMonthlySheet(csvText, rules = {}) {
 
   // ---------- split rows into monthly blocks ----------
   const rows = parseCsv(csvText).slice(rules.headerRows ?? 1);
+
+  // A row with zero in both columns does not say whether it is an expense or
+  // an income; the same title with an amount elsewhere in the sheet does.
+  const knownType = new Map();
+  rows.forEach(row => {
+    const title = normalizeTitle(cell(row, cols.title), rules);
+    if (!title || knownType.has(title)) return;
+    if (amount(row, cols.income)) knownType.set(title, 'income');
+    else if (amount(row, cols.expense)) knownType.set(title, 'expense');
+  });
   const blocks = [];
   let current = [];
   rows.forEach((row, i) => {
@@ -234,10 +244,12 @@ export function importMonthlySheet(csvText, rules = {}) {
       const isDone = cell(row, cols.status).includes(doneMarker);
       const status = forward ? (isDone ? 'done' : 'planned') : 'done';
 
+      // Zero rows are kept in the planned months: they are reminders that
+      // the payment exists and may come back. History has no use for them.
       const parts = [['expense', exp], ['income', inc]].filter(([, v]) => v);
       if (!parts.length) {
         if (!forward) return;
-        parts.push([rules.zeroRowType || 'expense', 0]);
+        parts.push([knownType.get(title) || rules.zeroRowType || 'expense', 0]);
       }
 
       parts.forEach(([type, value]) => {
@@ -246,7 +258,7 @@ export function importMonthlySheet(csvText, rules = {}) {
         perTitleCount.set(countKey, index);
 
         let entry = null;
-        if (value) {
+        if (value || forward) {
           entry = makeEntry({
             date, title, type, amount: value, accountId: account.id,
             categoryId: categoryFor(title, type), status,
@@ -314,10 +326,11 @@ export function importMonthlySheet(csvText, rules = {}) {
       accountId: last.accountId,
       categoryId: data.entries.find(e => e.title === group.title && e.categoryId)?.categoryId || null,
       isTransit: transitTitles.has(group.title),
-      active: o.active ?? nonZero.length > 0,
+      active: o.active ?? true,
       schedule: {
         freq: o.freq || 'monthly',
         interval: o.interval || 1,
+        fillGaps: Boolean(o.fillGaps),
         // The latest month says best where the payment has settled.
         day: o.day || Number(group.rows[group.rows.length - 1].date.slice(8, 10)),
         startDate: o.startDate || first.date
@@ -326,7 +339,8 @@ export function importMonthlySheet(csvText, rules = {}) {
     });
     data.templates.push(template);
     group.rows.forEach(r => {
-      if (r.entry) Object.assign(r.entry, { templateId: template.id, occurrence: r.date, plannedAmount: template.amount || r.amount });
+      // The sheet's own figure for that month is what was planned then.
+      if (r.entry) Object.assign(r.entry, { templateId: template.id, occurrence: r.date, plannedAmount: r.amount });
     });
     report.templates++;
   });

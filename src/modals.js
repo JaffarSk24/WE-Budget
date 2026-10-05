@@ -9,7 +9,7 @@ import {
   categoryOptions, icon, refreshIcons, confirmDialog, lang
 } from './ui.js';
 import { makeAccount, makeEntry, makeTemplate, nowIso, live } from './model.js';
-import { todayKey, isDayKey, formatDay, monthOf } from './dates.js';
+import { todayKey, isDayKey, formatDay, monthOf, addDays } from './dates.js';
 import { accountSummaries, categorySpentInMonth } from './ledger.js';
 import { allocationCandidates, defaultAllocationEnd, planForSelection, suggestAllocation } from './allocation.js';
 
@@ -175,6 +175,73 @@ export function openEntryModal(entry = null, defaults = {}) {
   openModal({ title: isNew ? t('entry-new') : t('entry-edit'), body, actions });
 }
 
+// ---------- several entries at once ----------
+
+export function openBulkDateModal(ids) {
+  const entries = live(store.data.entries).filter(e => ids.includes(e.id));
+  if (!entries.length) return;
+  let mode = 'set';
+  const date = dateInput(entries[0].date);
+  const days = h('input', { type: 'number', value: 1, step: 1 });
+  const dateField = field(t('bulk-date-new'), date);
+  const daysField = field(t('bulk-date-days'), days, t('bulk-date-days-hint'));
+  daysField.style.display = 'none';
+  const switcher = segmented([
+    { value: 'set', label: t('bulk-date-mode-set') },
+    { value: 'shift', label: t('bulk-date-mode-shift') }
+  ], mode, (v) => {
+    mode = v;
+    dateField.style.display = v === 'set' ? '' : 'none';
+    daysField.style.display = v === 'shift' ? '' : 'none';
+  });
+
+  openModal({
+    title: t('bulk-date-title', { n: entries.length }),
+    body: h('div', { class: 'form-stack' }, switcher, dateField, daysField),
+    actions: [
+      { label: t('cancel'), onClick: (m) => m.close() },
+      {
+        label: t('save'), kind: 'primary', onClick: (m) => {
+          if (mode === 'set' && !isDayKey(date.value)) return fail(t('err-date'));
+          const shift = Math.trunc(Number(days.value));
+          if (mode === 'shift' && (!Number.isFinite(shift) || shift === 0)) return fail(t('err-days'));
+          withUndo(t('toast-bulk-moved', { n: entries.length }), () =>
+            store.bulkUpdate(entries.map(e => e.id), (e) => ({ date: mode === 'set' ? date.value : addDays(e.date, shift) })));
+          m.close();
+          return true;
+        }
+      }
+    ]
+  });
+}
+
+export function openBulkAccountModal(ids) {
+  const entries = live(store.data.entries).filter(e => ids.includes(e.id) && e.type !== 'transfer');
+  if (!entries.length) {
+    showToast(t('bulk-account-none'), { type: 'info' });
+    return;
+  }
+  const account = selectEl(accountOptions({ emptyLabel: t('choose-account') }), '');
+  openModal({
+    title: t('bulk-account-title', { n: entries.length }),
+    body: h('div', { class: 'form-stack' },
+      field(t('field-account'), account),
+      entries.length < ids.length ? h('p', { class: 'field-hint' }, t('bulk-account-transfers')) : null),
+    actions: [
+      { label: t('cancel'), onClick: (m) => m.close() },
+      {
+        label: t('save'), kind: 'primary', onClick: (m) => {
+          if (!account.value) return fail(t('err-account'));
+          withUndo(t('toast-bulk-account', { n: entries.length }), () =>
+            store.bulkUpdate(entries.map(e => e.id), { accountId: account.value }));
+          m.close();
+          return true;
+        }
+      }
+    ]
+  });
+}
+
 // ---------- actual amount for estimated payments ----------
 
 export function promptAmount(entry) {
@@ -271,16 +338,29 @@ export function openQuickExpense() {
 
 // ---------- allocation ----------
 
-export function openAllocationModal({ sourceAccountId = null, until = null } = {}) {
+export function openAllocationModal({ sourceAccountId = null, until = null, preselect = null } = {}) {
   const today = todayKey();
   const source = selectEl(accountOptions(), sourceAccountId || store.settings.defaultIncomeAccountId || '');
-  const untilInput = dateInput(until || defaultAllocationEnd(store.data, today));
+  // Bills picked in the month view: cover exactly those, up to the last one.
+  let picked = preselect && preselect.length ? new Set(preselect) : null;
+  let untilDefault = until || defaultAllocationEnd(store.data, today);
+  if (picked) {
+    const last = live(store.data.entries).filter(e => picked.has(e.id)).map(e => e.date).sort().pop();
+    if (last && last > untilDefault) untilDefault = last;
+  }
+  const untilInput = dateInput(untilDefault);
   const freeInfo = h('div', { class: 'alloc-free' });
   const list = h('div', { class: 'alloc-list' });
   const summary = h('div', { class: 'alloc-summary' });
   let selected = new Set();
 
   function resetSelection() {
+    if (picked) {
+      const ids = new Set(allocationCandidates(store.data, untilInput.value).map(e => e.id));
+      selected = new Set([...picked].filter(id => ids.has(id)));
+      picked = null;
+      return;
+    }
     const plan = suggestAllocation(store.data, source.value, untilInput.value);
     selected = new Set([...plan.inPlace, ...plan.lines.flatMap(l => l.entryIds)]);
   }
@@ -524,6 +604,7 @@ export function openTemplateModal(template = null) {
   ], src.schedule.freq);
   const day = h('input', { type: 'number', min: 1, max: 31, value: src.schedule.day });
   const interval = h('input', { type: 'number', min: 2, max: 24, value: Math.max(2, src.schedule.interval || 2) });
+  const fillGaps = checkbox(t('template-fill-gaps'), src.schedule.fillGaps);
   const weekdays = WEEKDAY_KEYS.map((k, i) => checkbox(t(k), (src.schedule.weekdays || []).includes(i)));
   const startDate = dateInput(src.schedule.startDate || todayKey());
   const endDate = h('input', { type: 'date', value: src.schedule.endDate || '' });
@@ -550,6 +631,7 @@ export function openTemplateModal(template = null) {
     const f = freq.value;
     dayField.style.display = (f === 'monthly' || f === 'everyNMonths' || f === 'yearly') ? '' : 'none';
     intervalField.style.display = f === 'everyNMonths' ? '' : 'none';
+    fillGaps.el.style.display = f === 'everyNMonths' ? '' : 'none';
     weekdaysField.style.display = f === 'weekly' ? '' : 'none';
   }
   freq.addEventListener('change', syncFreq);
@@ -589,6 +671,7 @@ export function openTemplateModal(template = null) {
         interval: freq.value === 'everyNMonths' ? Math.max(2, Number(interval.value) || 2) : 1,
         day: Math.min(31, Math.max(1, Number(day.value) || 1)),
         weekdays: weekdays.map((w, i) => (w.input.checked ? i : -1)).filter(i => i >= 0),
+        fillGaps: freq.value === 'everyNMonths' && fillGaps.input.checked,
         startDate: startDate.value,
         endDate: endDate.value || null
       };
@@ -629,6 +712,7 @@ export function openTemplateModal(template = null) {
       estimate.el,
       h('div', { class: 'form-row' }, field(type === 'transfer' ? t('field-from-account') : t('field-account'), account), toField, categoryField),
       h('div', { class: 'form-row' }, field(t('template-freq'), freq), dayField, intervalField),
+      fillGaps.el,
       weekdaysField,
       h('div', { class: 'form-row' }, field(t('template-start'), startDate), field(t('template-end'), endDate, t('template-end-hint'))),
       h('div', { class: 'checkbox-group' }, transit.el, active.el, isNew ? null : applyFuture.el)),

@@ -63,8 +63,10 @@ describe('merge rules', () => {
   it('newer record wins, records known on one side are kept, both sides converge', () => {
     const a = seed();
     const b = JSON.parse(JSON.stringify(a));
-    a.entries[0] = { ...a.entries[0], amount: 99000, updatedAt: '2026-10-05T10:00:00.000Z' };
-    b.entries[1] = { ...b.entries[1], title: 'Mobile', updatedAt: '2026-10-05T11:00:00.000Z' };
+    // Far-future stamps: the edits must be newer than the seed whatever the
+    // clock says when the test runs.
+    a.entries[0] = { ...a.entries[0], amount: 99000, updatedAt: '2099-10-05T10:00:00.000Z' };
+    b.entries[1] = { ...b.entries[1], title: 'Mobile', updatedAt: '2099-10-05T11:00:00.000Z' };
     b.entries.push(makeEntry({ date: '2026-10-09', title: 'Gym', amount: 3000, accountId: a.accounts[0].id }));
 
     const ab = mergeBudgets(a, b).data;
@@ -77,7 +79,7 @@ describe('merge rules', () => {
   it('a deletion is not undone by an older copy', () => {
     const a = seed();
     const b = JSON.parse(JSON.stringify(a));
-    a.entries[0] = { ...a.entries[0], deleted: true, updatedAt: '2026-10-05T12:00:00.000Z' };
+    a.entries[0] = { ...a.entries[0], deleted: true, updatedAt: '2099-10-05T12:00:00.000Z' };
     const merged = mergeBudgets(b, a).data;
     expect(live(merged.entries).map(e => e.title)).toEqual(['Phone']);
   });

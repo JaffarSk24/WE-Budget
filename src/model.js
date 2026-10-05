@@ -71,6 +71,9 @@ export function makeSchedule(s = {}) {
     interval: Math.max(1, Number(s.interval) || 1),
     day: Math.min(31, Math.max(1, Number(s.day) || 1)),
     weekdays: Array.isArray(s.weekdays) ? s.weekdays.filter(w => w >= 0 && w <= 6) : [],
+    // Every-N-months payments can still show up every month, with a zero
+    // amount in the months they are not due, so the row is never out of sight.
+    fillGaps: !!s.fillGaps,
     startDate: s.startDate || null,
     endDate: s.endDate || null
   };

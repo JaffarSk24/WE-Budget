@@ -38,6 +38,7 @@ const SHEET = [
   '✅,02.08.2026,Salary,"0,00€","1 000,00€",-,',
   '✅,03.08.2026,Rent,"500,00€","0,00€",BANK (Bills),',
   '✅,10.08.2026,Phone,"20,00€","0,00€",BANK (Bills),',
+  '✅,12.08.2026,Gym,"0,00€","0,00€",BANK (Bills),',
   ',-,Unexpected,"30,00€","0,00€",-,',
   ',Subtotal,,"550,00€","1 100,00€",Left,"550,00€"',
   '✅,01.09.2026,Carry over,"0,00€","550,00€",-,',
@@ -82,11 +83,16 @@ describe('monthly sheet import', () => {
 
   it('turns history into done entries and the planned month into templates', () => {
     const october = live(data.entries).filter(e => e.date.startsWith('2026-10'));
-    expect(october.map(e => [e.title, e.status]).sort()).toEqual([['Rent', 'planned'], ['Salary', 'done']]);
+    expect(october.map(e => [e.title, e.status, e.amount]).sort()).toEqual([
+      ['Rent', 'planned', 50000], ['Salary', 'done', 100000], ['Streaming', 'planned', 0]
+    ]);
+    // A zero row stays in the plan as a reminder and keeps generating.
     expect(data.templates.map(t => [t.title, t.active]).sort()).toEqual([
-      ['Rent', true], ['Salary', true], ['Streaming', false]
+      ['Rent', true], ['Salary', true], ['Streaming', true]
     ]);
     expect(october.every(e => e.templateId)).toBe(true);
+    // History has no use for zero rows.
+    expect(live(data.entries).some(e => e.title === 'Gym')).toBe(false);
   });
 
   it('maps accounts to envelopes and opens tracking with the carried balance', () => {
@@ -100,7 +106,7 @@ describe('monthly sheet import', () => {
 
   it('puts unexplained money into its own category', () => {
     const e = live(data.entries).find(x => x.title === 'Unexpected');
-    expect(e.date).toBe('2026-08-10');
+    expect(e.date).toBe('2026-08-12');
     expect(data.categories.find(c => c.id === e.categoryId).name).toBe('No details');
   });
 });

@@ -44,7 +44,8 @@ export function occurrences(schedule, from, to) {
     case 'monthly':
     case 'everyNMonths':
     default: {
-      const step = schedule.freq === 'everyNMonths' ? Math.max(1, schedule.interval || 1) : 1;
+      const every = schedule.freq === 'everyNMonths' ? Math.max(1, schedule.interval || 1) : 1;
+      const step = schedule.fillGaps ? 1 : every;
       const anchor = monthOf(start);
       for (let m = monthOf(lo); m <= monthOf(hi); m = addMonthsToMonth(m, 1)) {
         if (monthsBetween(anchor, m) % step !== 0) continue;
@@ -63,15 +64,29 @@ export function generationHorizon(today, months) {
   return lastDayOfMonth(addMonthsToMonth(monthOf(today), months));
 }
 
+// Whether a payment is due in the month of `day`. Only every-N-months
+// schedules that show the other months as zero rows have months that are not.
+export function isDueOn(schedule, day) {
+  if (schedule.freq !== 'everyNMonths' || !schedule.fillGaps) return true;
+  const anchor = monthOf(schedule.startDate || day);
+  const diff = monthsBetween(anchor, monthOf(day));
+  return ((diff % schedule.interval) + schedule.interval) % schedule.interval === 0;
+}
+
+export function amountFor(template, day) {
+  return isDueOn(template.schedule, day) ? template.amount : 0;
+}
+
 export function entryFromTemplate(template, day) {
+  const amount = amountFor(template, day);
   return makeEntry({
     templateId: template.id,
     occurrence: day,
     date: day,
     title: template.title,
     type: template.type,
-    plannedAmount: template.amount,
-    amount: template.amount,
+    plannedAmount: amount,
+    amount,
     accountId: template.accountId,
     toAccountId: template.type === 'transfer' ? template.toAccountId : null,
     categoryId: template.categoryId,

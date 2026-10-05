@@ -129,3 +129,56 @@ describe('allocation through the store', () => {
     expect(transfer).toMatchObject({ amount: 20000, accountId: main.id, toAccountId: env.id });
   });
 });
+
+describe('every N months with zero rows in between', () => {
+  it('shows up every month, with the amount only in the due months', async () => {
+    const { occurrences, amountFor } = await import('../src/schedule.js');
+    const schedule = { freq: 'everyNMonths', interval: 2, day: 6, startDate: '2026-11-06', fillGaps: true };
+    expect(occurrences(schedule, '2026-11-01', '2027-03-31')).toEqual(['2026-11-06', '2026-12-06', '2027-01-06', '2027-02-06', '2027-03-06']);
+    const t = { amount: 8000, schedule };
+    expect(['2026-11-06', '2026-12-06', '2027-01-06', '2027-02-06'].map(d => amountFor(t, d))).toEqual([8000, 0, 8000, 0]);
+  });
+
+  it('template edits keep the zero months at zero', () => {
+    const { store } = freshStore();
+    store.setupFresh({ trackingStart: '2026-10-01' });
+    const t = makeTemplate({ title: 'After-school club', amount: 8000, schedule: { freq: 'everyNMonths', interval: 2, day: 6, startDate: '2026-11-06', fillGaps: true } });
+    store.saveTemplate(t);
+    store.saveTemplate({ ...store.find('templates', t.id), amount: 9000 }, { applyToFuture: true });
+    const amounts = store.list('entries').sort((x, y) => (x.date < y.date ? -1 : 1)).map(e => [e.date, e.amount]);
+    expect(amounts).toEqual([['2026-11-06', 9000], ['2026-12-06', 0], ['2027-01-06', 9000]]);
+  });
+});
+
+describe('several entries at once', () => {
+  function withEntries() {
+    const { store } = freshStore();
+    const acc = store.add('accounts', makeAccount({ name: 'Main' }));
+    const mk = (f) => store.add('entries', makeEntry({ date: '2026-10-10', amount: 1000, accountId: acc.id, ...f }));
+    return { store, acc, plan: mk({}), income: mk({ type: 'income' }), cancelled: mk({ status: 'cancelled' }), done: mk({ status: 'done' }) };
+  }
+
+  it('sets aside only planned expenses and never marks cancelled ones done', () => {
+    const { store, plan, income, cancelled, done } = withEntries();
+    expect(store.bulkSetStatus([plan.id, income.id, cancelled.id, done.id], 'reserved')).toBe(1);
+    expect(store.find('entries', plan.id).status).toBe('reserved');
+    expect(store.bulkSetStatus([plan.id, income.id, cancelled.id], 'done')).toBe(2);
+    expect(store.find('entries', cancelled.id).status).toBe('cancelled');
+  });
+
+  it('moves dates by a number of days and deletes in one step', async () => {
+    const { store, plan, income } = withEntries();
+    const { addDays } = await import('../src/dates.js');
+    store.bulkUpdate([plan.id, income.id], (e) => ({ date: addDays(e.date, 3) }));
+    expect(store.find('entries', plan.id).date).toBe('2026-10-13');
+    expect(store.bulkRemove([plan.id, income.id])).toBe(2);
+    expect(store.list('entries')).toHaveLength(2);
+  });
+
+  it('zero amounts are never part of a split', async () => {
+    const { allocationCandidates } = await import('../src/allocation.js');
+    const { store, acc } = withEntries();
+    store.add('entries', makeEntry({ date: '2026-10-11', amount: 0, accountId: acc.id, title: 'Reminder' }));
+    expect(allocationCandidates(store.data, '2026-10-31').some(e => e.title === 'Reminder')).toBe(false);
+  });
+});

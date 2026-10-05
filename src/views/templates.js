@@ -12,7 +12,7 @@ export function describeSchedule(s) {
   const dayText = s.day >= 31 ? t('sched-last-day') : t('sched-day', { day: s.day });
   switch (s.freq) {
     case 'monthly': return t('sched-monthly', { day: dayText });
-    case 'everyNMonths': return t('sched-every-n', { n: s.interval, day: dayText });
+    case 'everyNMonths': return t('sched-every-n', { n: s.interval, day: dayText }) + (s.fillGaps ? ', ' + t('sched-fill-gaps') : '');
     case 'yearly': return t('sched-yearly', { date: formatDay(dayInMonth(`2001-${(s.startDate || '2001-01-01').slice(5, 7)}`, s.day), lang()) });
     case 'weekly': return t('sched-weekly', { days: (s.weekdays || []).map(i => t(WEEKDAY_KEYS[i])).join(', ') });
     case 'once': return t('sched-once', { date: s.startDate ? formatDay(s.startDate, lang()) + '.' + s.startDate.slice(0, 4) : '' });

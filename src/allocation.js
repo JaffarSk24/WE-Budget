@@ -22,7 +22,7 @@ export function allocationCandidates(data, until) {
   const start = data.settings.trackingStart || '0000-01-01';
   return live(data.entries)
     .filter(e => e.type === 'expense' && e.status === 'planned' && !e.isTransit
-      && e.accountId && e.date <= until && e.date >= start)
+      && (e.amount || 0) > 0 && e.accountId && e.date <= until && e.date >= start)
     .sort(compareEntries);
 }
 
