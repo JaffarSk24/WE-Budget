@@ -4,6 +4,8 @@ WE Budget is a desktop budgeting app built around a payment calendar. You plan e
 
 It runs on macOS and Windows, works offline, keeps your data on your own computer and can sync it between computers through your own Google Drive. Made by [White Eagles & Co. s.r.o.](https://whiteeagles.sk/)
 
+Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget/) · [Privacy policy](https://jaffarsk24.github.io/WE-Budget/privacy.html)
+
 ![Overview](docs/screenshots/overview.png)
 
 ## What it does
@@ -118,7 +120,7 @@ Shift-click on a checkbox ticks a range. Every destructive action can be undone 
 
 Sign in with Google in Settings, or on the first-launch screen of a new computer. The budget is stored as one compressed file in the app's hidden folder on your Google Drive: neither other apps nor you see it in Drive, and nothing is kept on any other server.
 
-The app syncs on start, a few seconds after a change, every five minutes and before it closes. Changes made on different computers are merged record by record; the newer change of a record wins and deletions are kept. If a computer and the cloud hold two different budgets, the app asks which one to keep and never mixes them. Without a connection everything keeps working and goes up later.
+The app syncs on start, a few seconds after a change, every five minutes and before it closes. Changes made on different computers are merged record by record; the newer change of a record wins and deletions are kept. If a computer and the cloud hold two different budgets, the app asks which one to keep and never mixes them. Without a connection everything keeps working and goes up later. What the app stores, where, and how to remove it is described in the [privacy policy](https://jaffarsk24.github.io/WE-Budget/privacy.html).
 
 ## Updates
 
@@ -171,6 +173,8 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |
 | `src/import/` | Spreadsheet import |
 | `tests/` | Unit tests |
+| `site/` | The website on GitHub Pages: the app page and the privacy policy |
+| `scripts/check-windows-install.ps1` | Install check on a clean Windows machine, run by CI |
 
 Built with Electron, plain JavaScript modules, Vite, Chart.js and Lucide icons.
 

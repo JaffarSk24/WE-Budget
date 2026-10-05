@@ -11,13 +11,14 @@ function files(dir) {
   return readdirSync(dir).flatMap(name => {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) return files(p);
-    return /\.(js|cjs|mjs|css|html|json)$/.test(p) ? [p] : [];
+    return /\.(js|cjs|mjs|css|html|json|md|yml|ps1)$/.test(p) ? [p] : [];
   });
 }
 
 describe('source hygiene', () => {
-  const targets = [...files('src'), ...files('tests'), ...files('scripts'),
-    'index.html', 'electron-main.cjs', 'preload.cjs', 'package.json', 'vite.config.js', 'eslint.config.js'];
+  const targets = [...files('src'), ...files('tests'), ...files('scripts'), ...files('main'), ...files('site'),
+    ...files('.github'), 'README.md', 'index.html', 'electron-main.cjs', 'preload.cjs', 'package.json',
+    'vite.config.js', 'eslint.config.js'];
 
   it.each(targets)('%s is clean', (path) => {
     const lines = readFileSync(path, 'utf8').split('\n');
