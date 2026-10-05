@@ -7,6 +7,8 @@ import { h, clear, icon, refreshIcons, lang, moneyInput, selectEl, pickFile } fr
 import { todayKey, isDayKey } from '../dates.js';
 import { buildDemo } from '../demo.js';
 import { navigate } from '../router.js';
+import { sync, signIn, cancelSignIn } from '../cloud.js';
+import { hasAnyData } from '../model.js';
 
 function accountLine(removable, onRemove) {
   const name = h('input', { type: 'text', placeholder: t('welcome-account-name') });
@@ -50,6 +52,25 @@ export function renderWelcome(root) {
       }
     }, t('welcome-start')));
 
+  // On a second computer the budget is already in the cloud: sign in and
+  // it comes down.
+  const canSync = sync.bridge && !['unavailable', 'unconfigured'].includes(sync.state.status);
+  const cloudCard = canSync ? h('div', { class: 'card welcome-card welcome-cloud' },
+    h('div', { class: 'card-title-row' }, icon('cloud'), h('h3', {}, t('welcome-cloud'))),
+    h('p', { class: 'setting-hint' }, t('welcome-cloud-hint')),
+    sync.state.signingIn
+      ? h('div', { class: 'inline-actions' },
+        h('button', { type: 'button', class: 'btn btn-primary', disabled: true }, icon('loader'), t('sync-waiting-browser')),
+        h('button', { type: 'button', class: 'btn btn-secondary', onclick: cancelSignIn }, t('cancel')))
+      : h('button', {
+        type: 'button', class: 'btn btn-primary', onclick: async () => {
+          const ok = await signIn();
+          if (!ok) return;
+          if (hasAnyData(store.data)) navigate('month');
+          else showToast(t('welcome-cloud-empty'), { type: 'info', duration: 8000 });
+        }
+      }, icon('log-in'), t('sync-login'))) : null;
+
   const restore = h('div', { class: 'card welcome-card' },
     h('div', { class: 'card-title-row' }, icon('upload'), h('h3', {}, t('welcome-restore'))),
     h('p', { class: 'setting-hint' }, t('welcome-restore-hint')),
@@ -84,6 +105,6 @@ export function renderWelcome(root) {
       h('h1', { class: 'view-title' }, t('welcome-title')),
       h('p', { class: 'view-subtitle' }, t('welcome-subtitle')),
       h('div', { class: 'welcome-lang' }, icon('languages'), language)),
-    h('div', { class: 'welcome-grid' }, fresh, h('div', { class: 'welcome-side' }, restore, demo))));
+    h('div', { class: 'welcome-grid' }, fresh, h('div', { class: 'welcome-side' }, cloudCard, restore, demo))));
   refreshIcons();
 }

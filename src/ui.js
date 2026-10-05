@@ -147,7 +147,10 @@ export function openModal({ title, body, actions = [], wide = false, onClose = n
     if (a.kind === 'primary') btn.dataset.primary = '1';
     footer.appendChild(btn);
   });
-  content.append(header, h('div', { class: 'modal-body' }, body), actions.length ? footer : null);
+  // append() would print a literal "null", so the footer is added only
+  // when there are buttons.
+  content.append(header, h('div', { class: 'modal-body' }, body));
+  if (actions.length) content.append(footer);
   overlay.appendChild(content);
   overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
   document.body.appendChild(overlay);

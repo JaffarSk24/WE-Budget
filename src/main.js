@@ -24,6 +24,8 @@ import { openQuickExpense, openEntryModal } from './modals.js';
 import { todayKey } from './dates.js';
 import { hasAnyData } from './model.js';
 import { setNavigator } from './router.js';
+import { sync, initSyncStatus } from './cloud.js';
+import { initUpdates, onUpdateChange } from './updates.js';
 
 window.lucide = { createIcons: () => createIcons({ icons: usedIcons }) };
 
@@ -122,6 +124,22 @@ document.addEventListener('DOMContentLoaded', () => {
   initModalKeys();
   initKeys();
   showLoadError();
+  initSyncStatus(document.getElementById('sync-status'));
+  initUpdates(document.getElementById('update-banner'));
+  sync.onChange(() => { if (current === 'settings' || current === 'welcome') render(); });
+  onUpdateChange(() => { if (current === 'settings') render(); });
+
+  // Before the window closes, unsent changes go to the cloud (the main
+  // process waits a few seconds at most).
+  if (window.weApp) {
+    window.weApp.onBeforeClose(async () => {
+      try {
+        await Promise.race([sync.flush(), new Promise(r => setTimeout(r, 7000))]);
+      } finally {
+        window.weApp.closeReady();
+      }
+    });
+  }
 
   if (!needsWelcome()) store.generate();
   store.subscribe(() => {
@@ -136,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try { initial = localStorage.getItem(LAST_VIEW_KEY); } catch (e) { initial = null; }
   }
   show(VIEWS[initial] ? initial : 'month');
+  sync.init().catch(e => console.error('sync init failed', e));
   setInterval(checkDay, 60 * 1000);
   window.addEventListener('focus', checkDay);
 });

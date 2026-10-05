@@ -1,12 +1,20 @@
-const { app, BrowserWindow, ipcMain, protocol, shell, screen, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, shell, screen, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const cloud = require('./main/cloud.cjs');
+const updater = require('./main/updater.cjs');
 
 let viteProcess = null;
 let mainWindow = null;
 let lastUrl = null;
 let mainWindowHasOpened = false;
+// Closing waits for the page to push unsent changes to the cloud, at most
+// this long; a slow network must never trap the user in an app that will
+// not close. Anything not sent stays local and goes up on the next start.
+const CLOSE_SYNC_TIMEOUT_MS = 8000;
+let closeAllowed = false;
+let closeRequested = false;
 
 const APP_NAME = 'WE Budget';
 const DEV_PORT = 3010;
@@ -14,7 +22,7 @@ const DEV_PORT = 3010;
 // One data folder for every way of starting the app. Without this the dev
 // run (named after package.json) and the installed app (named after the
 // product) would each keep their own budget.
-app.setPath('userData', path.join(app.getPath('appData'), APP_NAME));
+app.setPath('userData', process.env.WE_BUDGET_USER_DATA || path.join(app.getPath('appData'), APP_NAME));
 
 // Custom app:// scheme instead of a local HTTP server: a stable origin and no
 // open port.
@@ -130,6 +138,43 @@ function initStorageIpc() {
   });
 }
 
+// --- Cloud sync transport and updates ---
+function initCloudIpc() {
+  cloud.init();
+  ipcMain.handle('cloud:status', () => cloud.status());
+  ipcMain.handle('cloud:login', (_e, lang) => cloud.login(lang));
+  ipcMain.handle('cloud:cancel-login', () => { cloud.cancelLogin(); return { ok: true }; });
+  ipcMain.handle('cloud:logout', () => cloud.logout());
+  ipcMain.handle('cloud:get-state', () => cloud.getState());
+  ipcMain.handle('cloud:set-state', (_e, patch) => cloud.setState(patch || {}));
+  ipcMain.handle('cloud:meta', () => cloud.meta());
+  ipcMain.handle('cloud:download', (_e, fileId) => cloud.download(fileId));
+  ipcMain.handle('cloud:upload', (_e, content, fileId) => cloud.upload(content, fileId));
+  ipcMain.handle('cloud:remove', (_e, ids) => cloud.remove(ids));
+}
+
+function initUpdatesIpc() {
+  updater.cleanup();
+  ipcMain.handle('updates:check', () => updater.check());
+  ipcMain.handle('updates:download', () => updater.download((p) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('updates:progress', p);
+  }));
+  ipcMain.handle('updates:install', () => {
+    const result = updater.install();
+    // Quitting goes through the normal close path, so unsent changes reach
+    // the cloud before the new version replaces this one.
+    if (result.ok && result.quit) setTimeout(() => app.quit(), 100);
+    return result;
+  });
+  ipcMain.handle('app:info', () => ({
+    version: app.getVersion(),
+    packaged: app.isPackaged,
+    platform: process.platform,
+    arch: process.arch,
+    canInstallUpdates: updater.canInstallInPlace()
+  }));
+}
+
 // --- Serve the built app via app:// (dist only) ---
 const MIME = {
   '.html': 'text/html',
@@ -235,7 +280,32 @@ function createWindow(url) {
 
   mainWindowHasOpened = true;
   mainWindow.loadURL(url);
-  mainWindow.on('closed', () => { mainWindow = null; });
+
+  // Before the window goes away the page gets a chance to upload unsent
+  // changes. It answers app:close-ready; the timeout covers a page that
+  // hangs or is gone.
+  mainWindow.on('close', (event) => {
+    if (closeAllowed || !cloud.isLoggedIn()) return;
+    event.preventDefault();
+    if (closeRequested) return;
+    closeRequested = true;
+    let timer = null;
+    const proceed = () => {
+      clearTimeout(timer);
+      // A late answer must not let a future window skip this step.
+      ipcMain.removeListener('app:close-ready', proceed);
+      closeAllowed = true;
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+    };
+    timer = setTimeout(proceed, CLOSE_SYNC_TIMEOUT_MS);
+    ipcMain.on('app:close-ready', proceed);
+    mainWindow.webContents.send('app:before-close');
+  });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    closeAllowed = false;
+    closeRequested = false;
+  });
 }
 
 // Waits for the Vite dev server instead of guessing how long it needs.
@@ -256,7 +326,12 @@ function waitForDevServer(url, attempts = 60) {
 app.whenReady().then(async () => {
   app.setName(APP_NAME);
   initStorageIpc();
+  initCloudIpc();
+  initUpdatesIpc();
   buildAppMenu();
+  if (process.platform === 'darwin' && !app.isPackaged && app.dock) {
+    app.dock.setIcon(nativeImage.createFromPath(path.join(__dirname, 'icon.png')));
+  }
 
   if (process.env.NODE_ENV === 'development') {
     const devUrl = `http://localhost:${DEV_PORT}`;
@@ -271,8 +346,10 @@ app.whenReady().then(async () => {
 
 app.on('activate', () => showMainWindow());
 
+// The app has nothing to do without its window (no menu-bar part yet), so
+// closing the window quits it on every platform.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' && mainWindowHasOpened) app.quit();
+  if (mainWindowHasOpened) app.quit();
 });
 
 app.on('will-quit', () => {

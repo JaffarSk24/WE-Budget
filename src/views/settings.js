@@ -11,6 +11,8 @@ import { makeCategory, live, hasAnyData } from '../model.js';
 import { isDayKey, todayKey, formatTimestamp } from '../dates.js';
 import { buildDemo } from '../demo.js';
 import { withUndo } from '../modals.js';
+import { sync, signIn, cancelSignIn, signOut, syncStatusText } from '../cloud.js';
+import { checkForUpdates, updateState, updatesAvailable } from '../updates.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
@@ -44,6 +46,56 @@ function exportCsv() {
     ]));
   const sep = lang() === 'ru' ? ';' : ',';
   download(`we-budget-${todayKey()}.csv`, '\ufeff' + rows.map(r => r.map(csvCell).join(sep)).join('\r\n'), 'text/csv;charset=utf-8');
+}
+
+function syncSection() {
+  const st = sync.state;
+  const rows = [];
+  if (st.status === 'unavailable') {
+    rows.push(h('p', { class: 'setting-hint' }, t('sync-desktop-only')));
+  } else if (st.status === 'unconfigured') {
+    rows.push(h('p', { class: 'setting-hint' }, t('sync-unconfigured')));
+  } else if (st.status === 'checking') {
+    rows.push(h('p', { class: 'setting-hint' }, t('sync-checking')));
+  } else if (!sync.loggedIn) {
+    rows.push(h('p', { class: 'setting-hint' }, st.status === 'reauth' ? t('sync-reauth-hint') : t('sync-explain')));
+    rows.push(h('div', { class: 'inline-actions' },
+      st.signingIn
+        ? [h('button', { type: 'button', class: 'btn btn-primary', disabled: true }, icon('loader'), t('sync-waiting-browser')),
+          h('button', { type: 'button', class: 'btn btn-secondary', onclick: cancelSignIn }, t('cancel'))]
+        : h('button', { type: 'button', class: 'btn btn-primary', onclick: signIn }, icon('log-in'),
+          st.status === 'reauth' ? t('sync-login-again') : t('sync-login'))));
+  } else {
+    rows.push(settingRow(t('sync-account'), h('span', { class: 'setting-value' }, st.email || '')));
+    rows.push(settingRow(t('sync-state'), h('span', { class: `setting-value sync-text-${st.status}` }, syncStatusText(st)),
+      st.status === 'conflict' ? t('sync-conflict-hint') : st.status === 'offline' ? t('sync-offline-hint') : null));
+    rows.push(h('div', { class: 'inline-actions' },
+      h('button', {
+        type: 'button', class: 'btn btn-secondary', disabled: st.status === 'syncing',
+        onclick: () => sync.sync('manual')
+      }, icon('refresh-cw'), t('sync-now')),
+      h('button', { type: 'button', class: 'btn btn-secondary', onclick: signOut }, icon('log-out'), t('sync-logout'))));
+    rows.push(h('p', { class: 'setting-hint' }, t('sync-where')));
+  }
+  return section(t('sync-title'), 'cloud', ...rows);
+}
+
+function updatesSection() {
+  const last = updateState.last;
+  let status = '';
+  if (updateState.phase === 'checking') status = t('update-checking');
+  else if (last && last.ok && last.available) status = t('update-available-short', { version: last.latest });
+  else if (last && last.ok && last.noReleases) status = t('update-no-releases');
+  else if (last && last.ok) status = t('update-latest', { version: last.current });
+  else if (last && !last.ok) status = t('update-check-failed');
+  return section(t('update-title'), 'download',
+    settingRow(t('update-version'), h('span', { class: 'setting-value' }, typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : ''), status || null),
+    updatesAvailable()
+      ? h('div', { class: 'inline-actions' }, h('button', {
+        type: 'button', class: 'btn btn-secondary', disabled: updateState.phase === 'checking',
+        onclick: () => checkForUpdates({ manual: true })
+      }, icon('refresh-cw'), t('update-check')))
+      : h('p', { class: 'setting-hint' }, t('update-desktop-only')));
 }
 
 function categoriesSection(root) {
@@ -119,6 +171,8 @@ export function renderSettings(root) {
     else tracking.value = s.trackingStart || '';
   });
 
+  root.appendChild(syncSection());
+
   root.appendChild(section(t('settings-look'), 'palette',
     settingRow(t('settings-language'), language),
     settingRow(t('settings-theme'), theme)));
@@ -149,7 +203,7 @@ export function renderSettings(root) {
         const snap = store.snapshot();
         store.replaceAll(parsed);
         store.generate();
-        showToast(t('toast-restored'), { type: 'success', actionLabel: t('undo'), onAction: () => store.replaceAll(snap) });
+        showToast(t('toast-restored'), { type: 'success', actionLabel: t('undo'), onAction: () => store.applySynced(snap) });
       }
     }, icon('upload'), t('restore')), t('backup-restore-hint')),
     settingRow(t('export-csv'), h('button', { type: 'button', class: 'btn btn-secondary', onclick: exportCsv }, icon('file-spreadsheet'), t('export')), t('export-csv-hint')),
@@ -164,7 +218,7 @@ export function renderSettings(root) {
         }
         const snap = store.snapshot();
         store.replaceAll(buildDemo(todayKey(), lang()));
-        showToast(t('toast-demo'), { type: 'success', actionLabel: t('undo'), onAction: () => store.replaceAll(snap) });
+        showToast(t('toast-demo'), { type: 'success', actionLabel: t('undo'), onAction: () => store.applySynced(snap) });
       }
     }, icon('sparkles'), t('demo-load-btn')), t('demo-load-hint')),
     settingRow(t('reset-all'), h('button', {
@@ -173,9 +227,11 @@ export function renderSettings(root) {
         if (!ok) return;
         const snap = store.snapshot();
         store.replaceAll({ settings: { language: s.language, theme: s.theme } });
-        showToast(t('toast-reset'), { type: 'success', actionLabel: t('undo'), onAction: () => store.replaceAll(snap) });
+        showToast(t('toast-reset'), { type: 'success', actionLabel: t('undo'), onAction: () => store.applySynced(snap) });
       }
     }, icon('trash-2'), t('reset-all-btn')), t('reset-all-hint'))));
+
+  root.appendChild(updatesSection());
 
   const stats = store.list('entries').length;
   root.appendChild(section(t('settings-about'), 'info',

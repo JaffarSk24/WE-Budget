@@ -7,7 +7,7 @@
 
 import {
   COLLECTIONS, defaultCategories, emptyData, hasAnyData, live, makeAccount, makeEntry,
-  normalizeData, nowIso
+  newId, normalizeData, nowIso
 } from './model.js';
 import { generationHorizon, pendingGeneration, futureOpenEntries } from './schedule.js';
 import { buildAllocation } from './allocation.js';
@@ -39,7 +39,11 @@ export class Store {
     this.today = today;
     this.listeners = [];
     this.loadError = null;
+    this.needsSave = false;
     this.data = this.load();
+    // A file written before datasets existed gets its id once and keeps it;
+    // a fresh id on every start would look like a new budget to sync.
+    if (this.needsSave && !this.loadError) this.save();
   }
 
   load() {
@@ -52,7 +56,9 @@ export class Store {
     }
     if (raw === null || raw === undefined || raw === '') return emptyData();
     try {
-      return normalizeData(JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      if (!parsed.datasetId) this.needsSave = true;
+      return normalizeData(parsed);
     } catch (e) {
       console.error('Budget data could not be parsed; saving is blocked', e);
       this.loadError = e;
@@ -190,8 +196,21 @@ export class Store {
     });
   }
 
-  // Replaces the whole document (restore from backup, import, demo).
+  // Replaces the whole document (restore from backup, import, demo, reset).
+  // This is a new budget as far as sync is concerned.
   replaceAll(raw) {
+    const next = normalizeData(raw);
+    next.datasetId = newId();
+    next.datasetAt = nowIso();
+    this.loadError = null;
+    this.data = next;
+    this.save();
+    this.emit();
+    return next;
+  }
+
+  // Takes a document that came from sync as it is, keeping its dataset.
+  applySynced(raw) {
     const next = normalizeData(raw);
     this.loadError = null;
     this.data = next;
@@ -213,13 +232,12 @@ export class Store {
     if (!entries.length && !changed) return 0;
     this.commit(data => {
       data.entries.push(...entries);
-      const now = nowIso();
+      // generatedThrough is bookkeeping, not an edit: updatedAt stays as it
+      // is, so generating ahead never outvotes a real change made to the
+      // same template on another device. Sync keeps the later of the two.
       marks.forEach(m => {
         const t = data.templates.find(x => x.id === m.id);
-        if (t && t.generatedThrough !== m.generatedThrough) {
-          t.generatedThrough = m.generatedThrough;
-          t.updatedAt = now;
-        }
+        if (t) t.generatedThrough = m.generatedThrough;
       });
     });
     return entries.length;

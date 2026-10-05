@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WE Budget</title>
-  <link rel="icon" type="image/webp" href="./favicon.webp">
+  <link rel="icon" type="image/png" href="./favicon.png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
@@ -32,6 +33,8 @@
         <i data-lucide="plus"></i><span data-i18n="quick-add"></span>
       </button>
 
+      <button type="button" id="sync-status" class="sync-status" hidden></button>
+
       <div class="sidebar-footer">
         WE Budget <span id="app-version"></span><br>
         <a href="https://whiteeagles.sk/" target="_blank" rel="noopener">White Eagles &amp; Co. s.r.o.</a>
@@ -39,6 +42,7 @@
     </aside>
 
     <main>
+      <div id="update-banner" class="update-banner" role="status" hidden></div>
       <section id="view-overview" class="view-panel"></section>
       <section id="view-month" class="view-panel"></section>
       <section id="view-accounts" class="view-panel"></section>

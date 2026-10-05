@@ -144,6 +144,11 @@ export function makeGoal(f = {}) {
 export function emptyData() {
   return {
     schemaVersion: SCHEMA_VERSION,
+    // Identifies this budget as a whole. Restoring a backup, loading the demo
+    // or starting over creates a new dataset; sync only merges records of the
+    // same dataset and treats a different one as a replacement.
+    datasetId: newId(),
+    datasetAt: nowIso(),
     accounts: [],
     categories: [],
     templates: [],
@@ -165,6 +170,10 @@ export function normalizeData(raw) {
       data[name] = raw[name].filter(r => r && typeof r === 'object' && r.id);
     }
   });
+  if (raw.datasetId) {
+    data.datasetId = raw.datasetId;
+    data.datasetAt = raw.datasetAt || data.datasetAt;
+  }
   data.settings = { ...DEFAULT_SETTINGS, ...(raw.settings || {}) };
   if (!data.settings.updatedAt) data.settings.updatedAt = nowIso();
   data.entries.forEach(e => {

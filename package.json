@@ -10,9 +10,9 @@
     "preview": "vite preview",
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "electron:prod": "npm run build && cross-env NODE_ENV=production electron .",
-    "electron:pack": "npm run build && electron-builder --dir",
-    "electron:dist": "npm run build && electron-builder --mac",
-    "electron:dist:win": "npm run build && electron-builder --win --x64",
+    "electron:pack": "npm run build && electron-builder --dir --publish never",
+    "electron:dist": "npm run build && electron-builder --mac --publish never",
+    "electron:dist:win": "npm run build && electron-builder --win --x64 --publish never",
     "test": "vitest run",
     "lint": "eslint ."
   },
@@ -20,12 +20,14 @@
     "appId": "com.whiteeagles.webudget",
     "productName": "WE Budget",
     "directories": {
-      "output": "release"
+      "output": "release.nosync"
     },
     "files": [
       "dist/**/*",
       "electron-main.cjs",
       "preload.cjs",
+      "main/**/*.cjs",
+      "oauth-credentials.json",
       "icon.png"
     ],
     "afterPack": "./scripts/adhoc-sign.cjs",
@@ -33,8 +35,20 @@
       "icon": "icon.png",
       "category": "public.app-category.finance",
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ]
     },
     "win": {
@@ -58,6 +72,15 @@
     },
     "asarUnpack": [
       "icon.png"
+    ],
+    "artifactName": "WE-Budget-${version}-${os}-${arch}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "JaffarSk24",
+        "repo": "WE-Budget",
+        "releaseType": "release"
+      }
     ]
   },
   "devDependencies": {

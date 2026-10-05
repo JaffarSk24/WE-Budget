@@ -36,14 +36,15 @@ export default [
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { process: 'readonly', console: 'readonly' } }
   },
   {
-    files: ['electron-main.cjs', 'preload.cjs', 'scripts/**/*.cjs'],
+    files: ['electron-main.cjs', 'preload.cjs', 'main/**/*.cjs', 'scripts/**/*.cjs'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'commonjs',
       globals: {
         require: 'readonly', module: 'writable', process: 'readonly', console: 'readonly',
-        __dirname: 'readonly', setTimeout: 'readonly', setInterval: 'readonly',
-        clearInterval: 'readonly', URL: 'readonly', Buffer: 'readonly', Response: 'readonly'
+        __dirname: 'readonly', setTimeout: 'readonly', setInterval: 'readonly', clearTimeout: 'readonly',
+        clearInterval: 'readonly', URL: 'readonly', URLSearchParams: 'readonly', Buffer: 'readonly',
+        Response: 'readonly', fetch: 'readonly', AbortSignal: 'readonly'
       }
     },
     rules: { 'no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrors: 'none' }] }
