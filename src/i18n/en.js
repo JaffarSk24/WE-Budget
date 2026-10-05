@@ -443,6 +443,7 @@ export const en = {
   'tray-setting': 'Show free money in the menu bar',
   'tray-setting-win': 'Show an icon with free money',
   'tray-hint': 'Its menu offers a quick expense.',
+  'inline-edit-amount': 'Click to change the amount',
   'auth-window-done': 'Done. You can close this window and return to WE Budget.',
   'phone-tab-accounts': 'Accounts',
   'phone-tab-more': 'More',

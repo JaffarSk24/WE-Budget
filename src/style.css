@@ -1741,3 +1741,8 @@ body.is-phone .promo-footer { display: none; }
 .an-limit.is-over .an-limit-note { color: var(--warning); }
 .an-limit-note i, .an-limit-note svg { width: 14px; height: 14px; }
 .stat-card.is-negative .stat-value { color: var(--danger); }
+
+/* Amount in a month row, edited in place */
+.inline-amount { background: none; border: 0; padding: 2px 6px; margin: -2px -6px; border-radius: 6px; color: inherit; font: inherit; cursor: text; }
+.inline-amount:hover { background: var(--overlay-04); box-shadow: inset 0 0 0 1px var(--border-color); }
+.inline-amount-input { width: 120px !important; text-align: right; padding: 4px 8px !important; }

@@ -5,7 +5,8 @@
 
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
-import { h, clear, icon, money, moneyEl, accountLabel, categoryName, selectEl, accountOptions, refreshIcons, topModal, lang, badge } from '../ui.js';
+import { h, clear, icon, money, moneyEl, moneyInput, accountLabel, categoryName, selectEl, accountOptions, refreshIcons, topModal, lang, badge } from '../ui.js';
+import { showToast } from '../toast.js';
 import { accountRunning, monthRows, monthSummary, overdueEntries } from '../ledger.js';
 import { addMonthsToMonth, formatDay, formatMonth, monthOf, todayKey, firstDayOfMonth, lastDayOfMonth, parseDayKey } from '../dates.js';
 import { statusButton, reserveButton, toggleDone, toggleReserve, cancelEntry, deleteEntry, entryListItem } from '../actions.js';
@@ -179,7 +180,7 @@ function rowFor({ entry: e, running }, today, showRunning, runningFor) {
   const amountCell = (type) => {
     if (e.type !== type && !(type === 'expense' && e.type === 'transfer')) return h('td', { class: 'num' });
     const cls2 = e.type === 'income' ? 'positive' : e.type === 'transfer' ? 'neutral' : '';
-    return h('td', { class: `num money ${cls2}` }, e.type === 'transfer' ? h('span', {}, icon('arrow-left-right', 'inline-icon'), ' ', money(e.amount)) : money(e.amount));
+    return h('td', { class: `num money ${cls2}` }, inlineAmount(e));
   };
 
   const box = h('input', { type: 'checkbox', checked, 'aria-label': t('sel-row') });
@@ -392,6 +393,48 @@ function moveSelection(delta) {
 }
 
 // Keyboard: works while the month view is visible and nothing else has focus.
+// A click on an amount edits it in place: Enter or leaving the field saves,
+// Escape cancels. Like the amount field of the entry dialog, it changes the
+// actual amount; the planned one stays as it was.
+function inlineAmount(e) {
+  const shown = h('button', { type: 'button', class: 'inline-amount', title: t('inline-edit-amount') },
+    e.type === 'transfer' ? [icon('arrow-left-right', 'inline-icon'), ' '] : null, money(e.amount));
+  shown.addEventListener('click', (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+    ev.stopPropagation();
+    const cell = shown.parentElement;
+    const input = moneyInput({ value: e.amount });
+    input.classList.add('inline-amount-input');
+    let finished = false;
+    const finish = (save) => {
+      if (finished) return;
+      finished = true;
+      if (save) {
+        const cents = input.readCents();
+        if (cents === null || cents < 0) showToast(t('err-amount'), { type: 'error' });
+        else if (cents !== e.amount) {
+          store.update('entries', e.id, { amount: cents });
+          return;
+        }
+      }
+      cell.replaceChildren(shown);
+      refreshIcons();
+    };
+    input.addEventListener('keydown', (k) => {
+      k.stopPropagation();
+      if (k.key === 'Enter') { k.preventDefault(); finish(true); }
+      else if (k.key === 'Escape') { k.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', () => finish(true));
+    ['click', 'dblclick', 'mousedown'].forEach(name => input.addEventListener(name, (x) => x.stopPropagation()));
+    cell.replaceChildren(input);
+    input.focus();
+    input.select();
+  });
+  shown.addEventListener('dblclick', (ev) => ev.stopPropagation());
+  return shown;
+}
+
 export function handleMonthKey(e) {
   if (!container || !container.classList.contains('active') || topModal()) return false;
   const tag = (e.target && e.target.tagName) || '';

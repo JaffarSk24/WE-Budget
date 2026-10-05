@@ -443,6 +443,7 @@ export const ru = {
   'tray-setting': 'Показывать свободные деньги в строке меню',
   'tray-setting-win': 'Показывать значок со свободными деньгами',
   'tray-hint': 'В его меню есть быстрая трата.',
+  'inline-edit-amount': 'Нажмите, чтобы изменить сумму',
   'auth-window-done': 'Готово. Это окно можно закрыть и вернуться в WE Budget.',
   'phone-tab-accounts': 'Счета',
   'phone-tab-more': 'Ещё',
