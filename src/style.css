@@ -1736,6 +1736,10 @@ body.is-phone .promo-footer { display: none; }
 .goal-plan i, .goal-plan svg { width: 16px; height: 16px; flex-shrink: 0; }
 .goal-plan.is-reached { color: var(--success); }
 .goal-plan.is-late { color: var(--warning); }
+.goal-contribution { display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); font-size: 0.86rem; }
+.goal-contribution > i, .goal-contribution > svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary); }
+.goal-contribution-text { flex: 1; min-width: 0; }
+.goal-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---------- Analytics ---------- */
 .an-chart { position: relative; height: 300px; margin-top: 8px; }

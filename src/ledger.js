@@ -8,8 +8,9 @@
 //    in month views and analytics as one pooled running total, but never
 //    touch account balances.
 
-import { live } from './model.js';
+import { live, makeSchedule } from './model.js';
 import { addDays, addMonthsToMonth, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
+import { occurrences, pendingGeneration } from './schedule.js';
 
 const OPEN_STATUSES = ['planned', 'reserved'];
 
@@ -336,6 +337,62 @@ export function goalProgress(data, goal, today) {
     perMonth = remaining > 0 ? (monthsLeft > 0 ? Math.ceil(remaining / monthsLeft) : remaining) : 0;
   }
   return { saved, target, remaining, percent, monthsLeft, perMonth, late, reached: target > 0 && remaining === 0 };
+}
+
+// The goal's own monthly contribution, a template linked to it.
+export function goalContribution(data, goal) {
+  return live(data.templates).find(t => t.goalId === goal.id) || null;
+}
+
+// What the plan brings to a goal by its deadline: open entries already in
+// the plan and occurrences of active templates not generated yet, counted on
+// the same accounts as goalProgress. Gives the expected balance on the
+// deadline, what is missing for the target and how many payments of the
+// goal's own contribution are still to come. `without` leaves one template
+// out, to work out a contribution in its place.
+export function goalOutlook(data, goal, today, { without = null } = {}) {
+  const progress = goalProgress(data, goal, today);
+  const contribution = goalContribution(data, goal);
+  const out = { ...progress, contribution, projected: null, shortfall: null, contributionsLeft: 0 };
+  if (!goal.deadline || !goal.accountId) return out;
+  const ids = [goal.accountId, ...live(data.accounts).filter(a => a.parentId === goal.accountId).map(a => a.id)];
+  const effect = e => ids.reduce((s, id) => s + accountEffect(e, id), 0);
+  const own = e => contribution && e.templateId === contribution.id && e.status === 'planned' && e.date >= today;
+  let planned = 0;
+  live(data.entries).forEach(e => {
+    if (!isOpen(e) || !isTracked(data, e) || e.date > goal.deadline || (without && e.templateId === without)) return;
+    planned += effect(e);
+    if (own(e)) out.contributionsLeft++;
+  });
+  if (goal.deadline >= today) {
+    pendingGeneration(data, today, goal.deadline).entries.forEach(e => {
+      if (without && e.templateId === without) return;
+      planned += effect(e);
+      if (own(e)) out.contributionsLeft++;
+    });
+  }
+  out.projected = progress.saved + planned;
+  out.shortfall = Math.max(0, progress.target - out.projected);
+  return out;
+}
+
+// The contribution that closes the shortfall: the current amount plus the
+// missing money spread over the payments still to come.
+export function raisedContribution(outlook) {
+  if (!outlook.contribution || !outlook.shortfall || !outlook.contributionsLeft) return null;
+  return outlook.contribution.amount + Math.ceil(outlook.shortfall / outlook.contributionsLeft);
+}
+
+// A monthly contribution paid on `day` from today to the deadline that,
+// on top of the rest of the plan, makes the target. `replacing` is the
+// goal's current contribution when it is being changed.
+export function suggestedContribution(data, goal, today, day, replacing = null) {
+  const o = goalOutlook(data, goal, today, { without: replacing });
+  if (o.projected === null) return { amount: null, count: 0, need: null };
+  const schedule = makeSchedule({ freq: 'monthly', day, startDate: today, endDate: goal.deadline });
+  const count = goal.deadline >= today ? occurrences(schedule, today, goal.deadline).length : 0;
+  const need = Math.max(0, o.target - o.projected);
+  return { amount: count ? Math.ceil(need / count) : need, count, need };
 }
 
 // ---------- analytics ----------

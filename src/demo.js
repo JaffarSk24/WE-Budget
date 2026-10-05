@@ -2,7 +2,7 @@
 // up: names, amounts and accounts are invented. Deterministic (seeded), so
 // two runs on the same day produce the same budget.
 
-import { emptyData, defaultCategories, makeAccount, makeEntry, makeTemplate, nowIso } from './model.js';
+import { emptyData, defaultCategories, makeAccount, makeEntry, makeGoal, makeTemplate, nowIso } from './model.js';
 import { addMonthsToMonth, firstDayOfMonth, monthOf, addDays, dayInMonth, lastDayOfMonth } from './dates.js';
 import { pendingGeneration, generationHorizon } from './schedule.js';
 
@@ -49,8 +49,15 @@ export function buildDemo(today, lang = 'en') {
   tpl({ title: L('Kindergarten', 'Детский сад'), amount: 18000, accountId: bills.id, categoryId: cat(L('Kids', 'Дети')), schedule: { freq: 'monthly', day: 6 } });
   tpl({ title: L('Groceries, first half', 'Продукты, первая половина'), amount: 25000, accountId: food.id, categoryId: cat(L('Groceries', 'Продукты')), schedule: { freq: 'monthly', day: 6 } });
   tpl({ title: L('Groceries, second half', 'Продукты, вторая половина'), amount: 25000, accountId: food.id, categoryId: cat(L('Groceries', 'Продукты')), schedule: { freq: 'monthly', day: 21 } });
-  tpl({ title: L('Save for the holiday', 'Откладываем на отпуск'), type: 'transfer', amount: 15000, accountId: main.id, toAccountId: holiday.id, schedule: { freq: 'monthly', day: 6 } });
+  const holidaySaving = tpl({ title: L('Save for the holiday', 'Откладываем на отпуск'), type: 'transfer', amount: 15000, accountId: main.id, toAccountId: holiday.id, schedule: { freq: 'monthly', day: 6 } });
   tpl({ title: L('Car insurance', 'Страховка машины'), amount: 42000, accountId: main.id, categoryId: cat(L('Car', 'Авто')), schedule: { freq: 'yearly', day: 14, startDate: `${month.slice(0, 4)}-${addMonthsToMonth(month, 1).slice(5, 7)}-14` } });
+
+  // The holiday envelope saves for a summer trip; its monthly transfer is the
+  // goal's contribution.
+  const tripYear = Number(month.slice(0, 4)) + (Number(month.slice(5, 7)) >= 6 ? 1 : 0);
+  const trip = makeGoal({ name: L('Summer holiday', 'Отпуск на море'), targetAmount: 240000, accountId: holiday.id, deadline: `${tripYear}-07-01` });
+  data.goals.push(trip);
+  holidaySaving.goalId = trip.id;
 
   const horizon = generationHorizon(today, 3);
   const generated = pendingGeneration(data, today, horizon);

@@ -19,7 +19,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
 - **Small expenses** with optional monthly limits per category.
 - **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
-- **Goals**: an amount, the envelope you save on and a date; the app shows how far you are and how much to set aside per month.
+- **Goals**: an amount, the envelope you save on and a date; the app shows how far you are and how much to set aside per month. A goal can put its monthly contribution into the plan as a transfer to the envelope, tells you whether the plan makes the amount by the date and raises the contribution in one click when it does not.
 - **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick expense in its menu.
 - **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
 - **Sync** between computers and the phone through a hidden app folder on your Google Drive.

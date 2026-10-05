@@ -26,6 +26,7 @@ function templateRow(tpl) {
     h('td', {},
       h('div', { class: 'row-title' }, tpl.title,
         tpl.isTransit ? badge(t('badge-transit'), 'badge-muted') : null,
+        tpl.goalId ? badge(t('template-goal'), 'badge-muted') : null,
         tpl.active ? null : badge(t('template-paused'), 'badge-muted')),
       h('div', { class: 'row-meta' }, [t(`type-${tpl.type}`), tpl.categoryId ? categoryName(tpl.categoryId) : null].filter(Boolean).join(' · '))),
     h('td', {}, describeSchedule(tpl.schedule),

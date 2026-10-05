@@ -96,6 +96,8 @@ export function makeTemplate(f = {}) {
     schedule: makeSchedule(f.schedule),
     isTransit: !!f.isTransit,
     active: f.active !== false,
+    // Set when the template is a goal's monthly contribution.
+    goalId: f.goalId || null,
     // Last day for which entries have already been generated.
     generatedThrough: f.generatedThrough || null,
     note: f.note || ''
