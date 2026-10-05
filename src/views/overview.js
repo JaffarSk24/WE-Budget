@@ -4,7 +4,7 @@ import Chart from 'chart.js/auto';
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
 import { h, clear, icon, money, moneyEl, refreshIcons, lang, emptyState, badge } from '../ui.js';
-import { accountSummaries, entriesOn, forecast, grandTotals, overdueEntries, upcomingEntries } from '../ledger.js';
+import { accountSummaries, entriesOn, forecast, grandTotals, monthPlanFact, overdueEntries, upcomingEntries } from '../ledger.js';
 import { addDays, formatDate, formatDay, formatDayLong, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { generationHorizon } from '../schedule.js';
 import { entryListItem } from '../actions.js';
@@ -18,6 +18,36 @@ function kpi(label, value, sub, cls = '') {
     h('div', { class: 'stat-header' }, h('span', {}, label)),
     h('div', { class: 'stat-value' }, value),
     sub ? h('div', { class: 'stat-desc' }, sub) : null);
+}
+
+// One line of this month's plan: how much of the planned income came in, or
+// of the planned expenses went out, and what is still to come.
+function planRow(kind, row) {
+  const percent = row.plan > 0 ? Math.round((row.fact / row.plan) * 100) : (row.fact > 0 ? 100 : 0);
+  const over = row.fact - row.plan;
+  const isOver = kind === 'expense' && over > 0;
+  let note;
+  if (isOver) note = h('span', { class: 'plan-note' }, icon('alert-triangle'), t('ov-plan-over', { amount: money(over) }));
+  else if (row.open > 0) note = h('span', { class: 'plan-note' }, t(kind === 'income' ? 'ov-plan-income-open' : 'ov-plan-expense-open', { amount: money(row.open) }));
+  else if (over > 0) note = h('span', { class: 'plan-note' }, t('ov-plan-income-more', { amount: money(over) }));
+  else note = h('span', { class: 'plan-note' }, t('ov-plan-all-done'));
+  return h('div', { class: `plan-row plan-${kind} ${isOver ? 'is-over' : ''}` },
+    h('div', { class: 'plan-row-head' },
+      h('span', { class: 'plan-row-label' }, t(kind === 'income' ? 'ov-plan-income' : 'ov-plan-expense')),
+      h('span', { class: 'money' }, t('ov-plan-of', { fact: money(row.fact), plan: money(row.plan) }))),
+    h('div', { class: 'goal-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.min(100, percent)) },
+      h('div', { class: 'goal-bar-fill', style: `width: ${Math.min(100, percent)}%` })),
+    h('div', { class: 'plan-row-foot' }, note, h('span', {}, `${percent}%`)),
+    kind === 'expense' && row.quick > 0 ? h('div', { class: 'plan-row-foot' }, t('ov-plan-quick', { amount: money(row.quick) })) : null);
+}
+
+function planCard(month) {
+  const p = monthPlanFact(store.data, month);
+  const empty = !p.income.plan && !p.income.fact && !p.expense.plan && !p.expense.fact;
+  return h('div', { class: 'card' },
+    h('div', { class: 'card-title-row' }, icon('calendar-days'), h('h3', {}, t('ov-plan-title'))),
+    empty ? h('p', { class: 'muted small' }, t('ov-plan-none'))
+      : h('div', { class: 'plan-rows' }, planRow('income', p.income), planRow('expense', p.expense)));
 }
 
 function listCard(title, iconName, entries, emptyText, cls = '') {
@@ -172,10 +202,12 @@ export function renderOverview(root) {
 
   const canvas = h('canvas', { 'aria-label': t('forecast-title'), role: 'img' });
   root.appendChild(h('div', { class: 'overview-bottom' },
-    h('div', { class: 'card chart-card' },
-      h('div', { class: 'card-title-row' }, icon('trending-up'), h('h3', {}, t('forecast-title')),
-        h('span', { class: 'muted small push-right' }, t('forecast-sub', { amount: money(f.end), date: formatDay(horizon, lang()) }))),
-      h('div', { class: 'chart-container' }, canvas)),
+    h('div', { class: 'overview-stack' },
+      h('div', { class: 'card chart-card' },
+        h('div', { class: 'card-title-row' }, icon('trending-up'), h('h3', {}, t('forecast-title')),
+          h('span', { class: 'muted small push-right' }, t('forecast-sub', { amount: money(f.end), date: formatDay(horizon, lang()) }))),
+        h('div', { class: 'chart-container' }, canvas)),
+      planCard(month)),
     h('div', { class: 'card' },
       h('div', { class: 'card-title-row' }, icon('wallet'), h('h3', {}, t('envelopes-title'))),
       envelopeTable())));

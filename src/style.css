@@ -1158,6 +1158,19 @@ tfoot td { font-weight: 700; border-bottom: none; padding-top: 12px; padding-bot
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 20px;
 }
+.overview-stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.plan-rows { display: flex; flex-direction: column; gap: 18px; margin-top: 4px; }
+.plan-row { display: flex; flex-direction: column; gap: 6px; }
+.plan-row-head, .plan-row-foot { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.plan-row-head { font-size: 0.9rem; }
+.plan-row-label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.plan-row-label::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--series-1); }
+.plan-expense .plan-row-label::before, .plan-expense .goal-bar-fill { background: var(--series-2); }
+.plan-row.is-over .goal-bar-fill { background: var(--warning); }
+.plan-row-foot { font-size: 0.8rem; color: var(--text-muted); }
+.plan-note { display: inline-flex; align-items: center; gap: 6px; }
+.plan-row.is-over .plan-note { color: var(--warning); }
+.plan-note i, .plan-note svg { width: 14px; height: 14px; }
 .chart-card .chart-container { height: 280px; }
 .env-table td { padding: 7px 8px; }
 .env-table th { padding: 8px; }

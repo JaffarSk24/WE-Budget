@@ -188,6 +188,31 @@ export function monthSummary(data, month) {
   };
 }
 
+// A month against its plan, for income and for expenses. The plan is the
+// planned amounts (quick expenses were never planned), the fact is what is
+// marked done (quick expenses included), and open is what is still to come.
+export function monthPlanFact(data, month) {
+  const from = firstDayOfMonth(month);
+  const to = lastDayOfMonth(month);
+  const out = {
+    income: { plan: 0, fact: 0, open: 0, quick: 0 },
+    expense: { plan: 0, fact: 0, open: 0, quick: 0 }
+  };
+  live(data.entries).forEach(e => {
+    if (e.date < from || e.date > to || !countsInFlow(e)) return;
+    const row = out[e.type];
+    if (!row) return;
+    if (!e.isQuick) row.plan += e.plannedAmount ?? e.amount ?? 0;
+    if (e.status === 'done') {
+      row.fact += e.amount || 0;
+      if (e.isQuick) row.quick += e.amount || 0;
+    } else {
+      row.open += e.amount || 0;
+    }
+  });
+  return out;
+}
+
 // Open entries dated before `today` (from trackingStart on).
 export function overdueEntries(data, today) {
   return live(data.entries)

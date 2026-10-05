@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyticsByMonth, categoryBreakdown, categoryAverages, firstFlowMonth } from '../src/ledger.js';
+import { analyticsByMonth, categoryBreakdown, categoryAverages, firstFlowMonth, monthPlanFact } from '../src/ledger.js';
 import { emptyData, makeAccount, makeCategory, makeEntry } from '../src/model.js';
 
 function budget() {
@@ -16,6 +16,28 @@ function budget() {
 }
 
 describe('analytics', () => {
+  it('puts a month against its plan: planned amounts, what is done and what is still open', () => {
+    const { data, other, food, rent, salary, add } = budget();
+    add({ date: '2026-10-01', type: 'income', amount: 310000, plannedAmount: 300000, categoryId: salary.id });
+    add({ date: '2026-10-20', type: 'income', amount: 50000, status: 'planned', categoryId: salary.id });
+    add({ date: '2026-10-02', type: 'expense', amount: 90000, plannedAmount: 90000, categoryId: rent.id });
+    add({ date: '2026-10-10', type: 'expense', amount: 30000, plannedAmount: 25000, status: 'reserved', categoryId: food.id });
+    add({ date: '2026-10-11', type: 'expense', amount: 1200, isQuick: true, categoryId: food.id });
+    add({ date: '2026-10-12', type: 'expense', amount: 5000, isTransit: true });
+    add({ date: '2026-10-13', type: 'transfer', amount: 40000, toAccountId: other.id });
+    add({ date: '2026-10-14', type: 'expense', amount: 3000, isAdjustment: true });
+    add({ date: '2026-10-15', type: 'expense', amount: 7000, status: 'cancelled', categoryId: food.id });
+    add({ date: '2026-11-01', type: 'expense', amount: 90000, status: 'planned', categoryId: rent.id });
+    expect(monthPlanFact(data, '2026-10')).toEqual({
+      income: { plan: 350000, fact: 310000, open: 50000, quick: 0 },
+      expense: { plan: 115000, fact: 91200, open: 30000, quick: 1200 }
+    });
+    expect(monthPlanFact(data, '2026-12')).toEqual({
+      income: { plan: 0, fact: 0, open: 0, quick: 0 },
+      expense: { plan: 0, fact: 0, open: 0, quick: 0 }
+    });
+  });
+
   it('sums each month apart, keeps transit, transfers and adjustments out of the flows', () => {
     const { data, other, food, rent, salary, add } = budget();
     add({ date: '2026-08-01', type: 'income', amount: 300000, categoryId: salary.id });
