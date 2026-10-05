@@ -3,9 +3,9 @@
 import Chart from 'chart.js/auto';
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
-import { h, clear, icon, money, moneyEl, refreshIcons, lang, emptyState } from '../ui.js';
+import { h, clear, icon, money, moneyEl, refreshIcons, lang, emptyState, badge } from '../ui.js';
 import { accountSummaries, entriesOn, forecast, grandTotals, monthSummary, overdueEntries, upcomingEntries } from '../ledger.js';
-import { addDays, formatDay, formatDayLong, monthOf, todayKey } from '../dates.js';
+import { addDays, formatDate, formatDay, formatDayLong, monthOf, todayKey } from '../dates.js';
 import { generationHorizon } from '../schedule.js';
 import { entryListItem } from '../actions.js';
 import { openAllocationModal, openQuickExpense } from '../modals.js';
@@ -33,21 +33,24 @@ function envelopeTable() {
   const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name);
   const tops = accounts.filter(a => !a.parentId).sort(byOrder);
   const rows = [];
+  const line = (cls, label, balance, reserved, free) => h('tr', { class: cls },
+    h('td', {}, label),
+    h('td', { class: 'num money' }, money(balance)),
+    h('td', { class: 'num money reserved' }, reserved ? money(reserved) : ''),
+    h('td', { class: `num money ${free < 0 ? 'negative' : ''}` }, money(free)));
   tops.forEach(top => {
     const ts = s.get(top.id);
-    rows.push(h('tr', { class: 'env-top' },
-      h('td', {}, top.name),
-      h('td', { class: 'num money' }, money(ts.totalBalance)),
-      h('td', { class: 'num money reserved' }, ts.totalReserved ? money(ts.totalReserved) : ''),
-      h('td', { class: `num money ${ts.totalFree < 0 ? 'negative' : ''}` }, money(ts.totalFree))));
-    accounts.filter(a => a.parentId === top.id).sort(byOrder).forEach(c => {
+    const children = accounts.filter(a => a.parentId === top.id).sort(byOrder);
+    rows.push(line('env-top', top.name, ts.totalBalance, ts.totalReserved, ts.totalFree));
+    if (!children.length) return;
+    // The account itself comes first inside its group, envelopes after it.
+    if (ts.ownBalance || ts.ownReserved) {
+      rows.push(line('env-child env-own', [top.name, ' ', badge(t('account-main'), 'badge-main')], ts.ownBalance, ts.ownReserved, ts.ownFree));
+    }
+    children.forEach(c => {
       const cs = s.get(c.id);
       if (!cs.ownBalance && !cs.ownReserved) return;
-      rows.push(h('tr', { class: 'env-child' },
-        h('td', {}, c.name),
-        h('td', { class: 'num money' }, money(cs.ownBalance)),
-        h('td', { class: 'num money reserved' }, cs.ownReserved ? money(cs.ownReserved) : ''),
-        h('td', { class: `num money ${cs.ownFree < 0 ? 'negative' : ''}` }, money(cs.ownFree))));
+      rows.push(line('env-child', c.name, cs.ownBalance, cs.ownReserved, cs.ownFree));
     });
   });
   return h('table', { class: 'env-table' },
@@ -148,7 +151,7 @@ export function renderOverview(root) {
 
   if (f.firstNegative) {
     root.appendChild(h('div', { class: 'banner banner-danger' }, icon('alert-triangle'),
-      h('span', {}, t('forecast-negative', { date: formatDayLong(f.firstNegative, lang()), amount: money(f.minimum.value) }))));
+      h('span', {}, t('forecast-negative', { date: formatDate(f.firstNegative, lang()), amount: money(f.minimum.value) }))));
   }
 
   root.appendChild(h('div', { class: 'overview-lists' },

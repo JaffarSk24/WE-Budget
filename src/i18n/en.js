@@ -460,5 +460,7 @@ export const en = {
   'done-group-expense': 'out {amount}',
   'done-group-income': 'in {amount}',
   'done-group-show': 'Show',
-  'done-group-hide': 'Hide'
+  'done-group-hide': 'Hide',
+
+  'account-main': 'main'
 };

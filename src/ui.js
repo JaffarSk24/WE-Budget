@@ -95,9 +95,10 @@ export function accountOptions({ includeArchived = false, emptyLabel = null } = 
   const tops = accounts.filter(a => !a.parentId || !accounts.some(p => p.id === a.parentId)).sort(byOrder);
   const opts = emptyLabel !== null ? [{ value: '', label: emptyLabel }] : [];
   tops.forEach(top => {
-    opts.push({ value: top.id, label: top.name });
-    accounts.filter(a => a.parentId === top.id).sort(byOrder)
-      .forEach(child => opts.push({ value: child.id, label: `${top.name} / ${child.name}` }));
+    const children = accounts.filter(a => a.parentId === top.id).sort(byOrder);
+    // With envelopes around it, the account itself is named as the main one.
+    opts.push({ value: top.id, label: children.length ? `${top.name} (${t('account-main')})` : top.name });
+    children.forEach(child => opts.push({ value: child.id, label: `${top.name} / ${child.name}` }));
   });
   return opts;
 }

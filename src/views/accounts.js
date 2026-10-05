@@ -15,29 +15,45 @@ function actionBtn(iconName, label, onClick, cls = '') {
   return h('button', { type: 'button', class: `icon-btn ${cls}`, title: label, 'aria-label': label, onclick: (e) => { e.stopPropagation(); onClick(); } }, icon(iconName));
 }
 
-function accountRow(a, s, isChild, root) {
+// Row kinds:
+//   group  a bank account with envelopes: totals over the account and all
+//          its envelopes (what the bank shows in the app overall);
+//   own    the account itself inside its group, first in the list: its own
+//          money, the one bills like the card plan are paid from;
+//   child  an envelope;
+//   single an account without envelopes (own and total are the same).
+function accountRow(a, s, mode, root) {
+  const own = mode !== 'group';
+  const balance = own ? s.ownBalance : s.totalBalance;
+  const reserved = own ? s.ownReserved : s.totalReserved;
+  const free = own ? s.ownFree : s.totalFree;
+  const nested = mode === 'own' || mode === 'child';
   const last = s.lastCheck;
+  const canMove = mode !== 'group';
   return h('tr', {
-    class: `acc-row ${isChild ? 'acc-child' : 'acc-top'} ${a.archived ? 'is-archived' : ''} ${a.id === selectedId ? 'is-selected' : ''}`,
+    class: `acc-row acc-${mode} ${a.archived ? 'is-archived' : ''} ${a.id === selectedId && mode !== 'group' ? 'is-selected' : ''}`,
     onclick: () => { selectedId = a.id; renderAccounts(root); },
     ondblclick: () => openAccountModal(a)
   },
     h('td', { class: 'acc-name' },
-      h('div', { class: 'row-title' }, isChild ? h('span', { class: 'tree-mark' }, '└') : null, a.name,
-        a.kind !== 'current' ? badge(t(`kind-${a.kind}`), 'badge-muted') : null,
+      h('div', { class: 'row-title' }, nested ? h('span', { class: 'tree-mark' }, '└') : null, a.name,
+        mode === 'own' ? badge(t('account-main'), 'badge-main') : null,
+        mode !== 'group' && a.kind !== 'current' ? badge(t(`kind-${a.kind}`), 'badge-muted') : null,
         a.archived ? badge(t('archived'), 'badge-muted') : null),
-      !isChild && a.bank && a.bank !== a.name ? h('div', { class: 'row-meta' }, a.bank) : null),
-    h('td', { class: 'num money' }, money(isChild ? s.ownBalance : s.totalBalance)),
-    h('td', { class: 'num money reserved' }, (isChild ? s.ownReserved : s.totalReserved) ? money(isChild ? s.ownReserved : s.totalReserved) : ''),
-    h('td', { class: `num money ${(isChild ? s.ownFree : s.totalFree) < 0 ? 'negative' : ''}` }, money(isChild ? s.ownFree : s.totalFree)),
-    h('td', { class: 'acc-check' }, last
+      (mode === 'group' || mode === 'single') && a.bank && a.bank !== a.name ? h('div', { class: 'row-meta' }, a.bank) : null),
+    h('td', { class: 'num money' }, money(balance)),
+    h('td', { class: 'num money reserved' }, reserved ? money(reserved) : ''),
+    h('td', { class: `num money ${free < 0 ? 'negative' : ''}` }, money(free)),
+    h('td', { class: 'acc-check' }, mode === 'group' ? null : last
       ? h('span', { title: t('last-check-title') }, formatDay(last.date, lang()) + '.' + last.date.slice(2, 4),
         last.actualBalance !== last.computedBalance ? h('span', { class: 'muted' }, ' ' + money(last.actualBalance - last.computedBalance, { signed: true })) : null)
       : h('span', { class: 'muted' }, t('never'))),
     h('td', { class: 'col-actions' },
-      actionBtn('scale', t('reconcile-open'), () => openReconcileModal(a.id)),
-      actionBtn('split', t('alloc-from-here'), () => openAllocationModal({ sourceAccountId: a.id })),
-      !isChild ? actionBtn('folder-plus', t('account-add-envelope'), () => openAccountModal(null, { parentId: a.id })) : null,
+      // Checking against the bank and splitting money belong to a concrete
+      // account, never to the sum of a group.
+      canMove ? actionBtn('scale', t('reconcile-open'), () => openReconcileModal(a.id)) : null,
+      canMove ? actionBtn('split', t('alloc-from-here'), () => openAllocationModal({ sourceAccountId: a.id })) : null,
+      mode === 'group' || mode === 'single' ? actionBtn('folder-plus', t('account-add-envelope'), () => openAccountModal(null, { parentId: a.id })) : null,
       actionBtn('pencil', t('edit'), () => openAccountModal(a)))
   );
 }
@@ -88,8 +104,14 @@ export function renderAccounts(root) {
 
   const rows = [];
   tops.forEach(top => {
-    rows.push(accountRow(top, s.get(top.id), false, root));
-    accounts.filter(a => a.parentId === top.id).sort(byOrder).forEach(c => rows.push(accountRow(c, s.get(c.id), true, root)));
+    const children = accounts.filter(a => a.parentId === top.id).sort(byOrder);
+    if (!children.length) {
+      rows.push(accountRow(top, s.get(top.id), 'single', root));
+      return;
+    }
+    rows.push(accountRow(top, s.get(top.id), 'group', root));
+    rows.push(accountRow(top, s.get(top.id), 'own', root));
+    children.forEach(c => rows.push(accountRow(c, s.get(c.id), 'child', root)));
   });
 
   root.appendChild(h('div', { class: 'card table-card' },

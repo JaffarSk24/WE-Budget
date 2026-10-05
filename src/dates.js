@@ -86,6 +86,11 @@ export function formatDayLong(key, lang = 'ru') {
   return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\s*г\.$/, '');
 }
 
+// "1 ноября 2026" / "1 November 2026", for use inside a sentence.
+export function formatDate(key, lang = 'ru') {
+  return parseDayKey(key).toLocaleDateString(locale(lang), { day: 'numeric', month: 'long', year: 'numeric' }).replace(/\s*г\.$/, '');
+}
+
 export function formatMonth(month, lang = 'ru') {
   const s = parseDayKey(firstDayOfMonth(month)).toLocaleDateString(locale(lang), { month: 'long', year: 'numeric' });
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/\s*г\.$/, '');

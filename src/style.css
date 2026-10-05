@@ -1458,3 +1458,11 @@ body.is-welcome aside nav, body.is-welcome .quick-add-btn, body.is-welcome .sync
 .spoiler-inner .spoiler-check { color: var(--success); }
 .spoiler-action { margin-left: auto; color: var(--accent-indigo); font-weight: 600; }
 .done-spoiler.is-open td { border-bottom-color: transparent; }
+
+/* An account with envelopes: the group line holds the totals, the account
+   itself is the first line inside the group. */
+.acc-group td { font-weight: 700; background: var(--overlay-02); }
+.acc-own td { font-weight: 500; }
+.acc-own .acc-name { padding-left: 18px; }
+.badge-main { color: var(--accent-indigo); border-color: rgba(99, 102, 241, 0.4); background: transparent; }
+.env-own td:first-child { color: var(--text-primary); }

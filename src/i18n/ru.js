@@ -460,5 +460,7 @@ export const ru = {
   'done-group-expense': 'расход {amount}',
   'done-group-income': 'приход {amount}',
   'done-group-show': 'Показать',
-  'done-group-hide': 'Скрыть'
+  'done-group-hide': 'Скрыть',
+
+  'account-main': 'основной'
 };
