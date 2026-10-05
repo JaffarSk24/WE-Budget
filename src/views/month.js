@@ -120,9 +120,10 @@ function selectionBar() {
 
 // ---------- rows ----------
 
-// A payment still waiting for money: planned, an expense, not zero.
+// A payment still waiting for money: planned, an expense, not zero, and not
+// pass-through money (that is paid by its own pair).
 export function isUnreserved(e) {
-  return e.type === 'expense' && e.status === 'planned' && e.amount !== 0;
+  return e.type === 'expense' && e.status === 'planned' && e.amount !== 0 && !e.isTransit;
 }
 
 // Real money flows only, the same rule as the summary cards: adjustments

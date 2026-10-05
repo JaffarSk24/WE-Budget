@@ -17,7 +17,9 @@ export async function markDone(entry) {
     if (amount === null) return;
   }
   const snap = store.snapshot();
-  store.setStatus(entry.id, 'done', { amount });
+  const today = todayKey();
+  store.setStatus(entry.id, 'done', { amount, today });
+  const moved = entry.date > today;
   if (entry.type === 'income' && !entry.isTransit && !entry.isAdjustment) {
     showToast(t('toast-income-done', { amount: money(amount ?? entry.amount) }), {
       type: 'success',
@@ -26,7 +28,8 @@ export async function markDone(entry) {
       onAction: () => openAllocationModal({ sourceAccountId: entry.accountId })
     });
   } else {
-    showToast(t('toast-done', { name: entry.title || t('untitled') }), {
+    const name = entry.title || t('untitled');
+    showToast(moved ? t('toast-done-moved', { name, date: formatDay(today, lang()) }) : t('toast-done', { name }), {
       type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap)
     });
   }
@@ -39,7 +42,7 @@ export function toggleDone(entry) {
 }
 
 export function toggleReserve(entry) {
-  if (entry.type !== 'expense' || entry.status === 'done' || entry.status === 'cancelled') return;
+  if (entry.type !== 'expense' || entry.isTransit || entry.status === 'done' || entry.status === 'cancelled') return;
   store.setStatus(entry.id, entry.status === 'reserved' ? 'planned' : 'reserved');
 }
 
@@ -74,7 +77,7 @@ export function statusButton(entry) {
 }
 
 export function reserveButton(entry) {
-  if (entry.type !== 'expense' || entry.status === 'done' || entry.status === 'cancelled') {
+  if (entry.type !== 'expense' || entry.isTransit || entry.status === 'done' || entry.status === 'cancelled') {
     return h('span', { class: 'reserve-spacer' });
   }
   const on = entry.status === 'reserved';
@@ -91,7 +94,7 @@ export function entryListItem(entry, { showDate = true } = {}) {
   const today = todayKey();
   const overdue = (entry.status === 'planned' || entry.status === 'reserved') && entry.date < today;
   const sign = entry.type === 'income' ? 1 : entry.type === 'expense' ? -1 : 0;
-  const unreserved = entry.type === 'expense' && entry.status === 'planned' && entry.amount !== 0;
+  const unreserved = entry.type === 'expense' && entry.status === 'planned' && entry.amount !== 0 && !entry.isTransit;
   return h('div', {
     class: `list-entry status-row-${entry.status} ${overdue ? 'is-overdue' : ''} ${unreserved ? 'is-unreserved' : ''}`,
     ondblclick: () => openEntryModal(entry)

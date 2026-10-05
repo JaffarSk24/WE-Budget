@@ -41,6 +41,7 @@ export class Store {
     this.loadError = null;
     this.needsSave = false;
     this.data = this.load();
+    if (!this.loadError && this.repairTransit()) this.needsSave = true;
     // A file written before datasets existed gets its id once and keeps it;
     // a fresh id on every start would look like a new budget to sync.
     if (this.needsSave && !this.loadError) this.save();
@@ -294,17 +295,52 @@ export class Store {
     });
   }
 
+  // Pass-through money cannot be set aside (its pair pays for it). Entries
+  // set aside before that rule existed go back to the plan, with a fresh
+  // updatedAt so the change travels to other devices.
+  repairTransit() {
+    const now = nowIso();
+    let fixed = 0;
+    (this.data.entries || []).forEach(e => {
+      if (e.deleted || !e.isTransit || e.status !== 'reserved') return;
+      Object.assign(e, { status: 'planned', reservedAt: null, allocationId: null, updatedAt: now });
+      fixed++;
+    });
+    return fixed;
+  }
+
   // ---------- entry statuses ----------
 
-  setStatus(id, status, { amount = null } = {}) {
+  // `today`: marking done something dated later means it happened today, so
+  // the entry moves to today (and back to its date if the mark is undone).
+  // Otherwise balances, which count what happened up to a day, would see the
+  // money only on the planned date, and a bank check in between would count
+  // it twice.
+  static settle(e, today) {
+    if (today && e.date > today) {
+      e.movedFrom = e.date;
+      e.date = today;
+    }
+  }
+
+  static unsettle(e) {
+    if (e.movedFrom) {
+      e.date = e.movedFrom;
+      e.movedFrom = null;
+    }
+  }
+
+  setStatus(id, status, { amount = null, today = null } = {}) {
     return this.commit(data => {
       const e = data.entries.find(x => x.id === id);
       if (!e) return null;
       const now = nowIso();
+      if (status !== 'done' && e.status === 'done') Store.unsettle(e);
       if (status === 'done') {
         e.status = 'done';
         e.doneAt = now;
         if (amount !== null) e.amount = amount;
+        Store.settle(e, today);
       } else if (status === 'reserved') {
         e.status = 'reserved';
         e.reservedAt = now;
@@ -335,10 +371,12 @@ export class Store {
       ids.forEach(id => {
         const e = data.entries.find(x => x.id === id && !x.deleted);
         if (!e || e.status === status) return;
-        if (status === 'reserved' && (e.type !== 'expense' || e.status !== 'planned')) return;
+        if (status === 'reserved' && (e.type !== 'expense' || e.isTransit || e.status !== 'planned')) return;
+        if (status !== 'done' && e.status === 'done') Store.unsettle(e);
         if (status === 'done') {
           if (e.status === 'cancelled') return;
           e.doneAt = now;
+          Store.settle(e, this.today());
         } else if (status === 'planned') {
           Object.assign(e, { doneAt: null, reservedAt: null, allocationId: null });
         } else if (status === 'reserved') {

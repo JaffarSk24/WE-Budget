@@ -472,5 +472,6 @@ export const en = {
   'balances-pending-few': '{n} items dated this day or earlier are not marked. If the bank has already processed them, mark them first, or they are counted twice.',
   'balances-pending-many': '{n} items dated this day or earlier are not marked. If the bank has already processed them, mark them first, or they are counted twice.',
   'toast-balances': 'Accounts checked: {n}, total adjustment {amount}',
-  'toast-balances-match': 'Accounts checked: {n}, everything matches'
+  'toast-balances-match': 'Accounts checked: {n}, everything matches',
+'toast-done-moved': '"{name}" is done, moved to {date}'
 };

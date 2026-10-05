@@ -70,7 +70,9 @@ export function accountSummaries(data, asOf = null) {
         if (id && map.has(id)) map.get(id).ownBalance += accountEffect(e, id);
       });
     }
-    if (e.status === 'reserved' && e.type === 'expense' && map.has(e.accountId)) {
+    // Pass-through money pays for itself when its pair arrives; nothing can
+    // be set aside for it.
+    if (e.status === 'reserved' && e.type === 'expense' && !e.isTransit && map.has(e.accountId)) {
       map.get(e.accountId).ownReserved += e.amount || 0;
     }
   });
@@ -181,7 +183,7 @@ export function monthSummary(data, month) {
     adjustments: entries
       .filter(e => e.isAdjustment && e.status !== 'cancelled')
       .reduce((s, e) => s + totalEffect(e), 0),
-    reserved: sum(e => e.status === 'reserved'),
+    reserved: sum(e => e.status === 'reserved' && !e.isTransit),
     openCount: entries.filter(e => isOpen(e)).length
   };
 }

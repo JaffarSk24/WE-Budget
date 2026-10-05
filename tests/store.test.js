@@ -208,3 +208,39 @@ describe('checking balances against the bank', () => {
     expect(store.reconcileMany([{ accountId: main.id, actual: 40000 }], '2026-10-05')).toEqual({ checked: 1, adjusted: 0, total: 0 });
   });
 });
+
+describe('pass-through money and early payments', () => {
+  it('pass-through money is never set aside and never counted as reserved', async () => {
+    const { accountSummaries } = await import('../src/ledger.js');
+    const { store } = freshStore();
+    const acc = store.add('accounts', makeAccount({ name: 'Second bank' }));
+    const credit = store.add('entries', makeEntry({ date: '2026-10-17', amount: 33000, accountId: acc.id, isTransit: true }));
+    expect(store.bulkSetStatus([credit.id], 'reserved')).toBe(0);
+    expect(accountSummaries(store.data).get(acc.id).ownReserved).toBe(0);
+  });
+
+  it('pass-through money set aside by an older version goes back to the plan once', () => {
+    const acc = makeAccount({ name: 'Second bank' });
+    const e = makeEntry({ date: '2026-10-17', amount: 33000, accountId: acc.id, isTransit: true, status: 'reserved' });
+    const initial = JSON.stringify({ accounts: [acc], entries: [e], settings: {}, datasetId: 'd1' });
+    const { store, adapter } = freshStore(initial);
+    expect(store.find('entries', e.id).status).toBe('planned');
+    expect(JSON.parse(adapter.peek()).entries[0].status).toBe('planned');
+  });
+
+  it('marking done a payment dated later moves it to today, undoing moves it back', () => {
+    const { store } = freshStore();
+    const acc = store.add('accounts', makeAccount({ name: 'Main' }));
+    const e = store.add('entries', makeEntry({ date: '2026-10-25', amount: 3000, accountId: acc.id }));
+    store.setStatus(e.id, 'done', { today: '2026-10-05' });
+    expect(store.find('entries', e.id)).toMatchObject({ date: '2026-10-05', movedFrom: '2026-10-25', status: 'done' });
+    store.unmarkDone(e.id);
+    expect(store.find('entries', e.id)).toMatchObject({ date: '2026-10-25', movedFrom: null, status: 'planned' });
+
+    // In bulk too; a payment dated in the past keeps its date.
+    const past = store.add('entries', makeEntry({ date: '2026-10-02', amount: 100, accountId: acc.id }));
+    store.bulkSetStatus([e.id, past.id], 'done');
+    expect(store.find('entries', e.id).date).toBe('2026-10-05');
+    expect(store.find('entries', past.id).date).toBe('2026-10-02');
+  });
+});
