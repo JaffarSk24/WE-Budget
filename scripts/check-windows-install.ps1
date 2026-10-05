@@ -123,6 +123,23 @@ function Show-Crash([string]$What) {
   }
 }
 
+# The NSIS that electron-builder 24 ships (3.0.4) now and then crashes in its
+# System plugin at the very start on GitHub's Windows Server runners, before
+# anything is installed. Such a crash is shown, tried once more and reported
+# as a warning; any other exit code fails the check.
+$StartCrash = -1073741819  # 0xC0000005
+$script:StartCrashes = 0
+function Invoke-Setup([string]$File, [string[]]$Arguments, [string]$What) {
+  $run = Start-Process -FilePath $File -ArgumentList $Arguments -PassThru -Wait
+  if ($run.ExitCode -eq $StartCrash) {
+    $script:StartCrashes++
+    Show-Crash $What
+    Warn "The $What crashed at start (0xC0000005), trying once more"
+    $run = Start-Process -FilePath $File -ArgumentList $Arguments -PassThru -Wait
+  }
+  return $run.ExitCode
+}
+
 if (-not $Installer) {
   $found = Get-ChildItem -Path 'release.nosync' -Filter 'WE-Budget-*-win-x64.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($found) { $Installer = $found.FullName }
@@ -186,32 +203,33 @@ if ($Repeat -gt 0) {
   Step "Install and uninstall $Repeat times in a row"
   $failed = 0
   for ($n = 1; $n -le $Repeat; $n++) {
-    $run = Start-Process -FilePath $Installer -ArgumentList '/S' -PassThru -Wait
-    if ($run.ExitCode -ne 0) {
+    $code = Invoke-Setup $Installer @('/S') "install $n"
+    if ($code -ne 0) {
       $failed++
-      Write-Host "Install $n of $Repeat exited with code $($run.ExitCode)"
+      Write-Host "Install $n of $Repeat exited with code $code"
       Show-Crash "install $n"
     }
     $placed = Find-UninstallEntry 'HKCU'
     if ($placed) {
       $remover = ([regex]::Match($placed.UninstallString, '^"([^"]+)"')).Groups[1].Value
       $exe = Join-Path (Split-Path $remover -Parent) $ExeName
-      $run = Start-Process -FilePath $remover -ArgumentList '/currentuser', '/S' -PassThru -Wait
-      if ($run.ExitCode -ne 0) {
+      $code = Invoke-Setup $remover @('/currentuser', '/S') "uninstall $n"
+      if ($code -ne 0) {
         $failed++
-        Write-Host "Uninstall $n of $Repeat exited with code $($run.ExitCode)"
+        Write-Host "Uninstall $n of $Repeat exited with code $code"
         Show-Crash "uninstall $n"
       }
       for ($i = 0; $i -lt 60 -and (Test-Path $exe); $i++) { Start-Sleep -Milliseconds 500 }
     }
   }
+  Write-Host "Crashes at start that went through on the second try: $($script:StartCrashes)"
   if ($failed) { Fail "$failed of $Repeat install and uninstall rounds failed" }
   Write-Host "All $Repeat rounds went through"
 }
 
 Step 'Install silently'
-$run = Start-Process -FilePath $Installer -ArgumentList '/S' -PassThru -Wait
-if ($run.ExitCode -ne 0) { Show-Crash 'installation'; Fail "The installer exited with code $($run.ExitCode)" }
+$code = Invoke-Setup $Installer @('/S') 'installation'
+if ($code -ne 0) { Show-Crash 'installation'; Fail "The installer exited with code $code" }
 Assert-NoDetections 'during installation'
 
 $entry = Find-UninstallEntry 'HKCU'
@@ -259,8 +277,8 @@ Assert-NoDetections 'while the app was running'
 Stop-App
 
 Step 'Update over the installed copy with the flags the app uses'
-$run = Start-Process -FilePath $Installer -ArgumentList '--updated', '/S', '--force-run' -PassThru -Wait
-if ($run.ExitCode -ne 0) { Show-Crash 'update'; Fail "The update exited with code $($run.ExitCode)" }
+$code = Invoke-Setup $Installer @('--updated', '/S', '--force-run') 'update'
+if ($code -ne 0) { Show-Crash 'update'; Fail "The update exited with code $code" }
 $after = Find-UninstallEntry 'HKCU'
 if (-not $after -or $after.UninstallString -ne $entry.UninstallString) { Fail 'The update did not go into the installed copy' }
 if (-not (Test-Path $appExe)) { Fail "$appExe is missing after the update" }
@@ -275,8 +293,8 @@ Assert-NoDetections 'during the update'
 Stop-App
 
 Step 'Uninstall silently'
-$run = Start-Process -FilePath $uninstaller -ArgumentList '/currentuser', '/S' -PassThru -Wait
-if ($run.ExitCode -ne 0) { Show-Crash 'uninstallation'; Fail "The uninstaller exited with code $($run.ExitCode)" }
+$code = Invoke-Setup $uninstaller @('/currentuser', '/S') 'uninstallation'
+if ($code -ne 0) { Show-Crash 'uninstallation'; Fail "The uninstaller exited with code $code" }
 # The uninstaller copies itself to a temporary folder and finishes from there.
 for ($i = 0; $i -lt 60 -and (Test-Path $appExe); $i++) { Start-Sleep -Milliseconds 500 }
 if (Test-Path $appExe) { Fail 'The app is still installed after uninstalling' }
