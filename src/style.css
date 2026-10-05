@@ -1297,7 +1297,11 @@ tfoot td { font-weight: 700; border-bottom: none; padding-top: 12px; padding-bot
 .inline-input { padding: 6px 10px !important; width: 100%; }
 .limit-input { max-width: 140px; }
 .inline-add { display: flex; gap: 10px; align-items: center; }
-.inline-add input { flex: 1; }
+.inline-add input { flex: 1; min-width: 0; }
+/* Inputs and lists are 100% wide by default; in this row the list keeps the
+   size of a normal field and the name gets the rest. */
+.inline-add select { flex: 0 0 auto; width: 160px; }
+.inline-add .btn { flex: 0 0 auto; }
 
 /* Welcome */
 body.is-welcome aside nav, body.is-welcome .quick-add-btn, body.is-welcome .sync-status { visibility: hidden; }
