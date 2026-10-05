@@ -207,20 +207,45 @@ export function upcomingEntries(data, fromDay, toDay) {
     .sort(compareEntries);
 }
 
-// Day-by-day projection of the total from today: the real balance now plus
-// everything still to come, the same way the month view adds it up. Open
-// entries dated in the past count today; an entry marked done but dated
-// later counts on its date (the balance of today does not hold it yet).
+// Balance of each account after every entry, from the tracking start on,
+// in the order the month view shows them. This is what the month view's
+// balance column shows: the money on the row's own account after that row,
+// not the sum of all accounts (money on other envelopes is booked for their
+// own payments). Returns Map(entryId -> { accountId: balance after }).
+export function accountRunning(data) {
+  const start = trackingStartOf(data);
+  const balances = new Map(live(data.accounts).map(a => [a.id, a.openingBalance || 0]));
+  const result = new Map();
+  live(data.entries)
+    .filter(e => e.status !== 'cancelled' && e.date >= start)
+    .sort(compareEntries)
+    .forEach(e => {
+      const after = {};
+      new Set([e.accountId, e.toAccountId]).forEach(id => {
+        if (!id) return;
+        balances.set(id, (balances.get(id) || 0) + accountEffect(e, id));
+        after[id] = balances.get(id);
+      });
+      result.set(e.id, after);
+    });
+  return result;
+}
+
+// Day-by-day projection of FREE money from today: what is on the accounts
+// minus what is set aside, then incomes in and payments that have no money
+// set aside out. A payment with money set aside does not change free money:
+// it was taken out when the money was set aside. Open entries dated in the
+// past count today; an entry marked done but dated later counts on its date.
 //
-// firstNegative is the earliest day the total drops below zero, with the
-// entry that tips it over and the total right after it.
+// firstNegative is the first payment free money does not cover, with the
+// free money left after it (minus the part that is missing).
 export function forecast(data, today, toDay) {
-  const { balance } = grandTotals(data, today);
+  const { free } = grandTotals(data, today);
   const byDay = new Map();
   live(data.entries).forEach(e => {
-    if (e.status === 'cancelled' || !isTracked(data, e)) return;
+    if (e.status === 'cancelled' || e.type === 'transfer' || !isTracked(data, e)) return;
     let day;
-    if (isOpen(e)) day = e.date < today ? today : e.date;
+    if (e.status === 'planned') day = e.date < today ? today : e.date;
     else if (e.status === 'done' && e.date > today) day = e.date;
     else return;
     if (day > toDay) return;
@@ -229,25 +254,18 @@ export function forecast(data, today, toDay) {
   });
 
   const points = [];
-  let value = balance;
+  let value = free;
   let firstNegative = null;
-  let minimum = { day: today, value: balance };
-  // Within a day, payments with money set aside (or already done) go before
-  // the ones still waiting for it: the payment reported as the first one
-  // without enough money is then one that really has none set aside.
-  const funded = (e) => (e.type === 'expense' && e.status === 'planned' ? 1 : 0);
+  let minimum = { day: today, value: free };
   for (let day = today; day <= toDay; day = addDays(day, 1)) {
-    (byDay.get(day) || []).sort((x, y) => {
-      const rank = (e) => (e.type === 'income' ? 0 : e.type === 'transfer' ? 1 : 2);
-      return rank(x) - rank(y) || funded(x) - funded(y) || compareEntries(x, y);
-    }).forEach(e => {
+    (byDay.get(day) || []).sort(compareEntries).forEach(e => {
       value += totalEffect(e);
       if (value < 0 && !firstNegative) firstNegative = { day, value, entry: e };
     });
     points.push({ day, value });
     if (value < minimum.value) minimum = { day, value };
   }
-  return { start: balance, points, firstNegative, minimum, end: value };
+  return { start: free, points, firstNegative, minimum, end: value };
 }
 
 // Sum per category for a period, only real flows (no transit, transfers

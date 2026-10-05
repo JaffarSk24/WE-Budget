@@ -4,8 +4,8 @@ import Chart from 'chart.js/auto';
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
 import { h, clear, icon, money, moneyEl, refreshIcons, lang, emptyState, badge } from '../ui.js';
-import { accountSummaries, entriesOn, forecast, grandTotals, monthSummary, overdueEntries, upcomingEntries } from '../ledger.js';
-import { addDays, formatDate, formatDay, formatDayLong, monthOf, todayKey } from '../dates.js';
+import { accountSummaries, entriesOn, forecast, grandTotals, overdueEntries, upcomingEntries } from '../ledger.js';
+import { addDays, formatDate, formatDay, formatDayLong, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { generationHorizon } from '../schedule.js';
 import { entryListItem } from '../actions.js';
 import { openAllocationModal, openQuickExpense } from '../modals.js';
@@ -128,9 +128,12 @@ export function renderOverview(root) {
 
   const totals = grandTotals(store.data, today);
   const month = monthOf(today);
-  const sum = monthSummary(store.data, month);
+
   const horizon = generationHorizon(today, store.settings.forecastMonths || 3);
   const f = forecast(store.data, today, horizon);
+  // Free money left when this month's plan is done.
+  const monthEnd = f.points.find(p => p.day === lastDayOfMonth(month));
+  const monthEndFree = monthEnd ? monthEnd.value : f.start;
   const overdue = overdueEntries(store.data, today);
   const todays = entriesOn(store.data, today, { openOnly: true });
   const week = upcomingEntries(store.data, addDays(today, 1), addDays(today, 7));
@@ -147,7 +150,7 @@ export function renderOverview(root) {
     kpi(t('kpi-free'), moneyEl(totals.free, { colored: true }), t('kpi-free-desc'), totals.free < 0 ? 'alert' : 'primary'),
     kpi(t('kpi-reserved'), moneyEl(totals.reserved), t('kpi-reserved-desc'), 'reserved'),
     kpi(t('kpi-balance'), moneyEl(totals.balance), t('kpi-balance-desc')),
-    kpi(t('kpi-month-end'), moneyEl(sum.closing, { colored: true }), t('kpi-month-end-desc'), sum.closing < 0 ? 'alert' : '')));
+    kpi(t('kpi-month-end'), moneyEl(monthEndFree, { colored: true }), t('kpi-month-end-desc'), monthEndFree < 0 ? 'alert' : '')));
 
   if (f.firstNegative) {
     const dip = f.firstNegative;

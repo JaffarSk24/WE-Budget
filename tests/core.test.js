@@ -300,3 +300,36 @@ describe('first payment without money', () => {
     expect(f.firstNegative.value).toBe(-15000);
   });
 });
+
+describe('money booked for its own payments', () => {
+  it('the balance column follows the row\'s own account', async () => {
+    const { accountRunning } = await import('../src/ledger.js');
+    const { data, main, bills, add } = household();
+    // main 40000, bills envelope 5000
+    const metal = add({ date: '2026-10-15', type: 'expense', amount: 1800, accountId: main.id });
+    const rent = add({ date: '2026-10-16', type: 'expense', amount: 4000, accountId: bills.id, status: 'reserved' });
+    const move = add({ date: '2026-10-17', type: 'transfer', amount: 1000, accountId: main.id, toAccountId: bills.id });
+    const run = accountRunning(data);
+    expect(run.get(metal.id)[main.id]).toBe(38200);
+    expect(run.get(rent.id)[bills.id]).toBe(1000);
+    expect(run.get(move.id)).toEqual({ [main.id]: 37200, [bills.id]: 2000 });
+  });
+
+  it('money set aside for later payments never covers another one', () => {
+    const { data, main, bills, add } = household();
+    // 1000 free on main, bills holds exactly what its two payments need.
+    data.accounts[0].openingBalance = 1000;
+    data.accounts[1].openingBalance = 3000;
+    add({ date: '2026-10-28', type: 'expense', amount: 1000, accountId: bills.id, status: 'reserved', title: 'Apple' });
+    add({ date: '2026-10-29', type: 'expense', amount: 2000, accountId: bills.id, status: 'reserved', title: 'YouTube' });
+    add({ date: '2026-10-13', type: 'income', amount: 6000, accountId: main.id, title: 'Benefit' });
+    add({ date: '2026-10-15', type: 'expense', amount: 1800, accountId: main.id, title: 'Card plan' });
+    const vape = add({ date: '2026-10-25', type: 'expense', amount: 7500, accountId: main.id, title: 'Vape' });
+    const f = forecast(data, '2026-10-05', '2026-10-31');
+    expect(f.start).toBe(1000);
+    // 1000 + 6000 - 1800 = 5200 free before the 7500 payment.
+    expect(f.firstNegative).toEqual({ day: '2026-10-25', value: -2300, entry: vape });
+    // Paying the booked bills changes nothing about free money.
+    expect(f.end).toBe(-2300);
+  });
+});

@@ -6,8 +6,8 @@
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
 import { h, clear, icon, money, moneyEl, accountLabel, categoryName, selectEl, accountOptions, refreshIcons, topModal, lang, badge } from '../ui.js';
-import { monthRows, monthSummary, overdueEntries } from '../ledger.js';
-import { addMonthsToMonth, formatDay, formatMonth, monthOf, todayKey, firstDayOfMonth, parseDayKey } from '../dates.js';
+import { accountRunning, monthRows, monthSummary, overdueEntries } from '../ledger.js';
+import { addMonthsToMonth, formatDay, formatMonth, monthOf, todayKey, firstDayOfMonth, lastDayOfMonth, parseDayKey } from '../dates.js';
 import { statusButton, reserveButton, toggleDone, toggleReserve, cancelEntry, deleteEntry, entryListItem } from '../actions.js';
 import { openEntryModal, openAllocationModal, openBulkDateModal, openBulkAccountModal, withUndo } from '../modals.js';
 import { live } from '../model.js';
@@ -150,7 +150,7 @@ function doneSpoiler(doneRows, columns) {
         h('span', { class: 'spoiler-action' }, state.showDone ? t('done-group-hide') : t('done-group-show')))));
 }
 
-function rowFor({ entry: e, running }, today, showRunning) {
+function rowFor({ entry: e, running }, today, showRunning, runningFor) {
   const overdue = (e.status === 'planned' || e.status === 'reserved') && e.date < today;
   const checked = state.checked.has(e.id);
   const cls = [
@@ -212,7 +212,7 @@ function rowFor({ entry: e, running }, today, showRunning) {
     amountCell('expense'),
     amountCell('income'),
     h('td', { class: 'col-account' }, accountLabel(e.accountId)),
-    showRunning ? h('td', { class: `num money running ${running < 0 ? 'negative' : ''}` }, money(running)) : null,
+    showRunning ? runningCell(runningFor(e, running)) : null,
     h('td', { class: 'col-actions' },
       reserveButton(e),
       h('button', { type: 'button', class: 'icon-btn', title: t('edit'), 'aria-label': t('edit'), onclick: (ev) => { ev.stopPropagation(); openEntryModal(e); } }, icon('pencil')),
@@ -222,6 +222,11 @@ function rowFor({ entry: e, running }, today, showRunning) {
       }, icon(e.status === 'cancelled' ? 'rotate-ccw' : 'ban')),
       h('button', { type: 'button', class: 'icon-btn danger', title: t('delete'), 'aria-label': t('delete'), onclick: (ev) => { ev.stopPropagation(); deleteEntry(e); } }, icon('trash-2')))
   );
+}
+
+function runningCell(value) {
+  if (value === null || value === undefined) return h('td', { class: 'num money running' });
+  return h('td', { class: `num money running ${value < 0 ? 'negative' : ''}` }, money(value));
 }
 
 function select(id) {
@@ -252,7 +257,21 @@ export function renderMonth(root) {
   visibleIds = shownRows.map(r => r.entry.id);
   // Ticks survive edits, but not rows that left the view.
   [...state.checked].forEach(id => { if (!visibleIds.includes(id)) state.checked.delete(id); });
-  const showRunning = !state.accountId;
+
+  // From the tracking start on, the balance column shows the money on the
+  // row's own account after the row (or on the filtered account). Money on
+  // other envelopes is booked for their own payments and is not counted.
+  // History months keep the pooled running total, as the spreadsheet had.
+  const trackingStart = store.settings.trackingStart || '0000-01-01';
+  const perAccount = accountRunning(store.data);
+  const runningFor = (e, pooled) => {
+    if (e.date < trackingStart) return state.accountId ? null : pooled;
+    if (e.status === 'cancelled') return null;
+    const after = perAccount.get(e.id);
+    return after ? after[state.accountId || e.accountId] : null;
+  };
+  const historyMonth = lastDayOfMonth(month) < trackingStart;
+  const showRunning = !(state.accountId && historyMonth);
 
   clear(root);
 
@@ -310,7 +329,7 @@ export function renderMonth(root) {
     h('tbody', {}, rows.length
       ? [
         doneRows.length ? doneSpoiler(doneRows, columns) : null,
-        ...shownRows.map(r => rowFor(r, today, showRunning))
+        ...shownRows.map(r => rowFor(r, today, showRunning, runningFor))
       ]
       : h('tr', {}, h('td', { colspan: columns, class: 'empty-cell' }, t('month-empty')))),
     rows.length ? h('tfoot', {}, h('tr', {},
@@ -318,7 +337,7 @@ export function renderMonth(root) {
       h('td', { class: 'num money' }, money(sumOf('expense'))),
       h('td', { class: 'num money positive' }, money(sumOf('income'))),
       h('td', {}),
-      showRunning ? h('td', { class: `num money running ${summary.closing < 0 ? 'negative' : ''}` }, money(summary.closing)) : null,
+      showRunning ? (historyMonth ? runningCell(summary.closing) : h('td', {})) : null,
       h('td', {}))) : null
   );
 
