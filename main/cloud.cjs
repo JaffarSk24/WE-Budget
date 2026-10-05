@@ -19,10 +19,11 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const { DRIVE_SCOPE, grantsDrive, isInsufficientScope, pendingSignIn } = require('./cloud-utils.cjs');
 
 const REMOTE_NAME = 'we-budget-data.json.gz';
 const SCOPES = [
-  'https://www.googleapis.com/auth/drive.appdata',
+  DRIVE_SCOPE,
   'https://www.googleapis.com/auth/userinfo.email'
 ].join(' ');
 const DRIVE = 'https://www.googleapis.com/drive/v3';
@@ -34,13 +35,17 @@ const PAGE_TEXT = {
     okTitle: 'Готово',
     ok: 'Google-аккаунт подключён. Эту вкладку можно закрыть и вернуться в WE Budget.',
     failTitle: 'Не получилось',
-    fail: 'Закройте вкладку и попробуйте войти ещё раз из приложения.'
+    fail: 'Закройте вкладку и попробуйте войти ещё раз из приложения.',
+    scopeTitle: 'Нет доступа к Google Диску',
+    scope: 'На странице Google не была отмечена галочка доступа к Google Диску, а без неё синхронизация не работает. Закройте вкладку, нажмите в приложении «Войти через Google» ещё раз и отметьте доступ к Диску.'
   },
   en: {
     okTitle: 'Signed in',
     ok: 'Your Google account is connected. You can close this tab and return to WE Budget.',
     failTitle: 'Sign-in failed',
-    fail: 'Close this tab and try again from the app.'
+    fail: 'Close this tab and try again from the app.',
+    scopeTitle: 'No access to Google Drive',
+    scope: 'The Google Drive permission was not ticked on the Google page, and sync cannot work without it. Close this tab, choose Sign in with Google in the app again and tick the Google Drive permission.'
   }
 };
 
@@ -57,6 +62,20 @@ function page(title, message, color) {
 function isNetworkError(e) {
   return e && (e.name === 'TypeError' || e.name === 'AbortError' || e.name === 'TimeoutError'
     || /fetch failed|ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|network/i.test(String(e.message)));
+}
+
+// Best effort: asks Google to drop a grant. Offline, the local sign-out
+// still stands.
+async function revoke(token) {
+  if (!token) return;
+  try {
+    await fetch('https://oauth2.googleapis.com/revoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token }).toString(),
+      signal: AbortSignal.timeout(10000)
+    });
+  } catch (e) { /* offline */ }
 }
 
 class Cloud {
@@ -108,7 +127,8 @@ class Cloud {
     return {
       configured: this.isConfigured(),
       loggedIn: this.isLoggedIn(),
-      email: (this.tokens && this.tokens.email) || ''
+      email: (this.tokens && this.tokens.email) || '',
+      signInNeeded: pendingSignIn(this.getState(), this.isLoggedIn())
     };
   }
 
@@ -122,6 +142,13 @@ class Cloud {
     const next = { ...this.getState(), ...patch };
     this.writeJson(this.statePath, next);
     return { ok: true };
+  }
+
+  // Sync was on and stopped because Google wants a new sign-in. Kept on
+  // disk, so the app keeps asking after a restart until the owner signs in
+  // again or turns sync off.
+  markSignInNeeded(reason) {
+    this.setState({ signInNeeded: { reason, email: (this.tokens && this.tokens.email) || '', at: new Date().toISOString() } });
   }
 
   // ---------- OAuth ----------
@@ -166,6 +193,16 @@ class Cloud {
           const tokenData = await this.requestTokens({
             grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: redirectUri
           });
+          if (!grantsDrive(tokenData.scope)) {
+            // Google lets people untick single permissions. Without the
+            // Drive one every sync would fail, so the sign-in is refused
+            // here and the grant dropped.
+            revoke(tokenData.refresh_token || tokenData.access_token);
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(page(text.scopeTitle, text.scope, '#f59e0b'));
+            finish({ ok: false, error: 'drive_scope_missing' });
+            return;
+          }
           if (!tokenData.refresh_token) throw new Error('no_refresh_token');
           const email = await this.fetchEmail(tokenData.access_token);
           this.tokens = {
@@ -176,6 +213,7 @@ class Cloud {
             clientId: this.credentials.clientId
           };
           this.writeJson(this.tokensPath, this.tokens);
+          this.setState({ signInNeeded: null });
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end(page(text.okTitle, text.ok, '#22c55e'));
           finish({ ok: true, email });
@@ -283,9 +321,11 @@ class Cloud {
       return this.tokens.access_token;
     } catch (e) {
       if (e.code === 'invalid_grant' || e.code === 'unauthorized_client') {
+        this.markSignInNeeded('expired');
         this.forgetTokens();
         const err = new Error('reauth_required');
         err.reauth = true;
+        err.reason = 'expired';
         throw err;
       }
       throw e;
@@ -308,6 +348,16 @@ class Cloud {
       }
       if (!res.ok) {
         const body = await res.text().catch(() => '');
+        if (isInsufficientScope(res.status, body)) {
+          // Signed in without the Drive permission (possible before the
+          // app checked it at sign-in): only a new sign-in helps.
+          this.markSignInNeeded('drive_scope');
+          this.forgetTokens();
+          const err = new Error('drive_scope_missing');
+          err.reauth = true;
+          err.reason = 'drive_scope';
+          throw err;
+        }
         const err = new Error(`drive ${res.status}: ${body.slice(0, 200)}`);
         err.status = res.status;
         throw err;
@@ -329,7 +379,7 @@ class Cloud {
     try {
       return { ok: true, ...(await fn()) };
     } catch (e) {
-      return { ok: false, error: e.message, reauth: Boolean(e.reauth), offline: isNetworkError(e) };
+      return { ok: false, error: e.message, reauth: Boolean(e.reauth), reason: e.reason || null, offline: isNetworkError(e) };
     }
   }
 
@@ -404,17 +454,9 @@ class Cloud {
   async logout() {
     const token = this.tokens && (this.tokens.refresh_token || this.tokens.access_token);
     this.forgetTokens();
-    if (token) {
-      // Best effort: tell Google to drop the grant too.
-      try {
-        await fetch('https://oauth2.googleapis.com/revoke', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ token }).toString(),
-          signal: AbortSignal.timeout(10000)
-        });
-      } catch (e) { /* offline: the local sign-out still stands */ }
-    }
+    // Turning sync off is a decision, not a failure: nothing to ask about.
+    this.setState({ signInNeeded: null });
+    await revoke(token);
     return { ok: true };
   }
 }

@@ -120,7 +120,7 @@ Shift-click on a checkbox ticks a range. Every destructive action can be undone 
 
 Sign in with Google in Settings, or on the first-launch screen of a new computer. The budget is stored as one compressed file in the app's hidden folder on your Google Drive: neither other apps nor you see it in Drive, and nothing is kept on any other server.
 
-The app syncs on start, a few seconds after a change, every five minutes and before it closes. Changes made on different computers are merged record by record; the newer change of a record wins and deletions are kept. If a computer and the cloud hold two different budgets, the app asks which one to keep and never mixes them. Without a connection everything keeps working and goes up later. What the app stores, where, and how to remove it is described in the [privacy policy](https://jaffarsk24.github.io/WE-Budget/privacy.html).
+The app syncs on start, a few seconds after a change, every five minutes and before it closes. Changes made on different computers are merged record by record; the newer change of a record wins and deletions are kept. If a computer and the cloud hold two different budgets, the app asks which one to keep and never mixes them. Without a connection everything keeps working and goes up later. If Google stops honouring the sign-in (for example after access was revoked), a banner at the top asks to sign in again on every start until you do; meanwhile changes are kept on the computer. What the app stores, where, and how to remove it is described in the [privacy policy](https://jaffarsk24.github.io/WE-Budget/privacy.html).
 
 ## Updates
 

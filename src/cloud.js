@@ -54,6 +54,11 @@ export async function signIn() {
   sync.setState({ signingIn: true });
   try {
     const result = await sync.login(lang());
+    if (result && result.error === 'drive_scope_missing') {
+      showToast(t('sync-scope-missing'), { type: 'error', duration: 12000 });
+      if (sync.state.status === 'reauth') sync.setState({ reauthReason: 'drive_scope' });
+      return false;
+    }
     if (!result || !result.ok) {
       const quiet = result && (result.error === 'timeout' || result.error === 'access_denied' || result.error === 'cancelled');
       if (!quiet) showToast(result && result.offline ? t('sync-login-offline') : t('sync-login-failed'), { type: 'error' });
@@ -112,5 +117,32 @@ export function initSyncStatus(el) {
   el.addEventListener('click', () => { window.location.hash = '#settings'; });
   sync.onChange(render);
   store.subscribe(render);
+  render();
+}
+
+// Sync stopped because Google wants a new sign-in. A line in the sidebar is
+// easy to miss, so a banner stays on top of every screen until the owner
+// signs in again; "Later" hides it until the next start of the app.
+export function initSyncBanner(el) {
+  if (!el) return;
+  let hiddenForNow = false;
+  const render = () => {
+    const st = sync.state;
+    const show = st.status === 'reauth' && !hiddenForNow;
+    clear(el);
+    el.hidden = !show;
+    if (!show) return;
+    const text = st.reauthReason === 'drive_scope' ? t('sync-banner-scope') : t('sync-banner-expired');
+    el.append(
+      h('div', { class: 'sync-banner-text' }, icon('cloud-off'),
+        h('div', {}, h('strong', {}, t('sync-banner-title')), ' ', h('span', {}, text))),
+      h('div', { class: 'sync-banner-actions' }, st.signingIn
+        ? [h('button', { type: 'button', class: 'btn btn-primary btn-sm', disabled: true }, icon('loader'), t('sync-waiting-browser')),
+          h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onclick: cancelSignIn }, t('cancel'))]
+        : [h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: () => signIn() }, icon('log-in'), t('sync-login')),
+          h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onclick: () => { hiddenForNow = true; render(); } }, t('sync-banner-later'))]));
+    refreshIcons();
+  };
+  sync.onChange(render);
   render();
 }

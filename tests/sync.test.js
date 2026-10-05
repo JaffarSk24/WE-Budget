@@ -263,3 +263,45 @@ describe('two devices', () => {
     expect(cloud.writes).toBe(writes + 1);
   });
 });
+
+describe('dropped sign-in', () => {
+  it('a restart after a dropped sign-in still asks to sign in', async () => {
+    const cloud = fakeCloud();
+    const store = new Store(memoryAdapter(JSON.stringify(seed())), { today: () => '2026-10-05' });
+    const bridge = cloud.bridge();
+    bridge.status = async () => ({ configured: true, loggedIn: false, email: '', signInNeeded: { reason: 'expired', email: 'owner@example.com' } });
+    const engine = new SyncEngine({ store, bridge });
+    await engine.init({ auto: false });
+    expect(engine.state.status).toBe('reauth');
+    expect(engine.state.reauthReason).toBe('expired');
+    expect(engine.state.email).toBe('owner@example.com');
+  });
+
+  it('a device that never synced or signed out stays quiet', async () => {
+    const cloud = fakeCloud();
+    const store = new Store(memoryAdapter(JSON.stringify(seed())), { today: () => '2026-10-05' });
+    const bridge = cloud.bridge();
+    bridge.status = async () => ({ configured: true, loggedIn: false, email: '', signInNeeded: null });
+    const engine = new SyncEngine({ store, bridge });
+    await engine.init({ auto: false });
+    expect(engine.state.status).toBe('off');
+    expect(engine.state.reauthReason).toBeNull();
+  });
+
+  it('a sync refused for a missing Drive permission says so, and signing in clears it', async () => {
+    const cloud = fakeCloud();
+    const d = await start(device(cloud, { initial: seed() }));
+    d.engine.bridge.meta = async () => ({ ok: false, error: 'drive_scope_missing', reauth: true, reason: 'drive_scope' });
+    const result = await d.engine.sync('manual');
+    expect(result.ok).toBe(false);
+    expect(d.engine.state.status).toBe('reauth');
+    expect(d.engine.state.reauthReason).toBe('drive_scope');
+    expect(d.engine.loggedIn).toBe(false);
+
+    d.engine.bridge.meta = async () => ({ ok: true, exists: false });
+    const login = await d.engine.login('en');
+    expect(login.ok).toBe(true);
+    expect(d.engine.state.status).toBe('idle');
+    expect(d.engine.state.reauthReason).toBeNull();
+  });
+});

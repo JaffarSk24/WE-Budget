@@ -24,7 +24,7 @@ import { openQuickExpense, openEntryModal } from './modals.js';
 import { todayKey } from './dates.js';
 import { hasAnyData } from './model.js';
 import { setNavigator } from './router.js';
-import { sync, initSyncStatus } from './cloud.js';
+import { sync, initSyncStatus, initSyncBanner } from './cloud.js';
 import { initUpdates, onUpdateChange } from './updates.js';
 
 window.lucide = { createIcons: () => createIcons({ icons: usedIcons }) };
@@ -125,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initKeys();
   showLoadError();
   initSyncStatus(document.getElementById('sync-status'));
+  initSyncBanner(document.getElementById('sync-banner'));
   initUpdates(document.getElementById('update-banner'));
   sync.onChange(() => { if (current === 'settings' || current === 'welcome') render(); });
   onUpdateChange(() => { if (current === 'settings') render(); });

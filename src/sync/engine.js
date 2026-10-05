@@ -44,7 +44,7 @@ export class SyncEngine {
     this.applying = false;
     this.timer = null;
     this.listeners = [];
-    this.state = { status: bridge ? 'checking' : 'unavailable', email: '', lastSyncAt: null, error: null };
+    this.state = { status: bridge ? 'checking' : 'unavailable', email: '', lastSyncAt: null, error: null, reauthReason: null };
   }
 
   onChange(fn) {
@@ -64,6 +64,7 @@ export class SyncEngine {
     if (!result || result.ok === false) {
       const err = new Error((result && result.error) || `${method} failed`);
       err.reauth = Boolean(result && result.reauth);
+      err.reason = (result && result.reason) || null;
       err.offline = Boolean(result && result.offline);
       throw err;
     }
@@ -79,9 +80,13 @@ export class SyncEngine {
     }
     const saved = await this.bridge.getState();
     this.loggedIn = Boolean(status.loggedIn);
+    // Signed out because Google dropped the sign-in, not by choice: keep
+    // asking, a restart must not turn a stopped sync into a quiet one.
+    const pending = this.loggedIn ? null : status.signInNeeded || null;
     this.setState({
-      status: this.loggedIn ? 'idle' : 'off',
-      email: status.email || '',
+      status: this.loggedIn ? 'idle' : pending ? 'reauth' : 'off',
+      reauthReason: pending ? pending.reason || 'expired' : null,
+      email: status.email || (pending && pending.email) || '',
       lastSyncAt: (saved && saved.lastSyncAt) || null
     });
     if (auto) this.startAuto();
@@ -110,7 +115,7 @@ export class SyncEngine {
     const result = await this.bridge.login(lang);
     if (!result || !result.ok) return result || { ok: false };
     this.loggedIn = true;
-    this.setState({ status: 'idle', email: result.email || '', error: null });
+    this.setState({ status: 'idle', email: result.email || '', error: null, reauthReason: null });
     const synced = await this.sync('login');
     return { ok: true, synced };
   }
@@ -120,7 +125,7 @@ export class SyncEngine {
     await this.bridge.setState({ fileId: null, version: null, datasetId: null, pushedHash: null, lastSyncAt: null });
     this.loggedIn = false;
     clearTimeout(this.timer);
-    this.setState({ status: 'off', email: '', lastSyncAt: null, error: null });
+    this.setState({ status: 'off', email: '', lastSyncAt: null, error: null, reauthReason: null });
   }
 
   json() {
@@ -243,7 +248,11 @@ export class SyncEngine {
       return { ok: true, outcome, reason };
     } catch (e) {
       if (e.reauth) this.loggedIn = false;
-      this.setState({ status: e.reauth ? 'reauth' : e.offline ? 'offline' : 'error', error: e.message });
+      this.setState({
+        status: e.reauth ? 'reauth' : e.offline ? 'offline' : 'error',
+        reauthReason: e.reauth ? e.reason || 'expired' : null,
+        error: e.message
+      });
       return { ok: false, error: e.message, reason };
     }
   }

@@ -58,7 +58,7 @@ function syncSection() {
   } else if (st.status === 'checking') {
     rows.push(h('p', { class: 'setting-hint' }, t('sync-checking')));
   } else if (!sync.loggedIn) {
-    rows.push(h('p', { class: 'setting-hint' }, st.status === 'reauth' ? t('sync-reauth-hint') : t('sync-explain')));
+    rows.push(h('p', { class: 'setting-hint' }, st.status === 'reauth' ? t(st.reauthReason === 'drive_scope' ? 'sync-banner-scope' : 'sync-reauth-hint') : t('sync-explain')));
     rows.push(h('div', { class: 'inline-actions' },
       st.signingIn
         ? [h('button', { type: 'button', class: 'btn btn-primary', disabled: true }, icon('loader'), t('sync-waiting-browser')),
