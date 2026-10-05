@@ -24,6 +24,9 @@ export const DEFAULT_SETTINGS = {
   reminderTime: '23:00',
   macNotifications: true,
   calendarReminders: false,
+  // The app's own calendar in Google Calendar, shared by all devices.
+  reminderCalendarId: null,
+  morningDigest: false,
   onboarded: false
 };
 

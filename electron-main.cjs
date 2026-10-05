@@ -142,7 +142,8 @@ function initStorageIpc() {
 function initCloudIpc() {
   cloud.init();
   ipcMain.handle('cloud:status', () => cloud.status());
-  ipcMain.handle('cloud:login', (_e, lang) => cloud.login(lang));
+  ipcMain.handle('cloud:login', (_e, lang, opts) => cloud.login(lang, opts || {}));
+  ipcMain.handle('cloud:calendar', (_e, method, path, query, body) => cloud.calendar(method, path, query, body));
   ipcMain.handle('cloud:cancel-login', () => { cloud.cancelLogin(); return { ok: true }; });
   ipcMain.handle('cloud:logout', () => cloud.logout());
   ipcMain.handle('cloud:get-state', () => cloud.getState());
@@ -325,6 +326,8 @@ function waitForDevServer(url, attempts = 60) {
 
 app.whenReady().then(async () => {
   app.setName(APP_NAME);
+  // Windows shows notifications only for an app with an identity.
+  if (process.platform === 'win32') app.setAppUserModelId('com.whiteeagles.webudget');
   initStorageIpc();
   initCloudIpc();
   initUpdatesIpc();

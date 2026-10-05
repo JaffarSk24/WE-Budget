@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('weStorage', {
 
 contextBridge.exposeInMainWorld('weCloud', {
   status: () => ipcRenderer.invoke('cloud:status'),
-  login: (lang) => ipcRenderer.invoke('cloud:login', lang),
+  login: (lang, opts) => ipcRenderer.invoke('cloud:login', lang, opts),
   cancelLogin: () => ipcRenderer.invoke('cloud:cancel-login'),
   logout: () => ipcRenderer.invoke('cloud:logout'),
   getState: () => ipcRenderer.invoke('cloud:get-state'),
@@ -26,7 +26,8 @@ contextBridge.exposeInMainWorld('weCloud', {
   meta: () => ipcRenderer.invoke('cloud:meta'),
   download: (fileId) => ipcRenderer.invoke('cloud:download', fileId),
   upload: (content, fileId) => ipcRenderer.invoke('cloud:upload', content, fileId),
-  remove: (ids) => ipcRenderer.invoke('cloud:remove', ids)
+  remove: (ids) => ipcRenderer.invoke('cloud:remove', ids),
+  calendar: (method, path, query, body) => ipcRenderer.invoke('cloud:calendar', method, path, query, body)
 });
 
 contextBridge.exposeInMainWorld('weUpdates', {

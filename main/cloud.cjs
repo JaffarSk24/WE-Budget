@@ -27,6 +27,9 @@ const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email'
 ].join(' ');
 const DRIVE = 'https://www.googleapis.com/drive/v3';
+const CALENDAR = 'https://www.googleapis.com/calendar/v3';
+// Asked for only when reminders in Google Calendar are switched on.
+const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const TIMEOUT_MS = 30000;
 
@@ -128,6 +131,7 @@ class Cloud {
       configured: this.isConfigured(),
       loggedIn: this.isLoggedIn(),
       email: (this.tokens && this.tokens.email) || '',
+      scopes: String((this.tokens && this.tokens.scope) || '').split(/\s+/).filter(Boolean),
       signInNeeded: pendingSignIn(this.getState(), this.isLoggedIn())
     };
   }
@@ -153,7 +157,9 @@ class Cloud {
 
   // ---------- OAuth ----------
 
-  login(lang = 'en') {
+  // `calendar`: also ask for the app's own calendars (reminders). Scopes
+  // granted earlier are kept (include_granted_scopes).
+  login(lang = 'en', { calendar = false } = {}) {
     if (!this.isConfigured()) return Promise.resolve({ ok: false, error: 'not_configured' });
     if (this.server) {
       try { this.server.close(); } catch (e) { /* an earlier attempt */ }
@@ -210,7 +216,8 @@ class Cloud {
             refresh_token: tokenData.refresh_token,
             expiry: Date.now() + (tokenData.expires_in || 3600) * 1000,
             email,
-            clientId: this.credentials.clientId
+            clientId: this.credentials.clientId,
+            scope: tokenData.scope || SCOPES
           };
           this.writeJson(this.tokensPath, this.tokens);
           this.setState({ signInNeeded: null });
@@ -231,7 +238,8 @@ class Cloud {
           client_id: this.credentials.clientId,
           redirect_uri: redirectUri,
           response_type: 'code',
-          scope: SCOPES,
+          scope: calendar ? `${SCOPES} ${CALENDAR_SCOPE}` : SCOPES,
+          include_granted_scopes: 'true',
           access_type: 'offline',
           prompt: 'consent',
           code_challenge: challenge,
@@ -315,6 +323,7 @@ class Cloud {
     try {
       const fresh = await this.requestTokens({ grant_type: 'refresh_token', refresh_token: this.tokens.refresh_token });
       this.tokens.access_token = fresh.access_token;
+      if (fresh.scope) this.tokens.scope = fresh.scope;
       this.tokens.expiry = Date.now() + (fresh.expires_in || 3600) * 1000;
       this.tokens.clientId = this.credentials.clientId;
       this.writeJson(this.tokensPath, this.tokens);
@@ -348,6 +357,14 @@ class Cloud {
       }
       if (!res.ok) {
         const body = await res.text().catch(() => '');
+        if (isInsufficientScope(res.status, body) && options.calendar) {
+          // Calendar access not granted (yet): reminders need their own
+          // consent, the Drive sign-in stays.
+          const err = new Error('calendar_scope_missing');
+          err.status = 403;
+          err.scopeMissing = true;
+          throw err;
+        }
         if (isInsufficientScope(res.status, body)) {
           // Signed in without the Drive permission (possible before the
           // app checked it at sign-in): only a new sign-in helps.
@@ -379,7 +396,10 @@ class Cloud {
     try {
       return { ok: true, ...(await fn()) };
     } catch (e) {
-      return { ok: false, error: e.message, reauth: Boolean(e.reauth), reason: e.reason || null, offline: isNetworkError(e) };
+      return {
+        ok: false, error: e.message, reauth: Boolean(e.reauth), reason: e.reason || null,
+        status: e.status || null, scopeMissing: Boolean(e.scopeMissing), offline: isNetworkError(e)
+      };
     }
   }
 
@@ -439,6 +459,23 @@ class Cloud {
       });
       const saved = await res.json();
       return { fileId: saved.id, version: String(saved.version) };
+    });
+  }
+
+  // Google Calendar request for reminders: path under /calendar/v3, query
+  // parameters and an optional JSON body. Returns { status, json }.
+  calendar(method, path, query = null, body = null) {
+    return this.guard(async () => {
+      if (typeof path !== 'string' || !path.startsWith('/')) throw new Error('bad_path');
+      const qs = query ? '?' + new URLSearchParams(query).toString() : '';
+      const res = await this.api(`${CALENDAR}${path}${qs}`, {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        body: body ? JSON.stringify(body) : undefined,
+        calendar: true
+      });
+      const text = res.status === 204 ? '' : await res.text();
+      return { status: res.status, json: text ? JSON.parse(text) : null };
     });
   }
 

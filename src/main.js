@@ -26,6 +26,8 @@ import { hasAnyData } from './model.js';
 import { setNavigator } from './router.js';
 import { sync, initSyncStatus, initSyncBanner } from './cloud.js';
 import { initUpdates, onUpdateChange } from './updates.js';
+import { initReminders, onReminderChange } from './reminder-sync.js';
+import { initNotifications } from './notify.js';
 
 window.lucide = { createIcons: () => createIcons({ icons: usedIcons }) };
 
@@ -131,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initUpdates(document.getElementById('update-banner'));
   sync.onChange(() => { if (current === 'settings' || current === 'welcome') render(); });
   onUpdateChange(() => { if (current === 'settings') render(); });
+  onReminderChange(() => { if (current === 'settings') render(); });
 
   // Before the window closes, unsent changes go to the cloud (the main
   // process waits a few seconds at most).
@@ -157,7 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try { initial = localStorage.getItem(LAST_VIEW_KEY); } catch (e) { initial = null; }
   }
   show(VIEWS[initial] ? initial : 'month');
-  sync.init().catch(e => console.error('sync init failed', e));
+  sync.init().catch(e => console.error('sync init failed', e)).finally(() => initReminders());
+  initNotifications();
   setInterval(checkDay, 60 * 1000);
   window.addEventListener('focus', checkDay);
 });

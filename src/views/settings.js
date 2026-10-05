@@ -13,6 +13,7 @@ import { buildDemo } from '../demo.js';
 import { withUndo } from '../modals.js';
 import { sync, signIn, cancelSignIn, signOut, syncStatusText } from '../cloud.js';
 import { checkForUpdates, updateState, updatesAvailable } from '../updates.js';
+import { reminderState, requestCalendarAccess, turnOffReminders, run as runReminders, reminderStatusText } from '../reminder-sync.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
@@ -98,6 +99,52 @@ function updatesSection() {
       : h('p', { class: 'setting-hint' }, t('update-desktop-only')));
 }
 
+function checkboxLabel(input, text) {
+  return h('label', { class: 'checkbox-row' }, input, h('span', {}, text));
+}
+
+// Reminder time, the Google Calendar reminders (any device) and the
+// notifications of this computer (desktop app only).
+function remindersSection() {
+  const s = store.settings;
+  const time = h('input', { type: 'time', value: s.reminderTime || '23:00' });
+  time.addEventListener('change', () => {
+    if (/^\d{2}:\d{2}$/.test(time.value)) store.updateSettings({ reminderTime: time.value });
+  });
+  const calendar = h('input', { type: 'checkbox', checked: Boolean(s.calendarReminders) });
+  calendar.addEventListener('change', async () => {
+    if (calendar.checked) {
+      store.updateSettings({ calendarReminders: true });
+      runReminders({ force: true });
+    } else {
+      await turnOffReminders();
+    }
+  });
+  const rows = [
+    settingRow(t('reminder-time'), time, t('reminder-time-hint')),
+    settingRow(t('reminder-calendar'), checkboxLabel(calendar, t('reminder-calendar-on')), t('reminder-calendar-hint'))
+  ];
+  if (s.calendarReminders) {
+    const warn = ['needs-access', 'signed-out', 'error'].includes(reminderState.status);
+    rows.push(settingRow(t('reminder-state'), h('span', { class: `setting-value ${warn ? 'sync-text-reauth' : ''}` }, reminderStatusText() || t('reminder-working'))));
+    if (reminderState.status === 'needs-access') {
+      rows.push(h('div', { class: 'inline-actions' }, h('button', {
+        type: 'button', class: 'btn btn-primary', onclick: () => requestCalendarAccess()
+      }, icon('calendar'), t('reminder-allow'))));
+    }
+  }
+  if (window.weApp) {
+    const desktop = h('input', { type: 'checkbox', checked: s.macNotifications !== false });
+    desktop.addEventListener('change', () => store.updateSettings({ macNotifications: desktop.checked }));
+    const morning = h('input', { type: 'checkbox', checked: Boolean(s.morningDigest) });
+    morning.addEventListener('change', () => store.updateSettings({ morningDigest: morning.checked }));
+    rows.push(
+      settingRow(t('reminder-desktop'), checkboxLabel(desktop, t('reminder-desktop-on')), t('reminder-desktop-hint')),
+      settingRow(t('reminder-morning'), checkboxLabel(morning, t('reminder-morning-on'))));
+  }
+  return section(t('reminder-title'), 'calendar', ...rows);
+}
+
 function categoriesSection(root) {
   const cats = store.list('categories').sort((a, b) => (a.type === b.type ? 0 : a.type === 'expense' ? -1 : 1) || a.archived - b.archived || a.name.localeCompare(b.name, lang()));
   const rows = cats.map(c => {
@@ -172,6 +219,7 @@ export function renderSettings(root) {
   });
 
   root.appendChild(syncSection());
+  root.appendChild(remindersSection());
 
   root.appendChild(section(t('settings-look'), 'palette',
     settingRow(t('settings-language'), language),

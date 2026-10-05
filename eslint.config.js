@@ -21,6 +21,18 @@ const browserGlobals = {
   HTMLElement: 'readonly',
   Node: 'readonly',
   HashChangeEvent: 'readonly',
+  Notification: 'readonly',
+  structuredClone: 'readonly',
+  fetch: 'readonly',
+  location: 'readonly',
+  history: 'readonly',
+  URLSearchParams: 'readonly',
+  Response: 'readonly',
+  CompressionStream: 'readonly',
+  DecompressionStream: 'readonly',
+  TextEncoder: 'readonly',
+  TextDecoder: 'readonly',
+  AbortSignal: 'readonly',
   __APP_VERSION__: 'readonly'
 };
 
