@@ -155,7 +155,10 @@ export function renderOverview(root) {
       h('span', {}, t('forecast-negative', {
         date: formatDate(dip.day, lang()),
         name: dip.entry.title || t('untitled'),
-        amount: money(dip.value)
+        payment: money(dip.entry.amount),
+        // Before this payment the total was still at zero or above, so what
+        // is missing is the part of the payment the money does not cover.
+        shortage: money(-dip.value)
       }))));
   }
 

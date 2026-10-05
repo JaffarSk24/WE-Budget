@@ -113,7 +113,7 @@ export const en = {
   'kpi-balance-desc': 'As the app counts it',
   'kpi-month-end': 'End of month',
   'kpi-month-end-desc': 'If everything goes to plan',
-  'forecast-negative': 'Money runs out on {date}: after "{name}" the balance is {amount}.',
+  'forecast-negative': 'First payment without enough money: "{name}" of {payment} on {date}, {shortage} short.',
   'overdue-title-one': '{n} item overdue',
   'overdue-title-few': '{n} items overdue',
   'overdue-title-many': '{n} items overdue',
