@@ -208,15 +208,24 @@ export function upcomingEntries(data, fromDay, toDay) {
 }
 
 // Day-by-day projection of the total from today: the real balance now plus
-// every open entry, overdue ones counted as happening today.
+// everything still to come, the same way the month view adds it up. Open
+// entries dated in the past count today; an entry marked done but dated
+// later counts on its date (the balance of today does not hold it yet).
+//
+// firstNegative is the earliest day the total drops below zero, with the
+// entry that tips it over and the total right after it.
 export function forecast(data, today, toDay) {
   const { balance } = grandTotals(data, today);
   const byDay = new Map();
   live(data.entries).forEach(e => {
-    if (!isOpen(e) || !isTracked(data, e)) return;
-    const day = e.date < today ? today : e.date;
+    if (e.status === 'cancelled' || !isTracked(data, e)) return;
+    let day;
+    if (isOpen(e)) day = e.date < today ? today : e.date;
+    else if (e.status === 'done' && e.date > today) day = e.date;
+    else return;
     if (day > toDay) return;
-    byDay.set(day, (byDay.get(day) || 0) + totalEffect(e));
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(e);
   });
 
   const points = [];
@@ -224,9 +233,11 @@ export function forecast(data, today, toDay) {
   let firstNegative = null;
   let minimum = { day: today, value: balance };
   for (let day = today; day <= toDay; day = addDays(day, 1)) {
-    value += byDay.get(day) || 0;
+    (byDay.get(day) || []).sort(compareEntries).forEach(e => {
+      value += totalEffect(e);
+      if (value < 0 && !firstNegative) firstNegative = { day, value, entry: e };
+    });
     points.push({ day, value });
-    if (value < 0 && !firstNegative) firstNegative = day;
     if (value < minimum.value) minimum = { day, value };
   }
   return { start: balance, points, firstNegative, minimum, end: value };

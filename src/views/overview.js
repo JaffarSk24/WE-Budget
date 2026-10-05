@@ -150,8 +150,13 @@ export function renderOverview(root) {
     kpi(t('kpi-month-end'), moneyEl(sum.closing, { colored: true }), t('kpi-month-end-desc'), sum.closing < 0 ? 'alert' : '')));
 
   if (f.firstNegative) {
+    const dip = f.firstNegative;
     root.appendChild(h('div', { class: 'banner banner-danger' }, icon('alert-triangle'),
-      h('span', {}, t('forecast-negative', { date: formatDate(f.firstNegative, lang()), amount: money(f.minimum.value) }))));
+      h('span', {}, t('forecast-negative', {
+        date: formatDate(dip.day, lang()),
+        name: dip.entry.title || t('untitled'),
+        amount: money(dip.value)
+      }))));
   }
 
   root.appendChild(h('div', { class: 'overview-lists' },

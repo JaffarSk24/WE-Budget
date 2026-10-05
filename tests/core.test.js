@@ -179,7 +179,7 @@ describe('ledger', () => {
     expect(overdueEntries(data, '2026-10-05').map(e => e.id)).toEqual([late.id]);
   });
 
-  it('forecast finds the day money runs out', () => {
+  it('forecast finds the day money runs out and the payment that does it', () => {
     const { data, main, add } = household();
     add({ date: '2026-10-03', type: 'expense', amount: 10000, accountId: main.id, status: 'planned' });
     add({ date: '2026-10-10', type: 'expense', amount: 40000, accountId: main.id, status: 'planned' });
@@ -187,7 +187,8 @@ describe('ledger', () => {
     expect(f.start).toBe(45000);
     // The overdue bill counts today, the second one breaks through zero.
     expect(f.points[0].value).toBe(35000);
-    expect(f.firstNegative).toBe('2026-10-10');
+    expect(f.firstNegative.day).toBe('2026-10-10');
+    expect(f.firstNegative.value).toBe(-5000);
     expect(f.end).toBe(-5000);
   });
 });
@@ -274,5 +275,17 @@ describe('allocation by hand', () => {
     expect(plan.lines).toEqual([{ toAccountId: bills.id, amount: 25000, entryIds: [a.id] }]);
     expect(plan.inPlace).toEqual([c.id]);
     expect(plan.shortfall).toBe(25000 + 20000 - 40000);
+  });
+});
+
+describe('forecast follows the month view', () => {
+  it('an entry marked done but dated later still counts on its date', () => {
+    const { data, main, add } = household();
+    add({ date: '2026-10-25', type: 'expense', amount: 44000, accountId: main.id, status: 'done' });
+    const late = add({ date: '2026-10-28', type: 'expense', amount: 2000, accountId: main.id, title: 'Late bill' });
+    const f = forecast(data, '2026-10-05', '2026-10-31');
+    expect(f.points[0].value).toBe(45000);
+    expect(f.firstNegative).toEqual({ day: '2026-10-28', value: -1000, entry: late });
+    expect(f.end).toBe(monthSummary(data, '2026-10').closing);
   });
 });

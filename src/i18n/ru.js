@@ -113,7 +113,7 @@ export const ru = {
   'kpi-balance-desc': 'По данным приложения',
   'kpi-month-end': 'Конец месяца',
   'kpi-month-end-desc': 'Если всё пойдёт по плану',
-  'forecast-negative': 'При текущем плане деньги уйдут в минус {date}. Самая низкая точка: {amount}.',
+  'forecast-negative': 'Деньги уйдут в минус {date}: после «{name}» останется {amount}.',
   'overdue-title-one': 'Просрочена {n} позиция',
   'overdue-title-few': 'Просрочены {n} позиции',
   'overdue-title-many': 'Просрочено позиций: {n}',
