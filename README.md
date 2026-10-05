@@ -42,20 +42,26 @@ Download the latest version from the [Releases](https://github.com/JaffarSk24/WE
 
 1. Download `WE-Budget-<version>-mac-arm64.dmg` for Apple silicon (M1 and later) or `WE-Budget-<version>-mac-x64.dmg` for Intel Macs.
 2. Open it and drag WE Budget to Applications.
-3. The app is signed ad hoc, not notarized by Apple, so macOS may refuse to open it the first time. Run this once in Terminal:
+3. Before opening the app for the first time, run this once in Terminal:
 
    ```bash
    xattr -cr "/Applications/WE Budget.app"
    ```
 
-   or right-click the app, choose Open and confirm.
+   The app is signed ad hoc and not yet notarized by Apple. Files downloaded in a browser carry a flag that makes macOS refuse such apps, and the command removes that flag. After it WE Budget opens like any other app.
 
-Later versions are installed by the app itself.
+If you opened the app before running the command and macOS refused, run the command now, or open System Settings, Privacy & Security, and choose Open Anyway next to the message about WE Budget.
+
+Later versions are installed by the app itself, with no extra steps.
 
 ### Windows
 
 1. Download `WE-Budget-<version>-win-x64.exe` and run it.
-2. The installer is not code-signed, so SmartScreen may warn about it. Choose More info, then Run anyway.
+2. The installer asks no questions and needs no administrator rights: WE Budget is installed for your Windows account, gets shortcuts on the desktop and in the Start menu, and starts.
+
+The installer is not yet code-signed, so on the first install SmartScreen may show "Windows protected your PC". Choose More info, then Run anyway. Updates are downloaded and installed by the app itself and do not show this message. Windows 11 with Smart App Control turned on does not run unsigned apps at all, so WE Budget cannot be installed there yet.
+
+Every change to the code is checked on a clean Windows machine: the installer and the installed app are scanned by Microsoft Defender with cloud protection on, then installed, started, updated and removed (see `scripts/check-windows-install.ps1`).
 
 ## Getting started
 
@@ -116,7 +122,7 @@ The app syncs on start, a few seconds after a change, every five minutes and bef
 
 ## Updates
 
-On start the app checks this repository for a new release. If there is one, a banner offers to update: the app downloads the build for your system and processor, verifies its checksum, replaces itself and starts again. On Windows the installer runs silently.
+On start the app checks this repository for a new release. If there is one, a banner offers to update: the app downloads the build for your system and processor, verifies its checksum, replaces itself and starts again. Before it closes it sends unsent changes to Google Drive. On Windows the installer then runs silently into the same folder.
 
 ## Your data
 

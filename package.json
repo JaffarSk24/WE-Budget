@@ -87,9 +87,9 @@
       ]
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "packElevateHelper": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "WE Budget"

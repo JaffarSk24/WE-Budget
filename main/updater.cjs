@@ -9,7 +9,10 @@
 //   - macOS: unpack the new .app and swap it in after the app quits, then
 //     start it again. A download made by the app itself carries no quarantine
 //     flag, so Gatekeeper does not stop the new version.
-//   - Windows: run the NSIS installer silently; it starts the app when done.
+//   - Windows: once the app has quit (after its last sync), run the NSIS
+//     installer silently with the flags electron-updater uses; it replaces
+//     the installed copy and starts the app again. A download made by the
+//     app carries no mark of the web, so SmartScreen does not stop it.
 // When the app's own folder is not writable (for example an admin-owned
 // /Applications), the downloaded disk image is opened instead and the user
 // drags the app over as on first install.
@@ -31,6 +34,21 @@ const USER_AGENT = 'WE-Budget-Updater';
 
 let latest = null;
 let downloaded = null;
+// Windows installer waiting for the app to quit.
+let pendingInstaller = null;
+
+// --updated: an update of an installed copy (shortcuts stay as the user left
+// them, the running app is closed without a question); /S: silent;
+// --force-run: start the app when done.
+const WINDOWS_UPDATE_ARGS = ['--updated', '/S', '--force-run'];
+
+// A process that cannot start reports it as an 'error' event; unhandled, that
+// event would show a crash dialog of the main process.
+function launchDetached(file, args) {
+  const child = spawn(file, args, { detached: true, stdio: 'ignore' });
+  child.on('error', (e) => console.error('[updates] could not start', file, e.message));
+  child.unref();
+}
 
 function updatesDir() {
   return path.join(app.getPath('userData'), 'updates');
@@ -190,13 +208,13 @@ function install() {
     }
     if (process.platform === 'darwin') {
       const { script, args } = prepareMacInstall(downloaded.file);
-      spawn('/bin/bash', [script, ...args], { detached: true, stdio: 'ignore' }).unref();
+      launchDetached('/bin/bash', [script, ...args]);
       return { ok: true, quit: true };
     }
     if (process.platform === 'win32') {
-      // /S: silent install into the same folder; --force-run: start the app
-      // when the installer finishes.
-      spawn(downloaded.file, ['/S', '--force-run'], { detached: true, stdio: 'ignore' }).unref();
+      // Started from the quit event, not now: the installer closes a running
+      // copy after a second or so, which could cut the last sync short.
+      pendingInstaller = downloaded.file;
       return { ok: true, quit: true };
     }
     return { ok: false, error: 'unsupported_platform' };
@@ -218,4 +236,13 @@ function cleanup() {
   }
 }
 
-module.exports = { check, download, install, cleanup, canInstallInPlace };
+// Called when the app quits: hands over to the Windows installer, if one is
+// waiting.
+function launchPendingInstaller() {
+  if (!pendingInstaller) return;
+  const file = pendingInstaller;
+  pendingInstaller = null;
+  launchDetached(file, WINDOWS_UPDATE_ARGS);
+}
+
+module.exports = { check, download, install, launchPendingInstaller, cleanup, canInstallInPlace };

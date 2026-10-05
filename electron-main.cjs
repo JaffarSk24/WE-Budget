@@ -357,3 +357,6 @@ app.on('will-quit', () => {
     try { viteProcess.kill(); } catch (e) { /* ignore */ }
   }
 });
+
+// By now the window is closed and unsent changes have gone up.
+app.on('quit', () => updater.launchPendingInstaller());
