@@ -289,3 +289,14 @@ describe('forecast follows the month view', () => {
     expect(f.end).toBe(monthSummary(data, '2026-10').closing);
   });
 });
+
+describe('first payment without money', () => {
+  it('within a day, the payment with money set aside is not the one blamed', () => {
+    const { data, main, add } = household();
+    const unfunded = add({ date: '2026-10-25', type: 'expense', amount: 30000, accountId: main.id, title: 'Unfunded' });
+    add({ date: '2026-10-25', type: 'expense', amount: 30000, accountId: main.id, status: 'reserved', title: 'Funded' });
+    const f = forecast(data, '2026-10-05', '2026-10-31');
+    expect(f.firstNegative.entry.id).toBe(unfunded.id);
+    expect(f.firstNegative.value).toBe(-15000);
+  });
+});

@@ -232,8 +232,15 @@ export function forecast(data, today, toDay) {
   let value = balance;
   let firstNegative = null;
   let minimum = { day: today, value: balance };
+  // Within a day, payments with money set aside (or already done) go before
+  // the ones still waiting for it: the payment reported as the first one
+  // without enough money is then one that really has none set aside.
+  const funded = (e) => (e.type === 'expense' && e.status === 'planned' ? 1 : 0);
   for (let day = today; day <= toDay; day = addDays(day, 1)) {
-    (byDay.get(day) || []).sort(compareEntries).forEach(e => {
+    (byDay.get(day) || []).sort((x, y) => {
+      const rank = (e) => (e.type === 'income' ? 0 : e.type === 'transfer' ? 1 : 2);
+      return rank(x) - rank(y) || funded(x) - funded(y) || compareEntries(x, y);
+    }).forEach(e => {
       value += totalEffect(e);
       if (value < 0 && !firstNegative) firstNegative = { day, value, entry: e };
     });
