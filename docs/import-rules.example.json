@@ -1,0 +1,50 @@
+{
+  "language": "en",
+  "trackingStart": "2026-10-01",
+  "headerRows": 1,
+  "columns": { "status": 0, "date": 1, "title": 2, "expense": 3, "income": 4, "account": 5, "carry": 6 },
+  "doneMarker": "✅",
+  "subtotalMarkers": ["subtotal"],
+  "carryTitles": ["Carried over"],
+  "unexplainedTitles": ["Unexpected"],
+  "openingTitle": "Opening balance",
+  "adjustmentTitle": "Difference with the spreadsheet",
+  "unexplainedTitle": "No details",
+  "unexplainedCategory": "No details",
+  "unexplainedIncomeCategory": "No details",
+  "defaultAccount": "City Bank",
+  "accountMeta": {
+    "City Bank": { "bank": "City Bank" },
+    "Cash": { "bank": "", "kind": "cash" }
+  },
+  "accounts": {
+    "-": null,
+    "CITY": "City Bank",
+    "CITY (Bills)": "City Bank / Bills",
+    "CITY (Groceries)": "City Bank / Groceries",
+    "CITY (Holiday)": "City Bank / Holiday",
+    "cash": "Cash"
+  },
+  "titleFixes": {
+    "Groceris": "Groceries"
+  },
+  "titlePatterns": [
+    { "match": "^(Salary .+?) (JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)$", "replace": "$1" }
+  ],
+  "transitTitles": ["Paid back by a friend", "Bill paid for a friend"],
+  "monthOverrides": {
+    "2026-09": { "ignoreUnexplained": true }
+  },
+  "templateOverrides": {
+    "Water": { "freq": "everyNMonths", "interval": 2, "day": 12, "startDate": "2026-11-12", "amount": 6000, "fillGaps": true },
+    "Electricity": { "amountIsEstimate": true }
+  },
+  "categories": {
+    "Rent": "Housing",
+    "Water": "Housing",
+    "Electricity": "Housing",
+    "Groceries": "Groceries",
+    "Phone": "Phone and subscriptions",
+    "Salary Acme": "Salary"
+  }
+}

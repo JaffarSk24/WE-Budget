@@ -1,0 +1,175 @@
+# WE Budget
+
+WE Budget is a desktop budgeting app built around a payment calendar. You plan every payment and income of the month, set money aside in envelopes as soon as income lands, and tick payments off when they happen. At any moment it tells you how much money is really free and which upcoming payment there will not be enough money for.
+
+It runs on macOS and Windows, works offline, keeps your data on your own computer and can sync it between computers through your own Google Drive. Made by [White Eagles & Co. s.r.o.](https://whiteeagles.sk/)
+
+![Overview](docs/screenshots/overview.png)
+
+## What it does
+
+- **Payment calendar.** Each month is a list of payments and incomes with a status: planned, set aside, done or cancelled. Payments still waiting for money are highlighted, done rows fold away under one line, and the balance column shows what is left on the row's own account after each payment.
+- **Envelopes.** Accounts can hold envelopes (sub-accounts, like the spaces of a banking app). Money set aside on an envelope belongs to its payments and never counts as free money for anything else.
+- **Splitting income.** When income arrives, the app proposes how much to move to each envelope to cover the payments until the next income, and marks those payments as set aside.
+- **Checking against the bank.** Type what your bank shows and any difference becomes a visible adjustment, so balances and the forecast stay true without guesswork.
+- **Recurring payments.** Monthly, every few months (optionally shown in the other months with a zero amount), yearly, weekly or once. The plan for the next months builds itself; approximate amounts are confirmed when a payment is marked done.
+- **Overview.** Free money right now, the first payment there will not be enough money for, the next seven days and a forecast of free money.
+- **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
+- **Small expenses** with optional monthly limits per category.
+- **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
+- **Sync** between computers through a hidden app folder on your Google Drive.
+- **Updates** from GitHub Releases, offered right in the app.
+- English and Russian, dark and light theme.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Month view with ticked rows](docs/screenshots/month.png) | ![Accounts and envelopes](docs/screenshots/accounts.png) |
+| Month view: statuses, balance per account, ticked rows added up per account | Accounts and envelopes: balance, money set aside, free money |
+| ![Splitting money](docs/screenshots/split.png) | ![Checking against the bank](docs/screenshots/check-balances.png) |
+| Splitting income across envelopes | Checking all accounts against the bank at once |
+
+![Recurring payments](docs/screenshots/recurring.png)
+
+The screenshots use the built-in demo household; every name and amount in it is made up.
+
+## Install
+
+Download the latest version from the [Releases](https://github.com/JaffarSk24/WE-Budget/releases/latest) page.
+
+### macOS
+
+1. Download `WE-Budget-<version>-mac-arm64.dmg` for Apple silicon (M1 and later) or `WE-Budget-<version>-mac-x64.dmg` for Intel Macs.
+2. Open it and drag WE Budget to Applications.
+3. The app is signed ad hoc, not notarized by Apple, so macOS may refuse to open it the first time. Run this once in Terminal:
+
+   ```bash
+   xattr -cr "/Applications/WE Budget.app"
+   ```
+
+   or right-click the app, choose Open and confirm.
+
+Later versions are installed by the app itself.
+
+### Windows
+
+1. Download `WE-Budget-<version>-win-x64.exe` and run it.
+2. The installer is not code-signed, so SmartScreen may warn about it. Choose More info, then Run anyway.
+
+## Getting started
+
+On first launch you can:
+
+- **start from scratch**: add your accounts and what they hold right now;
+- **sign in with Google** if you already keep your budget on another computer, and it comes down from the cloud;
+- **open a file**: a WE Budget backup or the result of a spreadsheet import;
+- **look at the demo** first and delete it later in Settings.
+
+A typical routine:
+
+1. Add envelopes to your accounts (Accounts and envelopes, the folder icon on an account), for example Bills or Groceries.
+2. Add your recurring payments and incomes (Recurring). The months ahead fill themselves.
+3. When income arrives, mark it done. The app offers to split it: confirm, and the money for the coming payments is set aside on their envelopes.
+4. Mark payments done as they go out: the circle on the row, or Space on the selected row.
+5. Record small spending with Quick expense (Cmd+N on macOS, Ctrl+N on Windows).
+6. Every now and then, use Check against the bank on the Accounts screen and type in what your banks show.
+
+## How the numbers work
+
+| Status | Meaning |
+|---|---|
+| Planned | The payment is in the plan, no money is set aside for it yet. Expenses in this state are highlighted. |
+| Set aside | The money is already on the right envelope. It stays in the plan and is no longer counted as free. |
+| Done | The money has actually gone out or come in. Marking a later-dated payment done moves it to today. |
+| Cancelled | Skipped this time; it does not count anywhere. |
+
+- **Free money** is everything on your accounts minus everything set aside.
+- **The first payment without enough money** follows free money forward in time: incomes come in, payments with nothing set aside go out. Money set aside for one payment never covers another.
+- **The balance column** in the month view shows the money on the row's own account after that row. The total row shows the month result over all accounts.
+- **Tracking start** is the day account balances are counted from. Anything earlier is history: it shows in the month views but does not change balances.
+- **Adjustments** come from checking against the bank. They are listed with the done rows and summed up on the month card.
+
+## Keyboard
+
+| Key | Action |
+|---|---|
+| Cmd/Ctrl+N | Quick expense |
+| Shift+Cmd/Ctrl+N | New item |
+| Cmd/Ctrl+1 to 5 | Switch section |
+| Up, Down | Move between rows of the month |
+| Space | Mark the row done, or undo |
+| R | Set money aside for the row, or undo |
+| X | Tick the row |
+| Cmd/Ctrl+A, Esc | Tick all rows, clear the ticks |
+| Enter | Edit the row |
+| Delete | Delete the row |
+| Left, Right | Previous or next month |
+
+Shift-click on a checkbox ticks a range. Every destructive action can be undone from the message that appears at the bottom.
+
+## Sync between computers
+
+Sign in with Google in Settings, or on the first-launch screen of a new computer. The budget is stored as one compressed file in the app's hidden folder on your Google Drive: neither other apps nor you see it in Drive, and nothing is kept on any other server.
+
+The app syncs on start, a few seconds after a change, every five minutes and before it closes. Changes made on different computers are merged record by record; the newer change of a record wins and deletions are kept. If a computer and the cloud hold two different budgets, the app asks which one to keep and never mixes them. Without a connection everything keeps working and goes up later.
+
+## Updates
+
+On start the app checks this repository for a new release. If there is one, a banner offers to update: the app downloads the build for your system and processor, verifies its checksum, replaces itself and starts again. On Windows the installer runs silently.
+
+## Your data
+
+| System | Location |
+|---|---|
+| macOS | `~/Library/Application Support/WE Budget/we-budget-data.json` |
+| Windows | `%APPDATA%\WE Budget\we-budget-data.json` |
+
+The app keeps a copy of the file every day (the last 14) in the `backups` folder next to it, and a separate copy before the whole budget is ever replaced. Settings also has a manual backup and restore and an export of all items to CSV for Excel or Google Sheets.
+
+## Importing a spreadsheet
+
+If you kept your budget in a spreadsheet with one block per month (the payments, then a subtotal line with the money carried over), it can be imported:
+
+```bash
+node scripts/import-sheet.mjs --csv export.csv --rules my-rules.json --out budget.json
+```
+
+The rules file describes your spreadsheet: which column is which, which account each account label means, how titles should be cleaned up, categories, pass-through items and recurring payments that are not monthly. See [docs/import-rules.example.json](docs/import-rules.example.json). The script prints a month-by-month comparison with the spreadsheet's own totals; where the spreadsheet was corrected by hand, the gap becomes a visible adjustment. Open the resulting `budget.json` with Settings, Restore from a backup.
+
+## Building from source
+
+You need Node.js 20 or newer.
+
+```bash
+npm install
+npm run electron:dev        # the desktop app with live reload
+npm run dev                 # the same interface in a browser, data in localStorage
+npm test                    # unit tests (Vitest)
+npm run lint
+npm run electron:dist       # macOS: dmg and zip for Intel and Apple silicon
+npm run electron:dist:win   # Windows: NSIS installer
+```
+
+Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desktop type with the Drive API enabled: put it into `oauth-credentials.json` in the project root as `{ "clientId": "...", "clientSecret": "..." }`. The file is not committed and is bundled into the build. A `google-credentials.json` of the same shape in the app's data folder overrides it.
+
+### Project layout
+
+| Path | What is there |
+|---|---|
+| `src/model.js`, `src/store.js` | Data model and the store that changes and saves it |
+| `src/ledger.js` | Balances, money set aside, month totals, forecast |
+| `src/schedule.js`, `src/allocation.js`, `src/reconcile.js` | Recurring payments, splitting income, checking against the bank |
+| `src/sync/` | Merging budgets and the sync cycle |
+| `src/views/` | Screens |
+| `main/` | Electron main process: Google sign-in and Drive transport, updater |
+| `src/import/` | Spreadsheet import |
+| `tests/` | Unit tests |
+
+Built with Electron, plain JavaScript modules, Vite, Chart.js and Lucide icons.
+
+## License
+
+[MIT](LICENSE). Copyright 2026 White Eagles & Co. s.r.o.
+
+Need an app, a website or a marketing campaign built with the same care? [White Eagles & Co. s.r.o.](https://whiteeagles.sk/)
