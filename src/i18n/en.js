@@ -454,5 +454,11 @@ export const en = {
   'bulk-account-transfers': 'Transfers among the selected stay as they are: they have two accounts.',
   'err-days': 'Enter a number of days other than zero',
   'template-fill-gaps': 'Show it in the other months too, with a zero amount',
-  'sched-fill-gaps': 'zero in other months'
+  'sched-fill-gaps': 'zero in other months',
+
+  'done-group': 'Done: {n}',
+  'done-group-expense': 'out {amount}',
+  'done-group-income': 'in {amount}',
+  'done-group-show': 'Show',
+  'done-group-hide': 'Hide'
 };

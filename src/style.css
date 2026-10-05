@@ -1414,3 +1414,47 @@ body.is-welcome aside nav, body.is-welcome .quick-add-btn, body.is-welcome .sync
 .sel-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .sel-actions .btn-sm { padding: 6px 10px; font-size: 0.8rem; }
 .sel-actions .btn-sm i, .sel-actions .btn-sm svg { width: 15px; height: 15px; }
+
+/* Payments still waiting for money: planned expenses that are not zero.
+   Burgundy text and a light burgundy wash; set-aside rows stay green. */
+:root {
+  --unreserved: #f0566f;
+  --unreserved-soft: rgba(240, 86, 111, 0.72);
+  --unreserved-bg: rgba(159, 18, 57, 0.22);
+}
+[data-theme="light"] {
+  --unreserved: #9f1239;
+  --unreserved-soft: rgba(159, 18, 57, 0.72);
+  --unreserved-bg: rgba(159, 18, 57, 0.07);
+}
+.month-row.is-unreserved td { background: var(--unreserved-bg); }
+.month-row.is-unreserved .col-date,
+.month-row.is-unreserved .row-title,
+.month-row.is-unreserved td.money:not(.running),
+.month-row.is-unreserved .col-account { color: var(--unreserved); }
+.month-row.is-unreserved .row-meta,
+.month-row.is-unreserved .weekday { color: var(--unreserved-soft); }
+.month-row.is-unreserved .status-btn { color: var(--unreserved); }
+.month-row.is-unreserved.is-checked td { background: rgba(99, 102, 241, 0.16); }
+.list-entry.is-unreserved { background: var(--unreserved-bg); border-radius: var(--radius-sm); }
+.list-entry.is-unreserved .list-entry-title,
+.list-entry.is-unreserved .list-entry-amount,
+.list-entry.is-unreserved .list-entry-date { color: var(--unreserved); }
+.list-entry.is-unreserved .list-entry-meta { color: var(--unreserved-soft); }
+.list-entry.is-unreserved .status-btn { color: var(--unreserved); }
+
+/* Done rows folded under one line */
+.done-spoiler td {
+  padding: 10px 14px;
+  cursor: pointer;
+  background: var(--overlay-02);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  user-select: none;
+}
+.done-spoiler:hover td { background: var(--overlay-04); }
+.spoiler-inner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.spoiler-inner i, .spoiler-inner svg { width: 16px; height: 16px; color: var(--text-muted); }
+.spoiler-inner .spoiler-check { color: var(--success); }
+.spoiler-action { margin-left: auto; color: var(--accent-indigo); font-weight: 600; }
+.done-spoiler.is-open td { border-bottom-color: transparent; }

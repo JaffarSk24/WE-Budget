@@ -16,6 +16,8 @@ const state = {
   month: null,
   accountId: '',
   showCancelled: true,
+  // Done rows sit folded under one line so the plan ahead stays in focus.
+  showDone: false,
   selectedId: null,
   checked: new Set(),
   anchor: null
@@ -118,6 +120,27 @@ function selectionBar() {
 
 // ---------- rows ----------
 
+// A payment still waiting for money: planned, an expense, not zero.
+export function isUnreserved(e) {
+  return e.type === 'expense' && e.status === 'planned' && e.amount !== 0;
+}
+
+function doneSpoiler(doneRows, columns) {
+  const entries = doneRows.map(r => r.entry);
+  const expense = entries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+  const income = entries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+  const toggle = () => { state.showDone = !state.showDone; rerender(); };
+  return h('tr', { class: `done-spoiler ${state.showDone ? 'is-open' : ''}`, onclick: toggle },
+    h('td', { colspan: columns },
+      h('div', { class: 'spoiler-inner' },
+        icon(state.showDone ? 'chevron-down' : 'chevron-right'),
+        icon('check-circle-2', 'spoiler-check'),
+        h('strong', {}, t('done-group', { n: entries.length })),
+        expense ? h('span', { class: 'muted' }, t('done-group-expense', { amount: money(expense) })) : null,
+        income ? h('span', { class: 'muted' }, t('done-group-income', { amount: money(income) })) : null,
+        h('span', { class: 'spoiler-action' }, state.showDone ? t('done-group-hide') : t('done-group-show')))));
+}
+
 function rowFor({ entry: e, running }, today, showRunning) {
   const overdue = (e.status === 'planned' || e.status === 'reserved') && e.date < today;
   const checked = state.checked.has(e.id);
@@ -127,7 +150,8 @@ function rowFor({ entry: e, running }, today, showRunning) {
     e.date === today ? 'is-today' : '',
     e.id === state.selectedId ? 'is-selected' : '',
     checked ? 'is-checked' : '',
-    e.amount === 0 ? 'is-zero' : ''
+    e.amount === 0 ? 'is-zero' : '',
+    isUnreserved(e) ? 'is-unreserved' : ''
   ].join(' ');
 
   const meta = [];
@@ -213,7 +237,10 @@ export function renderMonth(root) {
     rows = rows.filter(r => r.entry.accountId === state.accountId || r.entry.toAccountId === state.accountId);
   }
   if (!state.showCancelled) rows = rows.filter(r => r.entry.status !== 'cancelled');
-  visibleIds = rows.map(r => r.entry.id);
+  const doneRows = rows.filter(r => r.entry.status === 'done');
+  const openRows = rows.filter(r => r.entry.status !== 'done');
+  const shownRows = (state.showDone ? doneRows : []).concat(openRows);
+  visibleIds = shownRows.map(r => r.entry.id);
   // Ticks survive edits, but not rows that left the view.
   [...state.checked].forEach(id => { if (!visibleIds.includes(id)) state.checked.delete(id); });
   const showRunning = !state.accountId;
@@ -254,14 +281,15 @@ export function renderMonth(root) {
   cancelledToggle.addEventListener('change', () => { state.showCancelled = cancelledToggle.checked; renderMonth(root); });
 
   const checkedCount = visibleIds.filter(id => state.checked.has(id)).length;
-  const headBox = h('input', { type: 'checkbox', checked: rows.length > 0 && checkedCount === rows.length, 'aria-label': t('sel-all') });
-  headBox.indeterminate = checkedCount > 0 && checkedCount < rows.length;
+  const headBox = h('input', { type: 'checkbox', checked: visibleIds.length > 0 && checkedCount === visibleIds.length, 'aria-label': t('sel-all') });
+  headBox.indeterminate = checkedCount > 0 && checkedCount < visibleIds.length;
+  const columns = showRunning ? 9 : 8;
   headBox.addEventListener('change', () => setAll(headBox.checked));
 
   const sumOf = (type) => rows.filter(r => r.entry.type === type && r.entry.status !== 'cancelled').reduce((s, r) => s + r.entry.amount, 0);
   const table = h('table', { class: 'month-table' },
     h('thead', {}, h('tr', {},
-      h('th', { class: 'col-select' }, rows.length ? headBox : null),
+      h('th', { class: 'col-select' }, visibleIds.length ? headBox : null),
       h('th', { class: 'col-status' }),
       h('th', { class: 'col-date' }, t('col-date')),
       h('th', {}, t('col-item')),
@@ -271,8 +299,11 @@ export function renderMonth(root) {
       showRunning ? h('th', { class: 'num' }, t('col-running')) : null,
       h('th', { class: 'col-actions' }))),
     h('tbody', {}, rows.length
-      ? rows.map(r => rowFor(r, today, showRunning))
-      : h('tr', {}, h('td', { colspan: 9, class: 'empty-cell' }, t('month-empty')))),
+      ? [
+        doneRows.length ? doneSpoiler(doneRows, columns) : null,
+        ...shownRows.map(r => rowFor(r, today, showRunning))
+      ]
+      : h('tr', {}, h('td', { colspan: columns, class: 'empty-cell' }, t('month-empty')))),
     rows.length ? h('tfoot', {}, h('tr', {},
       h('td', {}), h('td', {}), h('td', {}), h('td', {}, t('total')),
       h('td', { class: 'num money' }, money(sumOf('expense'))),

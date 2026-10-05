@@ -454,5 +454,11 @@ export const ru = {
   'bulk-account-transfers': 'Переводы среди выбранных не меняются: у них два счёта.',
   'err-days': 'Укажите число дней, кроме нуля',
   'template-fill-gaps': 'Показывать и в остальные месяцы, с нулевой суммой',
-  'sched-fill-gaps': 'в остальные месяцы 0'
+  'sched-fill-gaps': 'в остальные месяцы 0',
+
+  'done-group': 'Состоялось: {n}',
+  'done-group-expense': 'расход {amount}',
+  'done-group-income': 'приход {amount}',
+  'done-group-show': 'Показать',
+  'done-group-hide': 'Скрыть'
 };

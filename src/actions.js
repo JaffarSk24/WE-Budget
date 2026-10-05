@@ -91,8 +91,9 @@ export function entryListItem(entry, { showDate = true } = {}) {
   const today = todayKey();
   const overdue = (entry.status === 'planned' || entry.status === 'reserved') && entry.date < today;
   const sign = entry.type === 'income' ? 1 : entry.type === 'expense' ? -1 : 0;
+  const unreserved = entry.type === 'expense' && entry.status === 'planned' && entry.amount !== 0;
   return h('div', {
-    class: `list-entry status-row-${entry.status} ${overdue ? 'is-overdue' : ''}`,
+    class: `list-entry status-row-${entry.status} ${overdue ? 'is-overdue' : ''} ${unreserved ? 'is-unreserved' : ''}`,
     ondblclick: () => openEntryModal(entry)
   },
     statusButton(entry),
