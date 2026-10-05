@@ -12,9 +12,13 @@
 # Meant for a throwaway machine such as a CI runner: it changes Defender
 # settings and installs and removes the app for the current user.
 #
-#   pwsh scripts/check-windows-install.ps1 [-Installer <path to WE-Budget-x.y.z-win-x64.exe>]
+#   pwsh scripts/check-windows-install.ps1 [-Installer <path to WE-Budget-x.y.z-win-x64.exe>] [-ExpectGoogleClient]
 
-param([string]$Installer)
+param(
+  [string]$Installer,
+  # Release builds must carry the Google sign-in client; CI builds do not.
+  [switch]$ExpectGoogleClient
+)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -182,6 +186,13 @@ foreach ($link in @(
     (Join-Path ([Environment]::GetFolderPath('Desktop')) "$AppName.lnk"),
     (Join-Path ([Environment]::GetFolderPath('Programs')) "$AppName.lnk"))) {
   if (Test-Path $link) { Write-Host "Shortcut: $link" } else { Fail "Shortcut missing: $link" }
+}
+
+if ($ExpectGoogleClient) {
+  $asar = Join-Path $installDir 'resources\app.asar'
+  $listing = (& npx --yes @electron/asar list $asar 2>$null) -join "`n"
+  if ($listing -notmatch 'oauth-credentials\.json') { Fail 'The installed app has no Google sign-in client (oauth-credentials.json)' }
+  Write-Host 'Google sign-in client: bundled'
 }
 
 Step 'Scan the installed app'

@@ -1,0 +1,98 @@
+name: Release check
+
+# Checks the files that users actually download: the published release, not
+# a fresh CI build. Runs when a release is published, by hand, and when this
+# workflow changes.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v1.0.2 (empty means the latest release)
+        required: false
+  push:
+    branches: [develop]
+    paths: ['.github/workflows/release-check.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows installer from the release
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download the installer and check its checksum
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          $tag = $env:TAG
+          if (-not $tag) { $tag = gh release view --repo $env:GITHUB_REPOSITORY --json tagName --jq .tagName }
+          Write-Host "Release: $tag"
+          gh release download $tag --repo $env:GITHUB_REPOSITORY --pattern 'WE-Budget-*-win-x64.exe' --pattern 'latest.yml' --dir asset
+          $exe = Get-ChildItem asset -Filter '*.exe' | Select-Object -First 1
+          $expected = (Select-String -Path asset/latest.yml -Pattern '^sha512:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
+          $actual = [Convert]::ToBase64String([Security.Cryptography.SHA512]::Create().ComputeHash([IO.File]::ReadAllBytes($exe.FullName)))
+          if ($expected -ne $actual) { Write-Host "::error::Checksum of $($exe.Name) does not match latest.yml"; exit 1 }
+          Write-Host "Checksum matches latest.yml: $($exe.Name)"
+          "INSTALLER=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Install, run, update and uninstall
+        shell: pwsh
+        run: ./scripts/check-windows-install.ps1 -Installer $env:INSTALLER -ExpectGoogleClient
+
+  macos:
+    name: macOS app from the release
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download the app and check its checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag="${TAG:-$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)}"
+          echo "Release: $tag"
+          arch=$([ "$(uname -m)" = arm64 ] && echo arm64 || echo x64)
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "WE-Budget-*-mac-$arch.zip" --pattern 'latest-mac.yml' --dir asset
+          zip=$(ls asset/*.zip)
+          name=$(basename "$zip")
+          expected=$(awk -v n="$name" '$0 ~ "url: "n"$" {getline; sub(/.*sha512: */, ""); print; exit}' asset/latest-mac.yml)
+          actual=$(shasum -a 512 "$zip" | cut -d' ' -f1 | xxd -r -p | base64)
+          [ "$expected" = "$actual" ] || { echo "::error::Checksum of $name does not match latest-mac.yml"; exit 1; }
+          echo "Checksum matches latest-mac.yml: $name"
+          ditto -x -k "$zip" app
+          echo "VERSION=${tag#v}" >> "$GITHUB_ENV"
+      - name: Signature, version and Google sign-in client
+        run: |
+          set -euo pipefail
+          app="app/WE Budget.app"
+          codesign --verify --deep --strict "$app"
+          echo "Signature: valid"
+          version=$(defaults read "$PWD/$app/Contents/Info.plist" CFBundleShortVersionString)
+          [ "$version" = "$VERSION" ] || { echo "::error::App version $version, release $VERSION"; exit 1; }
+          echo "Version: $version"
+          npx --yes @electron/asar list "$app/Contents/Resources/app.asar" | grep -q '^/oauth-credentials.json$' \
+            || { echo "::error::The app has no Google sign-in client (oauth-credentials.json)"; exit 1; }
+          echo "Google sign-in client: bundled"
+      - name: Start the app and let it run
+        run: |
+          set -uo pipefail
+          export WE_BUDGET_USER_DATA="$RUNNER_TEMP/we-budget-data"
+          "app/WE Budget.app/Contents/MacOS/WE Budget" > app.log 2>&1 &
+          pid=$!
+          sleep 20
+          if kill -0 "$pid" 2>/dev/null; then
+            echo "Running after 20 seconds"
+            kill "$pid"
+          else
+            echo "::error::The app quit by itself"; cat app.log; exit 1
+          fi
+          [ -d "$WE_BUDGET_USER_DATA" ] || { echo "::error::The app did not create its data folder"; exit 1; }
+          echo "Data folder created"
