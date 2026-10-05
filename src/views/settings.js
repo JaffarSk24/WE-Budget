@@ -11,19 +11,19 @@ import { makeCategory, live, hasAnyData } from '../model.js';
 import { isDayKey, todayKey, formatTimestamp } from '../dates.js';
 import { buildDemo } from '../demo.js';
 import { withUndo } from '../modals.js';
-import { sync, signIn, cancelSignIn, signOut, syncStatusText } from '../cloud.js';
+import { sync, signIn, cancelSignIn, signOut, syncStatusText, renewAccess } from '../cloud.js';
 import { checkForUpdates, updateState, updatesAvailable } from '../updates.js';
 import { reminderState, requestCalendarAccess, turnOffReminders, run as runReminders, reminderStatusText } from '../reminder-sync.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
-function section(title, iconName, ...children) {
+export function section(title, iconName, ...children) {
   return h('div', { class: 'card settings-section' },
     h('h3', { class: 'settings-section-title' }, icon(iconName), title),
     ...children);
 }
 
-function settingRow(label, control, hint = null) {
+export function settingRow(label, control, hint = null) {
   return h('div', { class: 'setting-row' },
     h('div', { class: 'setting-text' }, h('div', { class: 'setting-label' }, label), hint ? h('div', { class: 'setting-hint' }, hint) : null),
     h('div', { class: 'setting-control' }, control));
@@ -49,7 +49,7 @@ function exportCsv() {
   download(`we-budget-${todayKey()}.csv`, '\ufeff' + rows.map(r => r.map(csvCell).join(sep)).join('\r\n'), 'text/csv;charset=utf-8');
 }
 
-function syncSection() {
+export function syncSection() {
   const st = sync.state;
   const rows = [];
   if (st.status === 'unavailable') {
@@ -73,7 +73,7 @@ function syncSection() {
     rows.push(h('div', { class: 'inline-actions' },
       h('button', {
         type: 'button', class: 'btn btn-secondary', disabled: st.status === 'syncing',
-        onclick: () => sync.sync('manual')
+        onclick: () => (st.status === 'renew' ? renewAccess() : sync.sync('manual'))
       }, icon('refresh-cw'), t('sync-now')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: signOut }, icon('log-out'), t('sync-logout'))));
     rows.push(h('p', { class: 'setting-hint' }, t('sync-where')));
@@ -105,7 +105,7 @@ function checkboxLabel(input, text) {
 
 // Reminder time, the Google Calendar reminders (any device) and the
 // notifications of this computer (desktop app only).
-function remindersSection() {
+export function remindersSection() {
   const s = store.settings;
   const time = h('input', { type: 'time', value: s.reminderTime || '23:00' });
   time.addEventListener('change', () => {

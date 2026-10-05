@@ -355,6 +355,7 @@ export const ru = {
   'sync-syncing': 'Синхронизация…',
   'sync-offline': 'Нет связи с облаком',
   'sync-reauth': 'Нужно войти снова',
+  'sync-renew': 'Нажмите, чтобы синхронизировать',
   'sync-banner-title': 'Синхронизация остановлена.',
   'reminder-title': 'Напоминания',
   'reminder-time': 'Время напоминания',

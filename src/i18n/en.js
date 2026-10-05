@@ -355,6 +355,7 @@ export const en = {
   'sync-syncing': 'Syncing…',
   'sync-offline': 'Cloud not reachable',
   'sync-reauth': 'Please sign in again',
+  'sync-renew': 'Tap to sync',
   'sync-banner-title': 'Sync has stopped.',
   'reminder-title': 'Reminders',
   'reminder-time': 'Reminder time',

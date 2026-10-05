@@ -72,6 +72,24 @@ export async function signIn() {
   }
 }
 
+// The web app's access lasts an hour; a tap opens Google's window, which
+// answers at once while its session is alive, and sync goes on.
+export async function renewAccess() {
+  if (!sync.bridge || typeof sync.bridge.renew !== 'function' || sync.state.signingIn) return false;
+  sync.setState({ signingIn: true });
+  try {
+    const result = await sync.bridge.renew();
+    if (!result || !result.ok) {
+      if (result && result.error === 'drive_scope_missing') showToast(t('sync-scope-missing'), { type: 'error', duration: 12000 });
+      return false;
+    }
+    await sync.sync('manual');
+    return true;
+  } finally {
+    sync.setState({ signingIn: false });
+  }
+}
+
 export async function cancelSignIn() {
   if (window.weCloud) await window.weCloud.cancelLogin();
   sync.setState({ signingIn: false });
@@ -89,6 +107,7 @@ export function syncStatusText(state = sync.state) {
       : t('sync-idle-never');
     case 'syncing': return t('sync-syncing');
     case 'offline': return t('sync-offline');
+    case 'renew': return t('sync-renew');
     case 'reauth': return t('sync-reauth');
     case 'error': return t('sync-error');
     case 'conflict': return t('sync-conflict');
@@ -98,7 +117,7 @@ export function syncStatusText(state = sync.state) {
 }
 
 const STATUS_ICON = {
-  idle: 'cloud', syncing: 'refresh-cw', offline: 'cloud-off', reauth: 'log-in',
+  idle: 'cloud', syncing: 'refresh-cw', offline: 'cloud-off', renew: 'refresh-cw', reauth: 'log-in',
   error: 'alert-triangle', conflict: 'alert-triangle', off: 'cloud-off'
 };
 
@@ -114,7 +133,10 @@ export function initSyncStatus(el) {
     el.append(icon(STATUS_ICON[sync.state.status] || 'cloud'), h('span', {}, text));
     refreshIcons();
   };
-  el.addEventListener('click', () => { window.location.hash = '#settings'; });
+  el.addEventListener('click', () => {
+    if (sync.state.status === 'renew') renewAccess();
+    else window.location.hash = '#settings';
+  });
   sync.onChange(render);
   store.subscribe(render);
   render();

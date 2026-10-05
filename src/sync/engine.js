@@ -16,7 +16,8 @@ import { hasAnyData, live } from '../model.js';
 import { decideDataset, mergeBudgets } from './merge.js';
 import { hashString } from './hash.js';
 
-export const SYNC_STATUSES = ['unavailable', 'unconfigured', 'checking', 'off', 'idle', 'syncing', 'offline', 'reauth', 'error', 'conflict'];
+// 'renew': the web app's hour of access is over; a tap renews it.
+export const SYNC_STATUSES = ['unavailable', 'unconfigured', 'checking', 'off', 'idle', 'syncing', 'offline', 'renew', 'reauth', 'error', 'conflict'];
 
 function budgetSummary(data) {
   const entries = live(data.entries);
@@ -65,6 +66,7 @@ export class SyncEngine {
       const err = new Error((result && result.error) || `${method} failed`);
       err.reauth = Boolean(result && result.reauth);
       err.reason = (result && result.reason) || null;
+      err.renew = Boolean(result && result.renew);
       err.offline = Boolean(result && result.offline);
       throw err;
     }
@@ -249,7 +251,7 @@ export class SyncEngine {
     } catch (e) {
       if (e.reauth) this.loggedIn = false;
       this.setState({
-        status: e.reauth ? 'reauth' : e.offline ? 'offline' : 'error',
+        status: e.reauth ? 'reauth' : e.renew ? 'renew' : e.offline ? 'offline' : 'error',
         reauthReason: e.reauth ? e.reason || 'expired' : null,
         error: e.message
       });

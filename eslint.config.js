@@ -33,6 +33,7 @@ const browserGlobals = {
   TextEncoder: 'readonly',
   TextDecoder: 'readonly',
   AbortSignal: 'readonly',
+  BroadcastChannel: 'readonly',
   __APP_VERSION__: 'readonly'
 };
 
