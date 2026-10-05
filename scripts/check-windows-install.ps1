@@ -54,24 +54,34 @@ function Wait-App([int]$Seconds) {
   return $false
 }
 
-# Detections made since this script started, with the threat names.
+# Detections made since this script started, with the threat names. With
+# protection back on, Defender may also flag tools of the CI image itself;
+# only detections that touch this app's files fail the check.
+$script:Reported = @{}
 function Get-NewDetections {
   @(Get-MpThreatDetection -ErrorAction SilentlyContinue | Where-Object { $_.InitialDetectionTime -ge $StartedAt }) |
     ForEach-Object {
       $threat = Get-MpThreat -ThreatID $_.ThreatID -ErrorAction SilentlyContinue | Select-Object -First 1
+      $resources = ($_.Resources -join '; ')
       [pscustomobject]@{
+        Key = "$($_.DetectionID)"
         Threat = if ($threat) { $threat.ThreatName } else { "ID $($_.ThreatID)" }
-        Resources = ($_.Resources -join '; ')
-        Action = $_.ActionSuccess
+        Resources = $resources
+        Ours = $resources -match 'WE[ -]Budget|we-budget'
       }
     }
 }
 
 function Assert-NoDetections([string]$Stage) {
   $found = @(Get-NewDetections)
-  if ($found.Count) {
-    $found | Format-List | Out-String | Write-Host
-    Fail "Microsoft Defender reported $($found.Count) detection(s) $Stage"
+  $ours = @($found | Where-Object { $_.Ours })
+  $found | Where-Object { -not $_.Ours -and -not $script:Reported.ContainsKey($_.Key) } | ForEach-Object {
+    $script:Reported[$_.Key] = $true
+    Warn "Defender flagged something outside this app: $($_.Threat) in $($_.Resources)"
+  }
+  if ($ours.Count) {
+    $ours | Format-List Threat, Resources | Out-String | Write-Host
+    Fail "Microsoft Defender reported $($ours.Count) detection(s) in WE Budget files $Stage"
   }
 }
 
@@ -114,10 +124,30 @@ foreach ($name in $settings.Keys) {
   $params = @{ $name = $settings[$name] }
   try { Set-MpPreference @params } catch { Warn "Defender setting $name was not applied: $($_.Exception.Message)" }
 }
+# Group Policy values outrank the preferences above.
+$policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender'
+if (Test-Path $policy) {
+  Write-Host 'Defender policy on this machine:'
+  Get-Item $policy | Out-String | Write-Host
+  Get-ChildItem $policy -Recurse | Out-String | Write-Host
+  foreach ($name in 'DisableAntiSpyware', 'DisableRealtimeMonitoring', 'DisableAntiVirus') {
+    Remove-ItemProperty -Path $policy -Name $name -ErrorAction SilentlyContinue
+  }
+  foreach ($key in 'Real-Time Protection', 'Spynet', 'Exclusions') {
+    Remove-Item -Path (Join-Path $policy $key) -Recurse -Force -ErrorAction SilentlyContinue
+  }
+}
 try { Update-MpSignature } catch { Warn "Defender signatures were not updated: $($_.Exception.Message)" }
+Start-Sleep -Seconds 10
+Get-MpPreference | Format-List DisableRealtimeMonitoring, DisableBehaviorMonitoring, DisableIOAVProtection, MAPSReporting,
+  SubmitSamplesConsent, DisableBlockAtFirstSeen, PUAProtection, ExclusionPath | Out-String | Write-Host
 $status = Get-MpComputerStatus
 $status | Format-List AMRunningMode, AntivirusEnabled, RealTimeProtectionEnabled, BehaviorMonitorEnabled, IoavProtectionEnabled,
   AntivirusSignatureVersion, AntivirusSignatureLastUpdated | Out-String | Write-Host
+$MpCmdRun = Join-Path $env:ProgramFiles 'Windows Defender\MpCmdRun.exe'
+$maps = (& $MpCmdRun -ValidateMapsConnection 2>&1 | Out-String).Trim()
+Write-Host "Cloud protection: $maps"
+if ($LASTEXITCODE -ne 0) { Warn 'Defender cannot reach its cloud protection; scans use local signatures only' }
 if (-not $status.RealTimeProtectionEnabled) {
   Warn 'Real-time protection is off on this machine; only the scans below check the files'
 }
