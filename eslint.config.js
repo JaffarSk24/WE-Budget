@@ -34,7 +34,8 @@ const browserGlobals = {
   TextDecoder: 'readonly',
   AbortSignal: 'readonly',
   BroadcastChannel: 'readonly',
-  __APP_VERSION__: 'readonly'
+  __APP_VERSION__: 'readonly',
+  __WEB_BUILD__: 'readonly'
 };
 
 export default [
@@ -63,6 +64,6 @@ export default [
     rules: { 'no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrors: 'none' }] }
   },
   {
-    ignores: ['dist/**', 'release/**', 'node_modules/**', 'node_modules.nosync/**', 'private/**']
+    ignores: ['dist/**', 'dist-web/**', 'release/**', 'release.nosync/**', 'node_modules/**', 'node_modules.nosync/**', 'private/**']
   }
 ];

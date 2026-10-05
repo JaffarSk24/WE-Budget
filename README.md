@@ -19,7 +19,9 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
 - **Small expenses** with optional monthly limits per category.
 - **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
-- **Sync** between computers through a hidden app folder on your Google Drive.
+- **Sync** between computers and the phone through a hidden app folder on your Google Drive.
+- **Phone app**: today's and overdue payments, marking them, quick expenses and what is free, added to the home screen of an iPhone or an Android phone.
+- **Reminders** in Google Calendar at the time you choose, so they reach your phone even when every computer is off, and notifications on the computer while the app is open.
 - **Updates** from GitHub Releases, offered right in the app.
 - English and Russian, dark and light theme.
 
@@ -64,6 +66,16 @@ Later versions are installed by the app itself, with no extra steps.
 The installer is not yet code-signed, so on the first install SmartScreen may show "Windows protected your PC". Choose More info, then Run anyway. Updates are downloaded and installed by the app itself and do not show this message. Windows 11 with Smart App Control turned on does not run unsigned apps at all, so WE Budget cannot be installed there yet.
 
 Every change to the code is checked on a clean Windows machine: the installer and the installed app are scanned by Microsoft Defender with cloud protection on, then installed, started, updated and removed (see `scripts/check-windows-install.ps1`).
+
+### On your phone
+
+The phone app is the same app in a browser, made for a phone: today's and overdue payments, marking them, quick expenses and what is free on the accounts. The plan, recurring payments and accounts are edited on the computer.
+
+1. Open [jaffarsk24.github.io/WE-Budget/app](https://jaffarsk24.github.io/WE-Budget/app/) in Safari on the iPhone, or in Chrome on Android.
+2. Tap Share, then Add to Home Screen (Chrome: the menu, then Add to Home screen).
+3. Open WE Budget from the home screen and sign in with the same Google account as on the computer. The budget comes down from your Google Drive.
+
+A web app gets access to Google Drive for an hour at a time. When the hour is over, the sync button at the top says so, and one tap opens Google's window, which closes by itself, and sync goes on. The budget itself stays on the phone and works offline.
 
 ## Getting started
 
@@ -116,6 +128,12 @@ A typical routine:
 
 Shift-click on a checkbox ticks a range. Every destructive action can be undone from the message that appears at the bottom.
 
+## Reminders
+
+In Settings, Reminders, choose the time (23:00 by default) and switch on reminders through Google Calendar. The app creates a calendar of its own, "WE Budget", in your Google account and puts an event with a reminder on every day that still has payments not marked yet; it updates the events as you mark payments, from any computer or the phone. Google sends the reminder, so it reaches your phone even when every computer is off; add the Google account to the iPhone Calendar or install Google Calendar to get it there. The app cannot see your other calendars, and switching the reminders off deletes its calendar.
+
+While the desktop app is open, it can also show a notification at that time, and a morning summary of the day's payments at 8:00.
+
 ## Sync between computers
 
 Sign in with Google in Settings, or on the first-launch screen of a new computer. The budget is stored as one compressed file in the app's hidden folder on your Google Drive: neither other apps nor you see it in Drive, and nothing is kept on any other server.
@@ -132,6 +150,7 @@ On start the app checks this repository for a new release. If there is one, a ba
 |---|---|
 | macOS | `~/Library/Application Support/WE Budget/we-budget-data.json` |
 | Windows | `%APPDATA%\WE Budget\we-budget-data.json` |
+| Phone app | the browser's storage of jaffarsk24.github.io |
 
 The app keeps a copy of the file every day (the last 14) in the `backups` folder next to it, and a separate copy before the whole budget is ever replaced. Settings also has a manual backup and restore and an export of all items to CSV for Excel or Google Sheets.
 
@@ -157,6 +176,7 @@ npm test                    # unit tests (Vitest)
 npm run lint
 npm run electron:dist       # macOS: dmg and zip for Intel and Apple silicon
 npm run electron:dist:win   # Windows: NSIS installer
+npm run build:web           # the phone app, into dist-web/ (published at /WE-Budget/app/)
 ```
 
 Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desktop type with the Drive API enabled: put it into `oauth-credentials.json` in the project root as `{ "clientId": "...", "clientSecret": "..." }`. The file is not committed and is bundled into the build. A `google-credentials.json` of the same shape in the app's data folder overrides it.
@@ -169,6 +189,8 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `src/ledger.js` | Balances, money set aside, month totals, forecast |
 | `src/schedule.js`, `src/allocation.js`, `src/reconcile.js` | Recurring payments, splitting income, checking against the bank |
 | `src/sync/` | Merging budgets and the sync cycle |
+| `src/reminders.js`, `src/reminder-sync.js`, `src/notify.js` | Reminders in Google Calendar, notifications on the computer |
+| `src/web/`, `src/views/phone.js` | Google sign-in and Drive in the browser, the phone screens |
 | `src/views/` | Screens |
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |
 | `src/import/` | Spreadsheet import |

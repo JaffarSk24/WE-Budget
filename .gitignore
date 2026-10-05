@@ -9,6 +9,7 @@ node_modules.nosync/
 
 # Build outputs
 dist/
+dist-web/
 build/
 release/
 release.nosync/

@@ -381,6 +381,7 @@ export const en = {
   'notify-evening-title': 'Payments not marked: {n}',
   'notify-morning-title': 'Payments today: {n}',
   'notify-more': 'and {n} more',
+  'auth-window-done': 'Done. You can close this window and return to WE Budget.',
   'phone-tab-accounts': 'Accounts',
   'phone-tab-more': 'More',
   'phone-overdue': 'Overdue',

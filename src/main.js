@@ -1,6 +1,7 @@
 // WE Budget entry point: fonts, icons, navigation, global keys, day change.
 
 // Local fonts: no Google Fonts CDN, the app works offline.
+import { isAuthWindow } from './web/boot.js';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
@@ -28,6 +29,8 @@ import { sync, initSyncStatus, initSyncBanner } from './cloud.js';
 import { initUpdates, onUpdateChange } from './updates.js';
 import { initReminders, onReminderChange } from './reminder-sync.js';
 import { initNotifications } from './notify.js';
+import { finishRedirectSignIn } from './web/cloud-web.js';
+import { isPhoneLayout, initPhone } from './views/phone.js';
 
 window.lucide = { createIcons: () => createIcons({ icons: usedIcons }) };
 
@@ -111,8 +114,21 @@ function initKeys() {
   });
 }
 
+// The phone app works offline: a service worker keeps its files (web build
+// only; the desktop app has them on disk).
+function registerServiceWorker() {
+  if (window.weStorage || !('serviceWorker' in navigator) || typeof __WEB_BUILD__ === 'undefined' || !__WEB_BUILD__) return;
+  navigator.serviceWorker.register('./sw.js').catch(e => console.error('service worker', e));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
+  // Google's answer in the sign-in window: the app does not start here.
+  if (isAuthWindow) {
+    document.body.replaceChildren(h('p', { class: 'auth-window-note' }, t('auth-window-done')));
+    return;
+  }
+  const phone = isPhoneLayout();
   const yearEl = document.getElementById('current-year');
   if (yearEl) yearEl.textContent = String(new Date().getFullYear());
   const versionEl = document.getElementById('app-version');
@@ -122,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     a.setAttribute('href', '#' + a.dataset.view);
   });
   document.getElementById('quick-add-btn').addEventListener('click', () => openQuickExpense());
-  window.addEventListener('hashchange', () => show(viewFromHash() || 'month'));
+  window.addEventListener('hashchange', () => { if (!phone) show(viewFromHash() || 'month'); });
   setNavigator((name) => show(name));
 
   initModalKeys();
@@ -148,20 +164,32 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (!needsWelcome()) store.generate();
-  store.subscribe(() => {
-    applyTheme();
-    if (current === 'welcome' && !needsWelcome()) return; // the welcome screen navigates itself
-    if (current !== 'welcome' && needsWelcome()) { show('welcome'); return; }
-    render();
-  });
+  if (phone) {
+    store.subscribe(() => applyTheme());
+    initPhone(document.getElementById('phone-app'));
+  } else {
+    store.subscribe(() => {
+      applyTheme();
+      if (current === 'welcome' && !needsWelcome()) return; // the welcome screen navigates itself
+      if (current !== 'welcome' && needsWelcome()) { show('welcome'); return; }
+      render();
+    });
 
-  let initial = viewFromHash();
-  if (!initial) {
-    try { initial = localStorage.getItem(LAST_VIEW_KEY); } catch (e) { initial = null; }
+    let initial = viewFromHash();
+    if (!initial) {
+      try { initial = localStorage.getItem(LAST_VIEW_KEY); } catch (e) { initial = null; }
+    }
+    show(VIEWS[initial] ? initial : 'month');
   }
-  show(VIEWS[initial] ? initial : 'month');
-  sync.init().catch(e => console.error('sync init failed', e)).finally(() => initReminders());
+  // A sign-in that had to leave the page (web, windows blocked) is finished
+  // here; its first sync may then ask about two different budgets.
+  const finishing = window.weStorage ? Promise.resolve(false) : finishRedirectSignIn();
+  finishing
+    .then(signedIn => sync.init({ reason: signedIn ? 'login' : 'startup' }))
+    .catch(e => console.error('sync init failed', e))
+    .finally(() => initReminders());
   initNotifications();
+  registerServiceWorker();
   setInterval(checkDay, 60 * 1000);
   window.addEventListener('focus', checkDay);
 });

@@ -73,7 +73,9 @@ export class SyncEngine {
     return result;
   }
 
-  async init({ auto = true } = {}) {
+  // `reason`: 'login' right after a sign-in that left the page (web), so
+  // the first sync may ask about two different budgets.
+  async init({ auto = true, reason = 'startup' } = {}) {
     if (!this.bridge) return;
     const status = await this.bridge.status();
     if (!status.configured) {
@@ -92,7 +94,7 @@ export class SyncEngine {
       lastSyncAt: (saved && saved.lastSyncAt) || null
     });
     if (auto) this.startAuto();
-    if (this.loggedIn) await this.sync('startup');
+    if (this.loggedIn) await this.sync(reason);
   }
 
   startAuto() {

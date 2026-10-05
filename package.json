@@ -25,7 +25,8 @@
     "electron:dist": "npm run build && electron-builder --mac --publish never",
     "electron:dist:win": "npm run build && electron-builder --win --x64 --publish never",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "build:web": "vite build --mode web"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

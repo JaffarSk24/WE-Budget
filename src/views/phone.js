@@ -4,11 +4,11 @@
 
 import { store } from '../store.js';
 import { t } from '../i18n.js';
-import { h, clear, icon, money, refreshIcons, lang } from '../ui.js';
+import { h, clear, icon, money, refreshIcons, lang, accountLabel } from '../ui.js';
 import { accountSummaries, entriesOn, grandTotals, overdueEntries, upcomingEntries } from '../ledger.js';
-import { addDays, formatDayLong, isDayKey, todayKey } from '../dates.js';
-import { entryListItem } from '../actions.js';
-import { openQuickExpense } from '../modals.js';
+import { addDays, formatDay, formatDayLong, isDayKey, todayKey } from '../dates.js';
+import { statusButton, reserveButton } from '../actions.js';
+import { openEntryModal, openQuickExpense } from '../modals.js';
 import { live, hasAnyData } from '../model.js';
 import { sync, syncStatusText, signIn, renewAccess, initSyncBanner } from '../cloud.js';
 import { syncSection, remindersSection, section, settingRow } from './settings.js';
@@ -52,11 +52,37 @@ function syncChip() {
   }, icon(st.status === 'syncing' || st.status === 'renew' ? 'refresh-cw' : st.status === 'idle' ? 'cloud' : 'cloud-off'), h('span', {}, text));
 }
 
+// A row sized for a finger: the status circle marks the payment done, the
+// piggy bank sets money aside, a tap on the row opens it for editing. The
+// date goes into the second line, so the title keeps its room.
+function phoneEntry(entry, { showDate }) {
+  const today = todayKey();
+  const overdue = (entry.status === 'planned' || entry.status === 'reserved') && entry.date < today;
+  const sign = entry.type === 'income' ? 1 : entry.type === 'expense' ? -1 : 0;
+  const unreserved = entry.type === 'expense' && entry.status === 'planned' && entry.amount !== 0 && !entry.isTransit;
+  const where = entry.type === 'transfer'
+    ? `${accountLabel(entry.accountId)} → ${accountLabel(entry.toAccountId)}`
+    : accountLabel(entry.accountId);
+  return h('div', {
+    class: `phone-entry status-row-${entry.status} ${overdue ? 'is-overdue' : ''} ${unreserved ? 'is-unreserved' : ''}`,
+    onclick: () => openEntryModal(entry)
+  },
+    statusButton(entry),
+    h('div', { class: 'phone-entry-main' },
+      h('span', { class: 'phone-entry-title' }, entry.title || t('untitled')),
+      h('span', { class: 'phone-entry-meta' },
+        [showDate ? formatDay(entry.date, lang()) : null, where, entry.status === 'reserved' ? t('status-reserved') : null]
+          .filter(Boolean).join(' · '))),
+    h('span', { class: `phone-entry-amount money ${sign > 0 ? 'positive' : sign === 0 ? 'neutral' : ''}` },
+      sign === 0 ? money(entry.amount) : money(sign * entry.amount, { signed: sign > 0 })),
+    reserveButton(entry));
+}
+
 function list(title, entries, emptyText, cls = '') {
   return h('section', { class: `phone-card ${cls}` },
     h('div', { class: 'phone-card-title' }, h('h2', {}, title), entries.length ? h('span', { class: 'count-pill' }, entries.length) : null),
     entries.length
-      ? h('div', { class: 'list' }, entries.map(e => entryListItem(e, { showDate: cls !== 'is-today' })))
+      ? h('div', { class: 'phone-list' }, entries.map(e => phoneEntry(e, { showDate: cls !== 'is-today' })))
       : h('p', { class: 'muted small' }, emptyText));
 }
 
@@ -147,7 +173,7 @@ function render() {
   clear(parts.main);
   const content = empty ? welcome() : tab === 'accounts' ? accountsTab() : tab === 'more' ? moreTab() : todayTab();
   content.filter(Boolean).forEach(el => parts.main.appendChild(el));
-  parts.fab.hidden = empty;
+  parts.fab.hidden = empty || tab === 'more';
   parts.tabs.hidden = empty;
   parts.tabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   refreshIcons();

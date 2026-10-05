@@ -1,9 +1,14 @@
 name: Website
 
+# The site (site/) and the phone app (the web build of the app, at /app/) go
+# to GitHub Pages together, from main only: the phone app is released
+# together with the desktop app, so both read and write the same budget
+# format.
+
 on:
   push:
-    branches: [main, develop]
-    paths: ['site/**', '.github/workflows/pages.yml']
+    branches: [main]
+    paths: ['site/**', 'src/**', 'public/**', 'index.html', 'vite.config.js', 'package.json', 'package-lock.json', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -17,16 +22,29 @@ concurrency:
 
 jobs:
   deploy:
-    name: Publish site/ to GitHub Pages
+    name: Publish the site and the phone app to GitHub Pages
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - name: Put the site and the app together
+        run: |
+          mkdir -p _site
+          cp -R site/. _site/
+          cp -R dist-web _site/app
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v5

@@ -381,6 +381,7 @@ export const ru = {
   'notify-evening-title': 'Не отмечено платежей: {n}',
   'notify-morning-title': 'Платежей на сегодня: {n}',
   'notify-more': 'и ещё {n}',
+  'auth-window-done': 'Готово. Это окно можно закрыть и вернуться в WE Budget.',
   'phone-tab-accounts': 'Счета',
   'phone-tab-more': 'Ещё',
   'phone-overdue': 'Просрочено',

@@ -23,13 +23,13 @@
   <main>
     <article class="doc">
       <h1>Privacy policy</h1>
-      <p class="meta">WE Budget desktop app for macOS and Windows. Effective 5 October 2026.</p>
+      <p class="meta">WE Budget desktop app for macOS and Windows and the WE Budget phone app. Effective 5 October 2026.</p>
 
       <p>WE Budget is made by White Eagles &amp; Co. s.r.o. ("we"). This policy explains what data the app handles, where it is kept and how to remove it.</p>
 
       <h2>In short</h2>
       <ul>
-        <li>Your budget is stored on your own computer.</li>
+        <li>Your budget is stored on your own computer, and in the phone app on your phone.</li>
         <li>If you turn on sync, a copy is stored in a hidden app folder of your own Google Drive.</li>
         <li>We do not run any server for the app. We never receive your budget, your Google account data or statistics about how you use the app.</li>
         <li>The app has no account with us, no ads, no analytics and no tracking.</li>
@@ -43,13 +43,20 @@
       </ul>
       <p>The same folder holds daily backup copies of the budget, the state of sync and, if you sign in with Google, the sign-in tokens. Nothing from this folder is sent to us.</p>
 
+      <h2>The phone app</h2>
+      <p>The phone app is the same app running in a browser, at <a href="https://jaffarsk24.github.io/WE-Budget/app/">jaffarsk24.github.io/WE-Budget/app</a>, and it can be added to the home screen. It keeps your budget in the browser's storage on your phone. When you sign in with Google there, Google gives it an access token that lasts an hour; the token is kept in the same storage. Nothing from it is sent to us.</p>
+
       <h2>Google sign-in and sync through Google Drive</h2>
       <p>Sync is optional. When you sign in with Google, the app asks for two permissions:</p>
       <ul>
         <li><strong>See, create and delete its own configuration data in your Google Drive</strong> (<code>drive.appdata</code>). The app stores one compressed file with your budget in a hidden folder of your Google Drive that only WE Budget can access, and reads it back on your other computers. The app cannot see, open or change any other file in your Drive.</li>
         <li><strong>See your primary Google Account email address</strong> (<code>userinfo.email</code>). The app uses it only to show which account is connected.</li>
       </ul>
-      <p>The app exchanges data with Google directly from your computer. Your budget and your Google data never pass through a server of ours, and we have no way to access them. The app does not use Google user data for advertising, does not sell it or pass it to anyone, and does not use it to train AI or machine learning models.</p>
+      <p>If you switch on reminders in Google Calendar, the app also asks for a third permission:</p>
+      <ul>
+        <li><strong>Make secondary Google calendars, and see, create, change and delete events on them</strong> (<code>calendar.app.created</code>). The app creates its own calendar, "WE Budget", and puts in it one event per day that has payments not marked yet, with their names and amounts, so that Google can remind you at the time you chose. The app cannot see your other calendars or their events. Switching the reminders off deletes this calendar.</li>
+      </ul>
+      <p>The app exchanges data with Google directly from your computer or phone. Your budget and your Google data never pass through a server of ours, and we have no way to access them. The app does not use Google user data for advertising, does not sell it or pass it to anyone, and does not use it to train AI or machine learning models.</p>
       <p>WE Budget's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
 
       <h2>Removing your data</h2>
@@ -57,7 +64,8 @@
         <li>Sign out in the app's Settings. The app deletes the sign-in tokens from your computer and asks Google to revoke its access.</li>
         <li>To delete the copy in Google Drive, open Google Drive on the web, go to Settings, Manage apps, find WE Budget and choose Options, Delete hidden app data.</li>
         <li>You can also remove the app's access at any time on <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
-        <li>To delete the data on your computer, delete the data folder listed above.</li>
+        <li>To delete the reminder calendar, switch the reminders off in the app, or delete the "WE Budget" calendar in Google Calendar.</li>
+        <li>To delete the data on your computer, delete the data folder listed above. In the phone app, sign out and remove the app from the home screen, or clear the website data of jaffarsk24.github.io in the browser settings.</li>
       </ul>
 
       <h2>Updates</h2>
