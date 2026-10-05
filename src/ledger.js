@@ -48,19 +48,60 @@ export function totalEffect(entry) {
   return 0;
 }
 
+// Money on the account of an active goal is frozen for that goal: it is not
+// free for anything else. When the goal's account has envelopes, they are
+// the goal's too, as in goalProgress.
+export function frozenAccounts(data) {
+  const goalAccounts = new Set(live(data.goals || []).filter(g => !g.archived && g.accountId).map(g => g.accountId));
+  const ids = new Set(goalAccounts);
+  live(data.accounts).forEach(a => { if (goalAccounts.has(a.parentId)) ids.add(a.id); });
+  return ids;
+}
+
+// Signed effect of an entry on the budget: the money on all accounts except
+// what is frozen for goals. A transfer into a goal's account leaves the
+// budget like a payment and a transfer out of it comes back like an income;
+// income and payments on a goal's account stay with the goal.
+export function budgetEffect(entry, frozen) {
+  const amount = entry.amount || 0;
+  const counts = id => !frozen.has(id);
+  if (entry.type === 'income') return counts(entry.accountId) ? amount : 0;
+  if (entry.type === 'expense') return counts(entry.accountId) ? -amount : 0;
+  if (entry.type === 'transfer') {
+    return (counts(entry.toAccountId) ? amount : 0) - (counts(entry.accountId) ? amount : 0);
+  }
+  return 0;
+}
+
+// How an entry counts in the budget's income and expense totals: income and
+// payments of the budget's money, money frozen for a goal as a payment and
+// money released from a goal as income. Transit, adjustments and moves
+// between the budget's own accounts do not count.
+export function budgetFlow(entry, frozen) {
+  if (entry.status === 'cancelled' || entry.isTransit || entry.isAdjustment) return null;
+  const effect = budgetEffect(entry, frozen);
+  if (!effect) return null;
+  return effect < 0 ? { type: 'expense', amount: -effect } : { type: 'income', amount: effect };
+}
+
 // Per-account figures. `own*` covers the account alone, `total*` adds its
-// envelopes (child accounts).
+// envelopes (child accounts). On a goal's account, what is not set aside
+// for its payments is frozen for the goal (`*Frozen`) instead of free.
 export function accountSummaries(data, asOf = null) {
   const accounts = live(data.accounts);
+  const frozen = frozenAccounts(data);
   const map = new Map();
   accounts.forEach(a => map.set(a.id, {
     id: a.id,
     ownBalance: a.openingBalance || 0,
     ownReserved: 0,
+    ownFrozen: 0,
     ownFree: 0,
     totalBalance: 0,
     totalReserved: 0,
+    totalFrozen: 0,
     totalFree: 0,
+    isFrozen: frozen.has(a.id),
     lastCheck: null
   }));
 
@@ -78,17 +119,22 @@ export function accountSummaries(data, asOf = null) {
     }
   });
 
-  map.forEach(s => { s.ownFree = s.ownBalance - s.ownReserved; });
+  map.forEach(s => {
+    if (s.isFrozen) s.ownFrozen = Math.max(0, s.ownBalance - s.ownReserved);
+    s.ownFree = s.ownBalance - s.ownReserved - s.ownFrozen;
+  });
   accounts.forEach(a => {
     const s = map.get(a.id);
     s.totalBalance = s.ownBalance;
     s.totalReserved = s.ownReserved;
+    s.totalFrozen = s.ownFrozen;
     accounts.filter(c => c.parentId === a.id).forEach(c => {
       const cs = map.get(c.id);
       s.totalBalance += cs.ownBalance;
       s.totalReserved += cs.ownReserved;
+      s.totalFrozen += cs.ownFrozen;
     });
-    s.totalFree = s.totalBalance - s.totalReserved;
+    s.totalFree = s.totalBalance - s.totalReserved - s.totalFrozen;
   });
 
   live(data.checks).forEach(c => {
@@ -98,20 +144,24 @@ export function accountSummaries(data, asOf = null) {
   return map;
 }
 
+// balance = free + reserved (for payments) + frozen (for goals).
 export function grandTotals(data, asOf = null) {
   const summaries = accountSummaries(data, asOf);
   let balance = 0;
   let reserved = 0;
+  let frozen = 0;
   live(data.accounts).forEach(a => {
     const s = summaries.get(a.id);
     balance += s.ownBalance;
     reserved += s.ownReserved;
+    frozen += s.ownFrozen;
   });
-  return { balance, reserved, free: balance - reserved };
+  return { balance, reserved, frozen, free: balance - reserved - frozen };
 }
 
-export function openingTotal(data) {
-  return live(data.accounts).reduce((sum, a) => sum + (a.openingBalance || 0), 0);
+// Opening balances of the budget's accounts, without those frozen for goals.
+export function openingTotal(data, frozen = frozenAccounts(data)) {
+  return live(data.accounts).filter(a => !frozen.has(a.id)).reduce((sum, a) => sum + (a.openingBalance || 0), 0);
 }
 
 // Order inside a day: income first, then everything else in creation order,
@@ -124,17 +174,18 @@ export function compareEntries(a, b) {
   return (a.createdAt || '') < (b.createdAt || '') ? -1 : 1;
 }
 
-// Running total before the first moment of `day`, counting every entry that
-// is not cancelled (plan semantics, like the spreadsheet did).
-export function runningTotalBefore(data, day) {
+// Running total of the budget before the first moment of `day`, counting
+// every entry that is not cancelled (plan semantics, like the spreadsheet
+// did). Money frozen for goals is not part of it.
+export function runningTotalBefore(data, day, frozen = frozenAccounts(data)) {
   const start = trackingStartOf(data);
   const entries = live(data.entries).filter(e => e.status !== 'cancelled' && e.date < day);
   if (data.settings.trackingStart && day >= start) {
-    return openingTotal(data) + entries
+    return openingTotal(data, frozen) + entries
       .filter(e => e.date >= start)
-      .reduce((sum, e) => sum + totalEffect(e), 0);
+      .reduce((sum, e) => sum + budgetEffect(e, frozen), 0);
   }
-  return entries.reduce((sum, e) => sum + totalEffect(e), 0);
+  return entries.reduce((sum, e) => sum + budgetEffect(e, frozen), 0);
 }
 
 // Rows of one month with a running total after each row, the replacement
@@ -143,72 +194,82 @@ export function monthRows(data, month) {
   const from = firstDayOfMonth(month);
   const to = lastDayOfMonth(month);
   const start = data.settings.trackingStart;
+  const frozen = frozenAccounts(data);
   const rows = live(data.entries)
     .filter(e => e.date >= from && e.date <= to)
     .sort(compareEntries);
 
-  let running = runningTotalBefore(data, from);
+  let running = runningTotalBefore(data, from, frozen);
   let crossed = !start || from >= start;
   return rows.map(e => {
     if (!crossed && e.date >= start) {
       crossed = true;
-      running = runningTotalBefore(data, e.date);
+      running = runningTotalBefore(data, e.date, frozen);
     }
-    if (e.status !== 'cancelled') running += totalEffect(e);
+    if (e.status !== 'cancelled') running += budgetEffect(e, frozen);
     return { entry: e, running };
   });
+}
+
+export function monthSummary(data, month) {
+  const from = firstDayOfMonth(month);
+  const to = lastDayOfMonth(month);
+  const frozen = frozenAccounts(data);
+  const entries = live(data.entries).filter(e => e.date >= from && e.date <= to);
+  const sum = (filter) => entries.filter(filter).reduce((s, e) => s + (e.amount || 0), 0);
+  const flows = (type, done = false) => entries.reduce((s, e) => {
+    const f = budgetFlow(e, frozen);
+    return f && f.type === type && (!done || e.status === 'done') ? s + f.amount : s;
+  }, 0);
+
+  const opening = runningTotalBefore(data, from, frozen);
+  const rows = monthRows(data, month);
+  const closing = rows.length ? rows[rows.length - 1].running : runningTotalBefore(data, addDays(to, 1), frozen);
+
+  return {
+    month,
+    opening,
+    closing,
+    income: flows('income'),
+    expense: flows('expense'),
+    incomeDone: flows('income', true),
+    expenseDone: flows('expense', true),
+    adjustments: entries
+      .filter(e => e.isAdjustment && e.status !== 'cancelled')
+      .reduce((s, e) => s + budgetEffect(e, frozen), 0),
+    reserved: sum(e => e.status === 'reserved' && !e.isTransit),
+    openCount: entries.filter(e => isOpen(e)).length
+  };
 }
 
 function countsInFlow(e) {
   return e.status !== 'cancelled' && !e.isTransit && !e.isAdjustment && e.type !== 'transfer';
 }
 
-export function monthSummary(data, month) {
-  const from = firstDayOfMonth(month);
-  const to = lastDayOfMonth(month);
-  const entries = live(data.entries).filter(e => e.date >= from && e.date <= to);
-  const sum = (filter) => entries.filter(filter).reduce((s, e) => s + (e.amount || 0), 0);
-
-  const opening = runningTotalBefore(data, from);
-  const rows = monthRows(data, month);
-  const closing = rows.length ? rows[rows.length - 1].running : runningTotalBefore(data, addDays(to, 1));
-
-  return {
-    month,
-    opening,
-    closing,
-    income: sum(e => countsInFlow(e) && e.type === 'income'),
-    expense: sum(e => countsInFlow(e) && e.type === 'expense'),
-    incomeDone: sum(e => countsInFlow(e) && e.type === 'income' && e.status === 'done'),
-    expenseDone: sum(e => countsInFlow(e) && e.type === 'expense' && e.status === 'done'),
-    adjustments: entries
-      .filter(e => e.isAdjustment && e.status !== 'cancelled')
-      .reduce((s, e) => s + totalEffect(e), 0),
-    reserved: sum(e => e.status === 'reserved' && !e.isTransit),
-    openCount: entries.filter(e => isOpen(e)).length
-  };
-}
-
-// A month against its plan, for income and for expenses. The plan is the
-// planned amounts (quick expenses were never planned), the fact is what is
-// marked done (quick expenses included), and open is what is still to come.
+// A month against its plan, for income and for expenses as the budget sees
+// them (budgetFlow: money put aside for a goal is an expense). The plan is
+// the planned amounts (quick expenses were never planned), the fact is what
+// is marked done (quick expenses included), and open is what is still to
+// come.
 export function monthPlanFact(data, month) {
   const from = firstDayOfMonth(month);
   const to = lastDayOfMonth(month);
+  const frozen = frozenAccounts(data);
   const out = {
     income: { plan: 0, fact: 0, open: 0, quick: 0 },
     expense: { plan: 0, fact: 0, open: 0, quick: 0 }
   };
   live(data.entries).forEach(e => {
-    if (e.date < from || e.date > to || !countsInFlow(e)) return;
-    const row = out[e.type];
-    if (!row) return;
+    if (e.date < from || e.date > to) return;
+    const flow = budgetFlow(e, frozen);
+    if (!flow) return;
+    const row = out[flow.type];
     if (!e.isQuick) row.plan += e.plannedAmount ?? e.amount ?? 0;
     if (e.status === 'done') {
-      row.fact += e.amount || 0;
-      if (e.isQuick) row.quick += e.amount || 0;
+      row.fact += flow.amount;
+      if (e.isQuick) row.quick += flow.amount;
     } else {
-      row.open += e.amount || 0;
+      row.open += flow.amount;
     }
   });
   return out;
@@ -267,9 +328,10 @@ export function accountRunning(data) {
 // free money left after it (minus the part that is missing).
 export function forecast(data, today, toDay) {
   const { free } = grandTotals(data, today);
+  const frozen = frozenAccounts(data);
   const byDay = new Map();
   live(data.entries).forEach(e => {
-    if (e.status === 'cancelled' || e.type === 'transfer' || !isTracked(data, e)) return;
+    if (e.status === 'cancelled' || !isTracked(data, e) || !budgetEffect(e, frozen)) return;
     let day;
     if (e.status === 'planned') day = e.date < today ? today : e.date;
     else if (e.status === 'done' && e.date > today) day = e.date;
@@ -285,7 +347,7 @@ export function forecast(data, today, toDay) {
   let minimum = { day: today, value: free };
   for (let day = today; day <= toDay; day = addDays(day, 1)) {
     (byDay.get(day) || []).sort(compareEntries).forEach(e => {
-      value += totalEffect(e);
+      value += budgetEffect(e, frozen);
       if (value < 0 && !firstNegative) firstNegative = { day, value, entry: e };
     });
     points.push({ day, value });

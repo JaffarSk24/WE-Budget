@@ -71,16 +71,16 @@ function envelopeTable() {
   tops.forEach(top => {
     const ts = s.get(top.id);
     const children = accounts.filter(a => a.parentId === top.id).sort(byOrder);
-    rows.push(line('env-top', top.name, ts.totalBalance, ts.totalReserved, ts.totalFree));
+    rows.push(line('env-top', top.name, ts.totalBalance, ts.totalReserved + ts.totalFrozen, ts.totalFree));
     if (!children.length) return;
     // The account itself comes first inside its group, envelopes after it.
     if (ts.ownBalance || ts.ownReserved) {
-      rows.push(line('env-child env-own', [top.name, ' ', badge(t('account-main'), 'badge-main')], ts.ownBalance, ts.ownReserved, ts.ownFree));
+      rows.push(line('env-child env-own', [top.name, ' ', badge(t('account-main'), 'badge-main')], ts.ownBalance, ts.ownReserved + ts.ownFrozen, ts.ownFree));
     }
     children.forEach(c => {
       const cs = s.get(c.id);
       if (!cs.ownBalance && !cs.ownReserved) return;
-      rows.push(line('env-child', c.name, cs.ownBalance, cs.ownReserved, cs.ownFree));
+      rows.push(line('env-child', c.name, cs.ownBalance, cs.ownReserved + cs.ownFrozen, cs.ownFree));
     });
   });
   return h('table', { class: 'env-table' },
@@ -178,7 +178,8 @@ export function renderOverview(root) {
 
   root.appendChild(h('div', { class: 'dashboard-grid kpi-grid' },
     kpi(t('kpi-free'), moneyEl(totals.free, { colored: true }), t('kpi-free-desc'), totals.free < 0 ? 'alert' : 'primary'),
-    kpi(t('kpi-reserved'), moneyEl(totals.reserved), t('kpi-reserved-desc'), 'reserved'),
+    kpi(t('kpi-reserved'), moneyEl(totals.reserved + totals.frozen),
+      totals.frozen ? t('kpi-reserved-goals', { reserved: money(totals.reserved), frozen: money(totals.frozen) }) : t('kpi-reserved-desc'), 'reserved'),
     kpi(t('kpi-balance'), moneyEl(totals.balance), t('kpi-balance-desc')),
     kpi(t('kpi-month-end'), moneyEl(monthEndFree, { colored: true }), t('kpi-month-end-desc'), monthEndFree < 0 ? 'alert' : '')));
 

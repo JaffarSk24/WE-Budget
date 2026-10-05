@@ -93,7 +93,7 @@ function todayTab() {
     h('section', { class: 'phone-card phone-free' },
       h('div', { class: 'phone-free-label' }, t('kpi-free')),
       h('div', { class: `phone-free-value money ${totals.free < 0 ? 'negative' : ''}` }, money(totals.free)),
-      h('div', { class: 'phone-free-sub' }, t('phone-free-sub', { reserved: money(totals.reserved), balance: money(totals.balance) })))
+      h('div', { class: 'phone-free-sub' }, t('phone-free-sub', { reserved: money(totals.reserved + totals.frozen), balance: money(totals.balance) })))
   ];
   if (focusDay && focusDay !== today) {
     parts.push(list(t('phone-day-title', { date: formatDayLong(focusDay, lang()) }), entriesOn(store.data, focusDay), t('today-none'), 'is-focus'));
@@ -119,12 +119,12 @@ function accountsTab() {
         reserved ? h('span', { class: 'phone-acc-meta' }, t('phone-acc-reserved', { amount: money(reserved), balance: money(balance) })) : null),
       h('div', { class: `phone-acc-free money ${free < 0 ? 'negative' : ''}` }, money(free)));
     return h('section', { class: 'phone-card' },
-      row(top.name, children.length ? sum.totalBalance : sum.ownBalance, children.length ? sum.totalReserved : sum.ownReserved,
+      row(top.name, children.length ? sum.totalBalance : sum.ownBalance, children.length ? sum.totalReserved + sum.totalFrozen : sum.ownReserved + sum.ownFrozen,
         children.length ? sum.totalFree : sum.ownFree, 'is-top'),
-      children.length ? row(t('account-main'), sum.ownBalance, sum.ownReserved, sum.ownFree, 'is-child') : null,
+      children.length ? row(t('account-main'), sum.ownBalance, sum.ownReserved + sum.ownFrozen, sum.ownFree, 'is-child') : null,
       ...children.map(c => {
         const cs = s.get(c.id) || {};
-        return row(c.name, cs.ownBalance, cs.ownReserved, cs.ownFree, 'is-child');
+        return row(c.name, cs.ownBalance, (cs.ownReserved || 0) + (cs.ownFrozen || 0), cs.ownFree, 'is-child');
       }));
   });
 }
