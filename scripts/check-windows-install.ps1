@@ -12,12 +12,15 @@
 # Meant for a throwaway machine such as a CI runner: it changes Defender
 # settings and installs and removes the app for the current user.
 #
-#   pwsh scripts/check-windows-install.ps1 [-Installer <path to WE-Budget-x.y.z-win-x64.exe>] [-ExpectGoogleClient]
+#   pwsh scripts/check-windows-install.ps1 [-Installer <path to WE-Budget-x.y.z-win-x64.exe>] [-ExpectGoogleClient] [-Repeat <n>]
 
 param(
   [string]$Installer,
   # Release builds must carry the Google sign-in client; CI builds do not.
-  [switch]$ExpectGoogleClient
+  [switch]$ExpectGoogleClient,
+  # Install and uninstall this many times first, to catch an installer that
+  # fails only now and then.
+  [int]$Repeat = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -100,6 +103,26 @@ function Scan([string]$Path) {
   Write-Host "Defender found nothing in $Path"
 }
 
+# What Windows and Defender logged since the script started, to tell why an
+# installer or uninstaller failed: the crashed module, a blocked file.
+function Show-Crash([string]$What) {
+  Write-Host "What Windows logged around the failed $What`:"
+  try {
+    Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Id = 1000, 1001, 1002; StartTime = $StartedAt } -ErrorAction Stop |
+      Select-Object -First 6 | ForEach-Object { Write-Host "[$($_.TimeCreated)] $($_.ProviderName) $($_.Id)"; Write-Host $_.Message }
+  } catch { Write-Host 'No application errors in the event log.' }
+  try {
+    Get-WinEvent -FilterHashtable @{ LogName = 'Microsoft-Windows-Windows Defender/Operational'; StartTime = $StartedAt } -ErrorAction Stop |
+      Where-Object { $_.Id -in 1006, 1007, 1008, 1015, 1116, 1117, 1118, 1119, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1128 } |
+      Select-Object -First 10 | ForEach-Object { Write-Host "[$($_.TimeCreated)] Defender $($_.Id)"; Write-Host $_.Message }
+  } catch { Write-Host 'No Defender detections or blocks in the event log.' }
+  Get-NewDetections | Format-List Threat, Resources | Out-String | Write-Host
+  Get-ChildItem -Path $env:TEMP -Directory -Filter 'ns*.tmp' -ErrorAction SilentlyContinue | ForEach-Object {
+    $files = @(Get-ChildItem $_.FullName -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object Name)
+    Write-Host "Left in $($_.FullName): $($files -join ', ')"
+  }
+}
+
 if (-not $Installer) {
   $found = Get-ChildItem -Path 'release.nosync' -Filter 'WE-Budget-*-win-x64.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($found) { $Installer = $found.FullName }
@@ -159,9 +182,36 @@ if (-not $status.RealTimeProtectionEnabled) {
 Step 'Scan the installer'
 Scan $Installer
 
+if ($Repeat -gt 0) {
+  Step "Install and uninstall $Repeat times in a row"
+  $failed = 0
+  for ($n = 1; $n -le $Repeat; $n++) {
+    $run = Start-Process -FilePath $Installer -ArgumentList '/S' -PassThru -Wait
+    if ($run.ExitCode -ne 0) {
+      $failed++
+      Write-Host "Install $n of $Repeat exited with code $($run.ExitCode)"
+      Show-Crash "install $n"
+    }
+    $placed = Find-UninstallEntry 'HKCU'
+    if ($placed) {
+      $remover = ([regex]::Match($placed.UninstallString, '^"([^"]+)"')).Groups[1].Value
+      $exe = Join-Path (Split-Path $remover -Parent) $ExeName
+      $run = Start-Process -FilePath $remover -ArgumentList '/currentuser', '/S' -PassThru -Wait
+      if ($run.ExitCode -ne 0) {
+        $failed++
+        Write-Host "Uninstall $n of $Repeat exited with code $($run.ExitCode)"
+        Show-Crash "uninstall $n"
+      }
+      for ($i = 0; $i -lt 60 -and (Test-Path $exe); $i++) { Start-Sleep -Milliseconds 500 }
+    }
+  }
+  if ($failed) { Fail "$failed of $Repeat install and uninstall rounds failed" }
+  Write-Host "All $Repeat rounds went through"
+}
+
 Step 'Install silently'
 $run = Start-Process -FilePath $Installer -ArgumentList '/S' -PassThru -Wait
-if ($run.ExitCode -ne 0) { Fail "The installer exited with code $($run.ExitCode)" }
+if ($run.ExitCode -ne 0) { Show-Crash 'installation'; Fail "The installer exited with code $($run.ExitCode)" }
 Assert-NoDetections 'during installation'
 
 $entry = Find-UninstallEntry 'HKCU'
@@ -210,7 +260,7 @@ Stop-App
 
 Step 'Update over the installed copy with the flags the app uses'
 $run = Start-Process -FilePath $Installer -ArgumentList '--updated', '/S', '--force-run' -PassThru -Wait
-if ($run.ExitCode -ne 0) { Fail "The update exited with code $($run.ExitCode)" }
+if ($run.ExitCode -ne 0) { Show-Crash 'update'; Fail "The update exited with code $($run.ExitCode)" }
 $after = Find-UninstallEntry 'HKCU'
 if (-not $after -or $after.UninstallString -ne $entry.UninstallString) { Fail 'The update did not go into the installed copy' }
 if (-not (Test-Path $appExe)) { Fail "$appExe is missing after the update" }
@@ -226,7 +276,7 @@ Stop-App
 
 Step 'Uninstall silently'
 $run = Start-Process -FilePath $uninstaller -ArgumentList '/currentuser', '/S' -PassThru -Wait
-if ($run.ExitCode -ne 0) { Fail "The uninstaller exited with code $($run.ExitCode)" }
+if ($run.ExitCode -ne 0) { Show-Crash 'uninstallation'; Fail "The uninstaller exited with code $($run.ExitCode)" }
 # The uninstaller copies itself to a temporary folder and finishes from there.
 for ($i = 0; $i -lt 60 -and (Test-Path $appExe); $i++) { Start-Sleep -Milliseconds 500 }
 if (Test-Path $appExe) { Fail 'The app is still installed after uninstalling' }

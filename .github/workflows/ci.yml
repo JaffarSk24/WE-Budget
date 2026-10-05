@@ -5,6 +5,11 @@ on:
     branches: [main, develop]
   pull_request:
   workflow_dispatch:
+    inputs:
+      repeat:
+        description: Install and uninstall this many times before the full check
+        required: false
+        default: '0'
 
 permissions:
   contents: read
@@ -41,4 +46,4 @@ jobs:
         run: npx electron-builder --win --x64 --publish never
       - name: Install, run, update and uninstall
         shell: pwsh
-        run: ./scripts/check-windows-install.ps1
+        run: ./scripts/check-windows-install.ps1 -Repeat ${{ inputs.repeat || 0 }}
