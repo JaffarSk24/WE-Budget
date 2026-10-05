@@ -293,7 +293,7 @@ main {
   flex-grow: 1;
   margin-left: var(--sidebar-width);
   padding: 32px 40px;
-  padding-bottom: 48px;
+  padding-bottom: 120px; /* room for the promo footer */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -1300,6 +1300,67 @@ body.is-welcome aside nav, body.is-welcome .quick-add-btn, body.is-welcome .sync
   main { padding: 20px 16px; }
   .overview-lists, .welcome-grid { grid-template-columns: 1fr; }
   .month-table .col-account { display: none; }
+}
+
+/* White Eagles promo footer along the bottom of the main area, as in WE Time Tracker */
+.promo-footer {
+  position: fixed;
+  bottom: 0;
+  left: var(--sidebar-width);
+  width: calc(100vw - var(--sidebar-width));
+  background: rgba(10, 13, 22, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid var(--border-color);
+  padding: 16px 40px;
+  z-index: 99;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.4);
+}
+.promo-content { display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: var(--text-secondary); }
+.promo-badge {
+  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  color: #000;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+.promo-text a {
+  font-weight: 700;
+  text-decoration: none;
+  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  border-bottom: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.promo-text a:hover { border-color: #00f2fe; }
+.promo-text a i, .promo-text a svg { width: 14px; height: 14px; color: #4facfe; }
+.promo-copyright { font-size: 0.8rem; color: var(--text-muted); }
+[data-theme="light"] .promo-footer {
+  background: rgba(241, 245, 249, 0.85);
+  box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.05);
+  border-top-color: rgba(15, 23, 42, 0.08);
+}
+[data-theme="light"] .promo-badge { background: var(--grad-primary); color: #ffffff; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25); }
+[data-theme="light"] .promo-text a { background: var(--grad-primary); -webkit-background-clip: text; background-clip: text; }
+[data-theme="light"] .promo-text a i, [data-theme="light"] .promo-text a svg { color: var(--accent-indigo); }
+@media (max-width: 900px) {
+  .promo-footer { padding: 12px 16px; }
+  .promo-copyright { display: none; }
 }
 
 /* Sync status line in the sidebar */

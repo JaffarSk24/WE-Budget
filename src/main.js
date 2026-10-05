@@ -111,6 +111,8 @@ function initKeys() {
 
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
+  const yearEl = document.getElementById('current-year');
+  if (yearEl) yearEl.textContent = String(new Date().getFullYear());
   const versionEl = document.getElementById('app-version');
   if (versionEl && typeof __APP_VERSION__ !== 'undefined') versionEl.textContent = 'v' + __APP_VERSION__;
 

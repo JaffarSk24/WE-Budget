@@ -3,7 +3,7 @@
 import {
   AlertTriangle, Archive, ArchiveRestore, ArrowLeftRight, ArrowRight, Ban, Calculator, Calendar,
   CalendarCheck, CalendarDays, CalendarRange, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
-  Circle, Cloud, CloudOff, Database, Download, Eye, FileSpreadsheet, FolderOpen,
+  Circle, Cloud, CloudOff, Database, Download, ExternalLink, Eye, FileSpreadsheet, FolderOpen,
   FolderPlus, History, Inbox, Info, Languages, LayoutDashboard, Loader, LogIn,
   LogOut, MinusCircle, Monitor, Palette, Pencil, PiggyBank, Plus, RefreshCw,
   Repeat, RotateCcw, Scale, Settings, ShieldCheck, Sparkle, Sparkles, Split,
@@ -13,7 +13,7 @@ import {
 export const usedIcons = {
   AlertTriangle, Archive, ArchiveRestore, ArrowLeftRight, ArrowRight, Ban, Calculator, Calendar,
   CalendarCheck, CalendarDays, CalendarRange, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
-  Circle, Cloud, CloudOff, Database, Download, Eye, FileSpreadsheet, FolderOpen,
+  Circle, Cloud, CloudOff, Database, Download, ExternalLink, Eye, FileSpreadsheet, FolderOpen,
   FolderPlus, History, Inbox, Info, Languages, LayoutDashboard, Loader, LogIn,
   LogOut, MinusCircle, Monitor, Palette, Pencil, PiggyBank, Plus, RefreshCw,
   Repeat, RotateCcw, Scale, Settings, ShieldCheck, Sparkle, Sparkles, Split,
