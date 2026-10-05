@@ -381,7 +381,7 @@ export function openAllocationModal({ sourceAccountId = null, until = null, pres
         if (cb.checked) selected.add(e.id); else selected.delete(e.id);
         renderSummary();
       });
-      const envFree = e.accountId !== source.value ? (summaries.get(e.accountId)?.ownFree || 0) : 0;
+      const envFree = e.accountId !== source.value ? ((summaries.get(e.accountId)?.ownFree || 0) + (summaries.get(e.accountId)?.ownFrozen || 0)) : 0;
       list.appendChild(h('label', { class: `alloc-row ${e.date < today ? 'overdue' : ''}` },
         cb,
         h('span', { class: 'alloc-date' }, formatDay(e.date, lang())),

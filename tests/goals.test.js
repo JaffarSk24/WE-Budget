@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { goalOutlook, goalProgress, raisedContribution, suggestedContribution } from '../src/ledger.js';
+import { accountSummaries, forecast, goalOutlook, goalProgress, grandTotals, monthRows, monthSummary, raisedContribution, suggestedContribution } from '../src/ledger.js';
 import { emptyData, makeAccount, makeEntry, makeGoal, makeTemplate } from '../src/model.js';
 import { entryFromTemplate } from '../src/schedule.js';
 
@@ -96,5 +96,45 @@ describe('goal contribution in the plan', () => {
     const open = goalOutlook(data, { ...goal, deadline: null }, '2026-10-05');
     expect(open.projected).toBe(null);
     expect(raisedContribution(open)).toBe(null);
+  });
+});
+
+describe('money frozen for goals', () => {
+  // Main has 5 000 with a holiday envelope of 300 that a goal saves on; 200
+  // goes to the goal on the 10th, 100 is paid from the goal on the 20th.
+  function frozenBudget() {
+    const { data, main, holiday } = budget();
+    data.goals.push(makeGoal({ name: 'Trip', targetAmount: 200000, accountId: holiday.id, deadline: '2027-03-31' }));
+    data.entries.push(makeEntry({ date: '2026-10-10', type: 'transfer', amount: 20000, accountId: main.id, toAccountId: holiday.id, status: 'planned' }));
+    data.entries.push(makeEntry({ date: '2026-10-20', type: 'expense', amount: 10000, accountId: holiday.id, status: 'planned' }));
+    data.entries.push(makeEntry({ date: '2026-10-25', type: 'expense', amount: 5000, accountId: main.id, status: 'planned' }));
+    return { data, main, holiday };
+  }
+
+  it('is not free money and is shown apart', () => {
+    const { data, main, holiday } = frozenBudget();
+    expect(grandTotals(data, '2026-10-05')).toEqual({ balance: 530000, reserved: 0, frozen: 30000, free: 500000 });
+    const s = accountSummaries(data, '2026-10-05');
+    expect(s.get(holiday.id)).toMatchObject({ isFrozen: true, ownFrozen: 30000, ownFree: 0 });
+    expect(s.get(main.id)).toMatchObject({ totalBalance: 530000, totalFrozen: 30000, totalFree: 500000 });
+  });
+
+  it('putting money aside counts as an expense of the budget, paying from the goal does not', () => {
+    const { data } = frozenBudget();
+    const m = monthSummary(data, '2026-10');
+    expect(m.opening).toBe(500000);
+    expect(m.expense).toBe(25000);
+    expect(m.closing).toBe(475000);
+    expect(monthRows(data, '2026-10').map(r => r.running)).toEqual([480000, 480000, 475000]);
+    const f = forecast(data, '2026-10-05', '2026-10-31');
+    expect(f.start).toBe(500000);
+    expect(f.end).toBe(475000);
+  });
+
+  it('an archived goal frees its money again', () => {
+    const { data } = frozenBudget();
+    data.goals[0].archived = true;
+    expect(grandTotals(data, '2026-10-05')).toMatchObject({ frozen: 0, free: 530000 });
+    expect(monthSummary(data, '2026-10').closing).toBe(530000 - 10000 - 5000);
   });
 });

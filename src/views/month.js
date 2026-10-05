@@ -7,7 +7,7 @@ import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
 import { h, clear, icon, money, moneyEl, moneyInput, accountLabel, categoryName, selectEl, accountOptions, refreshIcons, topModal, lang, badge } from '../ui.js';
 import { showToast } from '../toast.js';
-import { accountRunning, monthRows, monthSummary, overdueEntries } from '../ledger.js';
+import { accountRunning, budgetFlow, frozenAccounts, monthRows, monthSummary, overdueEntries } from '../ledger.js';
 import { addMonthsToMonth, formatDay, formatMonth, monthOf, todayKey, firstDayOfMonth, lastDayOfMonth, parseDayKey } from '../dates.js';
 import { statusButton, reserveButton, toggleDone, toggleReserve, cancelEntry, deleteEntry, entryListItem } from '../actions.js';
 import { openEntryModal, openAllocationModal, openBulkDateModal, openBulkAccountModal, withUndo } from '../modals.js';
@@ -129,10 +129,14 @@ export function isUnreserved(e) {
 
 // Real money flows only, the same rule as the summary cards: adjustments
 // and pass-through money are neither income nor expense.
+// Column sums as the budget sees them: money put aside for a goal counts
+// as an expense, a payment out of a goal's money does not (budgetFlow).
 function flowSum(entries, type) {
-  return entries
-    .filter(e => e.type === type && e.status !== 'cancelled' && !e.isAdjustment && !e.isTransit)
-    .reduce((s, e) => s + e.amount, 0);
+  const frozen = frozenAccounts(store.data);
+  return entries.reduce((s, e) => {
+    const flow = budgetFlow(e, frozen);
+    return flow && flow.type === type ? s + flow.amount : s;
+  }, 0);
 }
 
 function doneSpoiler(doneRows, columns) {

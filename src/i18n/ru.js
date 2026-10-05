@@ -106,9 +106,11 @@ export const ru = {
 
   // Overview
   'kpi-free': 'Свободно',
-  'kpi-free-desc': 'На всех счетах минус отложенное',
+  'kpi-free-desc': 'На всех счетах минус отложенное и деньги целей',
   'kpi-reserved': 'Отложено',
   'kpi-reserved-desc': 'Лежит под запланированные траты',
+  'kpi-reserved-goals': 'Под траты {reserved}, на цели {frozen}',
+  'account-goal': 'на цель',
   'kpi-balance': 'На счетах',
   'kpi-balance-desc': 'По данным приложения',
   'kpi-month-end': 'Конец месяца',

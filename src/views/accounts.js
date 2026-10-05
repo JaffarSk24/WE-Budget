@@ -26,7 +26,8 @@ function actionBtn(iconName, label, onClick, cls = '') {
 function accountRow(a, s, mode, root) {
   const own = mode !== 'group';
   const balance = own ? s.ownBalance : s.totalBalance;
-  const reserved = own ? s.ownReserved : s.totalReserved;
+  // Money frozen for a goal is shown with what is set aside: neither is free.
+  const reserved = own ? s.ownReserved + s.ownFrozen : s.totalReserved + s.totalFrozen;
   const free = own ? s.ownFree : s.totalFree;
   const nested = mode === 'own' || mode === 'child';
   const last = s.lastCheck;
@@ -40,6 +41,7 @@ function accountRow(a, s, mode, root) {
       h('div', { class: 'row-title' }, nested ? h('span', { class: 'tree-mark' }, '└') : null, a.name,
         mode === 'own' ? badge(t('account-main'), 'badge-main') : null,
         mode !== 'group' && a.kind !== 'current' ? badge(t(`kind-${a.kind}`), 'badge-muted') : null,
+        s.isFrozen ? badge(t('account-goal'), 'badge-muted') : null,
         a.archived ? badge(t('archived'), 'badge-muted') : null),
       (mode === 'group' || mode === 'single') && a.bank && a.bank !== a.name ? h('div', { class: 'row-meta' }, a.bank) : null),
     h('td', { class: 'num money' }, money(balance)),

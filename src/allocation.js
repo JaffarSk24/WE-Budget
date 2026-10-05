@@ -38,7 +38,8 @@ function cover(data, sourceAccountId, entries, { budget = null, strict = true } 
   // Free money already sitting on a target account is used first.
   const freeLeft = new Map();
   summaries.forEach((s, id) => {
-    if (id !== sourceAccountId) freeLeft.set(id, Math.max(0, s.ownFree));
+    // A goal's own payments are paid from the money frozen for it.
+    if (id !== sourceAccountId) freeLeft.set(id, Math.max(0, s.ownFree + s.ownFrozen));
   });
 
   const lines = new Map();

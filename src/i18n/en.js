@@ -106,9 +106,11 @@ export const en = {
 
   // Overview
   'kpi-free': 'Free',
-  'kpi-free-desc': 'All accounts minus money set aside',
+  'kpi-free-desc': 'All accounts minus money set aside and goal money',
   'kpi-reserved': 'Set aside',
   'kpi-reserved-desc': 'Waiting for planned payments',
+  'kpi-reserved-goals': 'For payments {reserved}, for goals {frozen}',
+  'account-goal': 'for a goal',
   'kpi-balance': 'In accounts',
   'kpi-balance-desc': 'As the app counts it',
   'kpi-month-end': 'End of month',
