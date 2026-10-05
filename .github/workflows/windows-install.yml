@@ -1,0 +1,59 @@
+name: Windows install
+
+# Installs the app on Windows with Microsoft Defender switched on, the way a
+# user would. Runs only when a push changes what goes into the installer or
+# runs in the app's main process (scripts/packaging-changed.cjs): interface
+# changes cannot break the installation, and the published installer of
+# every release is checked by release-check.yml. Main only receives what
+# already passed on develop. Run it by hand to check any commit.
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: Install and uninstall this many times before the full check
+        required: false
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Does the push change the installer
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      packaging: ${{ steps.check.outputs.packaging }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          AFTER: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/packaging-changed.cjs "$BEFORE" "$AFTER" | tee -a "$GITHUB_OUTPUT"
+
+  windows-install:
+    name: Windows install with Microsoft Defender
+    needs: changes
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.packaging == 'true')
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Build the installer
+        run: npx electron-builder --win --x64 --publish never
+      - name: Install, run, update and uninstall
+        shell: pwsh
+        run: ./scripts/check-windows-install.ps1 -Repeat ${{ inputs.repeat || 0 }}
