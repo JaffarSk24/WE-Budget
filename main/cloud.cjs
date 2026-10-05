@@ -257,8 +257,8 @@ class Cloud {
   }
 
   // Google may stop honouring a refresh token at any time: the user revoked
-  // access, or the OAuth app is in testing mode and the token is a week old.
-  // Then a fresh sign-in is the only way forward.
+  // access, or the token was issued to another OAuth client (an older version
+  // of the app). Then a fresh sign-in is the only way forward.
   async accessToken({ force = false } = {}) {
     if (!this.isLoggedIn()) {
       const err = new Error('not_logged_in');

@@ -347,7 +347,7 @@ export const en = {
   'sync-checking': 'Checking the connection…',
   'sync-desktop-only': 'Sync works in the desktop app.',
   'sync-unconfigured': 'This build has no Google key, so sync is not available.',
-  'sync-reauth-hint': 'Google asked to sign in again. This happens weekly while the app is in testing mode, or when access was revoked in your account settings. Your data on this computer is fine.',
+  'sync-reauth-hint': 'Google asked to sign in again. This happens after an update that changed how the app signs in, or when access was revoked in your Google account settings. Your data on this computer is fine.',
   'sync-conflict-hint': 'This computer and the cloud hold different budgets. Press "Sync now" to choose which one to keep.',
   'sync-offline-hint': 'Changes are kept on this computer and go to the cloud once you are online.',
   'sync-idle': 'Synced {time}',
