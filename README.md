@@ -10,12 +10,12 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 
 ## What it does
 
-- **Payment calendar.** Each month is a list of payments and incomes with a status: planned, set aside, done or cancelled. Payments still waiting for money are highlighted, done rows fold away under one line, and the balance column shows what is left on the row's own account after each payment.
+- **Payment calendar.** Each month is a list of payments and incomes with a status: planned, set aside, done or cancelled. Payments still waiting for money are highlighted, done rows fold away under one line, and the balance column shows what is left on the row's own account after each payment. Click an amount to change it right in the row; the arrow keys move between rows and months.
 - **Envelopes.** Accounts can hold envelopes (sub-accounts, like the spaces of a banking app). Money set aside on an envelope belongs to its payments and never counts as free money for anything else.
 - **Splitting income.** When income arrives, the app proposes how much to move to each envelope to cover the payments until the next income, and marks those payments as set aside.
 - **Checking against the bank.** Type what your bank shows and any difference becomes a visible adjustment, so balances and the forecast stay true without guesswork.
 - **Recurring payments.** Monthly, every few months (optionally shown in the other months with a zero amount), yearly, weekly or once. The plan for the next months builds itself; approximate amounts are confirmed when a payment is marked done.
-- **Overview.** Free money right now, the first payment there will not be enough money for, the next seven days and a forecast of free money.
+- **Overview.** Free money right now, the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
 - **Small expenses** with optional monthly limits per category.
 - **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
