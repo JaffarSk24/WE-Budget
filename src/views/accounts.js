@@ -7,7 +7,7 @@ import { h, clear, icon, money, refreshIcons, lang, emptyState, badge, accountLa
 import { accountSummaries, accountEffect, compareEntries } from '../ledger.js';
 import { formatDay, todayKey } from '../dates.js';
 import { live } from '../model.js';
-import { openAccountModal, openAllocationModal, openReconcileModal, openEntryModal } from '../modals.js';
+import { openAccountModal, openAllocationModal, openEntryModal } from '../modals.js';
 import { openBalancesModal } from '../balances.js';
 
 let selectedId = null;
@@ -52,7 +52,7 @@ function accountRow(a, s, mode, root) {
     h('td', { class: 'col-actions' },
       // Checking against the bank and splitting money belong to a concrete
       // account, never to the sum of a group.
-      canMove ? actionBtn('scale', t('reconcile-open'), () => openReconcileModal(a.id)) : null,
+      canMove ? actionBtn('scale', t('balances-open'), () => openBalancesModal({ focusAccountId: a.id })) : null,
       canMove ? actionBtn('split', t('alloc-from-here'), () => openAllocationModal({ sourceAccountId: a.id })) : null,
       mode === 'group' || mode === 'single' ? actionBtn('folder-plus', t('account-add-envelope'), () => openAccountModal(null, { parentId: a.id })) : null,
       actionBtn('pencil', t('edit'), () => openAccountModal(a)))

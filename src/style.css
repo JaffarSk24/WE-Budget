@@ -1256,12 +1256,6 @@ tfoot td { font-weight: 700; border-bottom: none; padding-top: 12px; padding-bot
 .alloc-line.negative i, .alloc-line.negative svg { color: var(--danger); }
 .alloc-line.positive i, .alloc-line.positive svg { color: var(--success); }
 
-/* Reconciliation */
-.reconcile-computed { display: flex; justify-content: space-between; padding: 10px 14px; background: var(--overlay-03); border-radius: var(--radius-sm); }
-.reconcile-diff { font-weight: 600; min-height: 1.2em; }
-.reconcile-diff.warning { color: var(--warning); }
-.reconcile-diff.positive { color: var(--success); }
-
 /* Settings */
 .card.settings-section { border-bottom: 1px solid var(--border-color); padding-bottom: 24px; margin-bottom: 0; }
 .setting-row {
@@ -1480,3 +1474,5 @@ body.is-welcome aside nav, body.is-welcome .quick-add-btn, body.is-welcome .sync
 .balances-total { font-weight: 600; color: var(--text-secondary); }
 .balances-total.negative { color: var(--danger); }
 .balances-total.positive { color: var(--success); }
+
+.balances-table tr.is-focus td { background: rgba(99, 102, 241, 0.12); }

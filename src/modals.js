@@ -449,59 +449,6 @@ export function openAllocationModal({ sourceAccountId = null, until = null, pres
   });
 }
 
-// ---------- reconciliation ----------
-
-export function openReconcileModal(accountId) {
-  const account = store.find('accounts', accountId);
-  if (!account) return;
-  const date = dateInput(todayKey());
-  const actual = moneyInput({ autofocus: true });
-  const note = h('input', { type: 'text', value: t('reconcile-default-note') });
-  const computedEl = h('strong', { class: 'money' });
-  const diffEl = h('div', { class: 'reconcile-diff' });
-
-  function update() {
-    const s = accountSummaries(store.data, date.value || todayKey()).get(accountId);
-    const computed = s ? s.ownBalance : 0;
-    computedEl.textContent = money(computed);
-    const cents = actual.readCents();
-    if (cents === null) { diffEl.textContent = ''; return; }
-    const diff = cents - computed;
-    diffEl.textContent = diff === 0 ? t('reconcile-match') : t('reconcile-diff', { amount: money(diff, { signed: true }) });
-    diffEl.className = 'reconcile-diff ' + (diff === 0 ? 'positive' : 'warning');
-  }
-  actual.addEventListener('input', update);
-  date.addEventListener('change', update);
-  update();
-
-  openModal({
-    title: t('reconcile-title', { name: accountLabel(accountId) }),
-    body: h('div', { class: 'form-stack' },
-      h('p', { class: 'field-hint' }, t('reconcile-explain')),
-      h('div', { class: 'reconcile-computed' }, h('span', {}, t('reconcile-computed')), computedEl),
-      h('div', { class: 'form-row' }, field(t('reconcile-actual'), actual), field(t('field-date'), date)),
-      diffEl,
-      field(t('field-note'), note)),
-    actions: [
-      { label: t('cancel'), onClick: (m) => m.close() },
-      {
-        label: t('reconcile-save'), kind: 'primary', onClick: (m) => {
-          const cents = actual.readCents();
-          if (cents === null) return fail(t('err-amount'));
-          if (!isDayKey(date.value)) return fail(t('err-date'));
-          const snap = store.snapshot();
-          const diff = store.reconcile(accountId, cents, date.value, note.value.trim());
-          showToast(diff === 0 ? t('toast-reconciled-ok') : t('toast-reconciled-diff', { amount: money(diff, { signed: true }) }), {
-            type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap)
-          });
-          m.close();
-          return true;
-        }
-      }
-    ]
-  });
-}
-
 // ---------- account ----------
 
 export function openAccountModal(account = null, { parentId = null } = {}) {
@@ -519,14 +466,9 @@ export function openAccountModal(account = null, { parentId = null } = {}) {
     { value: 'credit', label: t('kind-credit') },
     { value: 'cash', label: t('kind-cash') }
   ], src.kind);
-  // What the bank shows today. For a new account this is where it starts;
-  // for an existing one a different figure becomes an adjustment dated
-  // today, so balances, the month end and the forecast follow at once.
-  const today = todayKey();
-  const computedNow = isNew ? 0 : (accountSummaries(store.data, today).get(account.id) || {}).ownBalance || 0;
-  const current = moneyInput({ value: isNew ? null : computedNow });
-  let currentTouched = false;
-  current.addEventListener('input', () => { currentTouched = true; });
+  // Where the account starts on the tracking start date. The balance of
+  // today is not asked here: that is what checking against the bank does.
+  const opening = moneyInput({ value: src.openingBalance || 0 });
   const archived = checkbox(t('account-archived'), src.archived);
   const note = h('input', { type: 'text', value: src.note || '' });
   const hasChildren = account && accounts.some(a => a.parentId === account.id);
@@ -552,33 +494,22 @@ export function openAccountModal(account = null, { parentId = null } = {}) {
   actions.push({
     label: t('save'), kind: 'primary', onClick: (m) => {
       if (!name.value.trim()) return fail(t('err-name'));
-      const cents = current.value.trim() ? current.readCents() : (isNew ? 0 : computedNow);
+      const cents = opening.readCents();
       if (cents === null) return fail(t('err-amount'));
       const patch = {
         name: name.value.trim(),
         parentId: parent.value || null,
         bank: bank.value.trim(),
         kind: kind.value,
+        openingBalance: cents,
         archived: archived.input.checked,
         note: note.value.trim()
       };
       if (isNew) {
-        const created = store.add('accounts', makeAccount({ ...patch, openingBalance: cents, order: accounts.length }));
+        const created = store.add('accounts', makeAccount({ ...patch, order: accounts.length }));
         if (!store.settings.defaultIncomeAccountId) store.updateSettings({ defaultIncomeAccountId: created.id });
-        m.close();
-        return true;
-      }
-      const snap = store.snapshot();
-      store.update('accounts', account.id, patch);
-      // Only a figure the owner typed counts: an untouched field must not
-      // turn a sync that happened meanwhile into an adjustment.
-      if (currentTouched) {
-        const diff = store.reconcile(account.id, cents, today, t('reconcile-default-note'));
-        if (diff) {
-          showToast(t('toast-balance-updated', { amount: money(diff, { signed: true }) }), {
-            type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap)
-          });
-        }
+      } else {
+        store.update('accounts', account.id, patch);
       }
       m.close();
       return true;
@@ -591,8 +522,9 @@ export function openAccountModal(account = null, { parentId = null } = {}) {
       field(t('field-name'), name),
       h('div', { class: 'form-row' }, field(t('account-parent'), parent, t('account-parent-hint')), field(t('account-bank'), bank)),
       h('div', { class: 'form-row' }, field(t('account-kind'), kind),
-        field(t('account-current', { date: `${formatDay(today, lang())}.${today.slice(0, 4)}` }), current,
-          isNew ? t('account-current-hint-new') : (hasChildren ? t('account-current-hint-own') : t('account-current-hint')))),
+        field(t('account-opening'), opening, t(isNew ? 'account-opening-hint-new' : 'account-opening-hint', {
+          date: store.settings.trackingStart ? `${formatDay(store.settings.trackingStart, lang())}.${store.settings.trackingStart.slice(0, 4)}` : ''
+        }))),
       field(t('field-note'), note),
       isNew ? null : archived.el),
     actions

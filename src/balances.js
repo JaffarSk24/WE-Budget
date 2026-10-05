@@ -33,7 +33,9 @@ function orderedAccounts() {
   return rows;
 }
 
-export function openBalancesModal() {
+// One dialog for one account or all of them: the icon on an account row
+// opens it on that account, the button in the header opens it for all.
+export function openBalancesModal({ focusAccountId = null } = {}) {
   if (!live(store.data.accounts).some(a => !a.archived)) {
     showToast(t('err-no-accounts'), { type: 'error' });
     return;
@@ -79,7 +81,7 @@ export function openBalancesModal() {
       }
       f.computed = computed;
       f.input.placeholder = money(computed);
-      tbody.appendChild(h('tr', { class: `balances-${kind}` },
+      tbody.appendChild(h('tr', { class: `balances-${kind} ${account.id === focusAccountId ? 'is-focus' : ''}` },
         h('td', {}, kind === 'own' || kind === 'child' ? h('span', { class: 'tree-mark' }, '└ ') : null, account.name,
           kind === 'own' ? [' ', badge(t('account-main'), 'badge-main')] : null),
         h('td', { class: 'num money muted' }, money(computed)),
@@ -121,7 +123,7 @@ export function openBalancesModal() {
   renderPending();
   renderRows();
 
-  openModal({
+  const modal = openModal({
     title: t('balances-title'),
     wide: true,
     onClose: unsubscribe,
@@ -171,4 +173,12 @@ export function openBalancesModal() {
       }
     ]
   });
+  const focused = focusAccountId && fields.get(focusAccountId);
+  if (focused) {
+    setTimeout(() => {
+      focused.input.focus();
+      focused.input.closest('tr').scrollIntoView({ block: 'center' });
+    }, 60);
+  }
+  return modal;
 }
