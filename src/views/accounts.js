@@ -8,6 +8,7 @@ import { accountSummaries, accountEffect, compareEntries } from '../ledger.js';
 import { formatDay, todayKey } from '../dates.js';
 import { live } from '../model.js';
 import { openAccountModal, openAllocationModal, openReconcileModal, openEntryModal } from '../modals.js';
+import { openBalancesModal } from '../balances.js';
 
 let selectedId = null;
 
@@ -93,6 +94,7 @@ export function renderAccounts(root) {
   root.appendChild(h('div', { class: 'view-header' },
     h('div', {}, h('h1', { class: 'view-title' }, t('nav-accounts')), h('p', { class: 'view-subtitle' }, t('accounts-subtitle'))),
     h('div', { class: 'header-actions' },
+      h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openBalancesModal() }, icon('scale'), t('balances-open')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openAllocationModal() }, icon('split'), t('alloc-open')),
       h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openAccountModal() }, icon('plus'), t('account-new')))));
 

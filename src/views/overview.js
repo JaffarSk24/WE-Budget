@@ -9,6 +9,7 @@ import { addDays, formatDate, formatDay, formatDayLong, monthOf, todayKey } from
 import { generationHorizon } from '../schedule.js';
 import { entryListItem } from '../actions.js';
 import { openAllocationModal, openQuickExpense } from '../modals.js';
+import { openBalancesModal } from '../balances.js';
 import { live } from '../model.js';
 
 let chart = null;
@@ -140,6 +141,7 @@ export function renderOverview(root) {
       h('h1', { class: 'view-title' }, t('nav-overview')),
       h('p', { class: 'view-subtitle' }, formatDayLong(today, lang()))),
     h('div', { class: 'header-actions' },
+      h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openBalancesModal() }, icon('scale'), t('balances-open')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openAllocationModal() }, icon('split'), t('alloc-open')),
       h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openQuickExpense() }, icon('plus'), t('quick-add')))));
 

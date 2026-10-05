@@ -125,10 +125,18 @@ export function isUnreserved(e) {
   return e.type === 'expense' && e.status === 'planned' && e.amount !== 0;
 }
 
+// Real money flows only, the same rule as the summary cards: adjustments
+// and pass-through money are neither income nor expense.
+function flowSum(entries, type) {
+  return entries
+    .filter(e => e.type === type && e.status !== 'cancelled' && !e.isAdjustment && !e.isTransit)
+    .reduce((s, e) => s + e.amount, 0);
+}
+
 function doneSpoiler(doneRows, columns) {
   const entries = doneRows.map(r => r.entry);
-  const expense = entries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
-  const income = entries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+  const expense = flowSum(entries, 'expense');
+  const income = flowSum(entries, 'income');
   const toggle = () => { state.showDone = !state.showDone; rerender(); };
   return h('tr', { class: `done-spoiler ${state.showDone ? 'is-open' : ''}`, onclick: toggle },
     h('td', { colspan: columns },
@@ -286,7 +294,7 @@ export function renderMonth(root) {
   const columns = showRunning ? 9 : 8;
   headBox.addEventListener('change', () => setAll(headBox.checked));
 
-  const sumOf = (type) => rows.filter(r => r.entry.type === type && r.entry.status !== 'cancelled').reduce((s, r) => s + r.entry.amount, 0);
+  const sumOf = (type) => flowSum(rows.map(r => r.entry), type);
   const table = h('table', { class: 'month-table' },
     h('thead', {}, h('tr', {},
       h('th', { class: 'col-select' }, visibleIds.length ? headBox : null),

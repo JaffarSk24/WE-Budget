@@ -413,6 +413,26 @@ export class Store {
     return diff;
   }
 
+  // Several accounts checked against the bank in one step (one undo).
+  // items: [{ accountId, actual }]. Returns how many were checked, how many
+  // needed an adjustment and the net sum of the adjustments.
+  reconcileMany(items, day = this.today(), note = '') {
+    return this.commit(data => {
+      const result = { checked: 0, adjusted: 0, total: 0 };
+      items.forEach(({ accountId, actual }) => {
+        const { diff, adjustment, check } = buildReconciliation(data, accountId, actual, day, note);
+        if (adjustment) data.entries.push(adjustment);
+        data.checks.push(check);
+        result.checked++;
+        if (diff) {
+          result.adjusted++;
+          result.total += diff;
+        }
+      });
+      return result;
+    });
+  }
+
   addQuickExpense({ amount, categoryId, accountId, note = '', date = this.today() }) {
     return this.add('entries', makeEntry({
       date,

@@ -182,3 +182,29 @@ describe('several entries at once', () => {
     expect(allocationCandidates(store.data, '2026-10-31').some(e => e.title === 'Reminder')).toBe(false);
   });
 });
+
+describe('checking balances against the bank', () => {
+  it('records the differences as adjustments and the forecast follows', async () => {
+    const { grandTotals, forecast } = await import('../src/ledger.js');
+    const { store } = freshStore();
+    store.setupFresh({ trackingStart: '2026-10-01', accounts: [{ name: 'Main', openingBalance: 50000 }] });
+    const main = store.list('accounts')[0];
+    const env = store.add('accounts', makeAccount({ name: 'Bills', parentId: main.id }));
+    store.add('entries', makeEntry({ date: '2026-10-20', amount: 30000, accountId: env.id }));
+
+    const before = forecast(store.data, '2026-10-05', '2026-10-31');
+    expect(before.end).toBe(20000);
+
+    const result = store.reconcileMany([
+      { accountId: main.id, actual: 40000 },
+      { accountId: env.id, actual: 5000 }
+    ], '2026-10-05', 'Checked');
+    expect(result).toEqual({ checked: 2, adjusted: 2, total: -5000 });
+    expect(grandTotals(store.data, '2026-10-05').balance).toBe(45000);
+    expect(forecast(store.data, '2026-10-05', '2026-10-31').end).toBe(15000);
+    expect(store.list('checks')).toHaveLength(2);
+
+    // The same figures again: checked, nothing to adjust.
+    expect(store.reconcileMany([{ accountId: main.id, actual: 40000 }], '2026-10-05')).toEqual({ checked: 1, adjusted: 0, total: 0 });
+  });
+});
