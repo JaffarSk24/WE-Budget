@@ -363,7 +363,8 @@ h1, h2, h3, h4 {
   transition: var(--transition-normal);
 }
 
-.card:hover {
+/* A card with a table stays as it is: its rows light up on their own. */
+.card:not(:has(tbody)):hover {
   background: var(--bg-card-hover);
   border-color: rgba(255, 255, 255, 0.12);
 }
