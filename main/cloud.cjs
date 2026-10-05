@@ -172,7 +172,8 @@ class Cloud {
             access_token: tokenData.access_token,
             refresh_token: tokenData.refresh_token,
             expiry: Date.now() + (tokenData.expires_in || 3600) * 1000,
-            email
+            email,
+            clientId: this.credentials.clientId
           };
           this.writeJson(this.tokensPath, this.tokens);
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -264,13 +265,20 @@ class Cloud {
       err.reauth = true;
       throw err;
     }
-    if (!force && this.tokens.access_token && Date.now() < this.tokens.expiry - 60000) {
+    // Tokens belong to the OAuth client that issued them, and the hidden
+    // Drive folder belongs to that client's project. Tokens saved under
+    // another client (or before tokens recorded their client) go through a
+    // refresh first: Google refuses it for a different client, and the app
+    // asks for a new sign-in instead of working with the old client's folder.
+    const sameClient = Boolean(this.credentials) && this.tokens.clientId === this.credentials.clientId;
+    if (!force && sameClient && this.tokens.access_token && Date.now() < this.tokens.expiry - 60000) {
       return this.tokens.access_token;
     }
     try {
       const fresh = await this.requestTokens({ grant_type: 'refresh_token', refresh_token: this.tokens.refresh_token });
       this.tokens.access_token = fresh.access_token;
       this.tokens.expiry = Date.now() + (fresh.expires_in || 3600) * 1000;
+      this.tokens.clientId = this.credentials.clientId;
       this.writeJson(this.tokensPath, this.tokens);
       return this.tokens.access_token;
     } catch (e) {
