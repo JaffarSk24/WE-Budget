@@ -337,7 +337,11 @@ export function renderMonth(root) {
       h('td', { class: 'num money' }, money(sumOf('expense'))),
       h('td', { class: 'num money positive' }, money(sumOf('income'))),
       h('td', {}),
-      showRunning ? (historyMonth ? runningCell(summary.closing) : h('td', {})) : null,
+      // The month's result over all accounts, the same figure as the
+      // month-end card; the rows above show single accounts.
+      showRunning ? h('td', { class: `num money running month-total ${summary.closing < 0 ? 'negative' : ''}`, title: t('foot-all-accounts-hint') },
+        h('div', {}, money(summary.closing)),
+        historyMonth ? null : h('div', { class: 'foot-note' }, t('foot-all-accounts'))) : null,
       h('td', {}))) : null
   );
 

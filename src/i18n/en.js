@@ -473,5 +473,7 @@ export const en = {
   'balances-pending-many': '{n} items dated this day or earlier are not marked. If the bank has already processed them, mark them first, or they are counted twice.',
   'toast-balances': 'Accounts checked: {n}, total adjustment {amount}',
   'toast-balances-match': 'Accounts checked: {n}, everything matches',
-'toast-done-moved': '"{name}" is done, moved to {date}'
+'toast-done-moved': '"{name}" is done, moved to {date}',
+'foot-all-accounts': 'all accounts',
+  'foot-all-accounts-hint': 'The month result over all accounts, as in the end of month card'
 };

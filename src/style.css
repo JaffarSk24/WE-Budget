@@ -1476,3 +1476,5 @@ body.is-welcome aside nav, body.is-welcome .quick-add-btn, body.is-welcome .sync
 .balances-total.positive { color: var(--success); }
 
 .balances-table tr.is-focus td { background: rgba(99, 102, 241, 0.12); }
+.month-total { vertical-align: top; }
+.foot-note { font-size: 0.7rem; font-weight: 500; color: var(--text-muted); }
