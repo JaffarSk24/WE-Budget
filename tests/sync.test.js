@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Store, memoryAdapter } from '../src/store.js';
-import { SyncEngine } from '../src/sync/engine.js';
-import { mergeBudgets, decideDataset, dedupeOccurrences } from '../src/sync/merge.js';
+import { SyncEngine, syncAction } from '../src/sync/engine.js';
+import { mergeBudgets, dedupeOccurrences } from '../src/sync/merge.js';
 import { makeAccount, makeEntry, makeTemplate, emptyData, live } from '../src/model.js';
 
 // One shared fake cloud file and a bridge per device, shaped like the
@@ -32,15 +32,40 @@ function fakeCloud() {
   return cloud;
 }
 
-function device(cloud, { today = '2026-10-05', ask = async () => null, initial = null } = {}) {
+function device(cloud, { today = '2026-10-05', initial = null } = {}) {
   const store = new Store(memoryAdapter(initial ? JSON.stringify(initial) : null), { today: () => today });
-  const engine = new SyncEngine({ store, bridge: cloud.bridge(), ask, afterApply: () => store.generate() });
-  return { store, engine };
+  const copies = [];
+  const bridge = cloud.bridge();
+  const make = () => new SyncEngine({ store, bridge, keepCopy: (tag, json) => copies.push({ tag, json }), afterApply: () => store.generate() });
+  return { store, bridge, copies, engine: make(), make };
 }
 
 async function start(d) {
   await d.engine.init({ auto: false });
   return d;
+}
+
+// Quitting and opening the app again: the same data and sync state, a new
+// engine.
+async function restart(d) {
+  await d.engine.flush();
+  d.engine = d.make();
+  await d.engine.init({ auto: false });
+  return d;
+}
+
+const titles = (d) => live(d.store.data.entries).map(e => e.title).sort();
+const cloudTitles = (cloud) => live(JSON.parse(cloud.file.content).entries).map(e => e.title).sort();
+const accountOf = (d) => d.store.list('accounts')[0].id;
+
+// Two devices that already share the budget: A uploaded it on closing, B
+// took it on launch.
+async function shared(cloud) {
+  const a = await start(device(cloud, { initial: seed() }));
+  await a.engine.flush();
+  const b = await start(device(cloud));
+  await tick();
+  return { a, b };
 }
 
 function seed() {
@@ -114,87 +139,214 @@ describe('merge rules', () => {
     expect(live(entries).map(e => e.id)).toEqual([done.id]);
   });
 
-  it('decides between merging, taking one side and asking', () => {
-    const a = seed();
-    const b = seed();
-    expect(decideDataset(a, { ...a }, {})).toBe('merge');
-    expect(decideDataset(emptyData(), a, {})).toBe('take-remote');
-    expect(decideDataset(a, emptyData(), {})).toBe('keep-local');
-    expect(decideDataset(a, b, {})).toBe('ask');
-    expect(decideDataset(a, b, { datasetId: b.datasetId })).toBe('keep-local');
-    expect(decideDataset(a, b, { datasetId: a.datasetId })).toBe('take-remote');
+  it('chooses between taking, sending and merging from the content of both copies', () => {
+    const base = { remoteExists: true, known: true, remoteChanged: false, localChanged: false, localWork: true };
+    expect(syncAction(base)).toBe('up_to_date');
+    expect(syncAction({ ...base, remoteChanged: true })).toBe('pull');
+    expect(syncAction({ ...base, localChanged: true })).toBe('push');
+    expect(syncAction({ ...base, remoteChanged: true, localChanged: true })).toBe('merge');
+    expect(syncAction({ ...base, known: false })).toBe('merge');
+    expect(syncAction({ ...base, known: false, localWork: false })).toBe('pull');
+    expect(syncAction({ ...base, remoteExists: false })).toBe('push');
+    expect(syncAction({ ...base, remoteExists: false, localWork: false })).toBe('up_to_date');
   });
 });
 
 describe('two devices', () => {
-  it('a second device signing in gets the budget from the cloud', async () => {
-    const cloud = fakeCloud();
-    const imac = await start(device(cloud, { initial: seed() }));
-    expect(cloud.file).not.toBe(null);
-    const macbook = await start(device(cloud));
-    expect(live(macbook.store.data.entries).map(e => e.title).sort()).toEqual(['Phone', 'Rent']);
-    expect(macbook.store.data.datasetId).toBe(imac.store.data.datasetId);
-  });
-
-  it('edits made on both sides end up on both sides', async () => {
+  it('launch never uploads; closing does, once', async () => {
     const cloud = fakeCloud();
     const a = await start(device(cloud, { initial: seed() }));
-    const b = await start(device(cloud));
-
-    await tick();
-    const rent = live(a.store.data.entries).find(e => e.title === 'Rent');
-    a.store.setStatus(rent.id, 'done');
-    await tick();
-    const phone = live(b.store.data.entries).find(e => e.title === 'Phone');
-    b.store.update('entries', phone.id, { amount: 3000 });
-    b.store.add('entries', makeEntry({ date: '2026-10-20', title: 'Gift', amount: 5000, accountId: b.store.list('accounts')[0].id }));
-
-    await a.engine.sync('manual');
-    await b.engine.sync('manual');
-    await a.engine.sync('manual');
-
-    const view = (d) => live(d.store.data.entries).map(e => `${e.title}:${e.amount}:${e.status}`).sort();
-    expect(view(a)).toEqual(['Gift:5000:planned', 'Phone:3000:planned', 'Rent:95000:done']);
-    expect(view(b)).toEqual(view(a));
+    expect(cloud.writes).toBe(0);
+    expect(cloud.file).toBe(null);
+    await a.engine.sync('interval');
+    await a.engine.sync('focus');
+    expect(cloud.writes).toBe(0);
+    await a.engine.flush();
+    expect(cloud.writes).toBe(1);
+    expect((await a.engine.flush()).outcome).toBe('clean');
+    expect(cloud.writes).toBe(1);
   });
 
-  it('a write that loses a race is merged back on the next cycle', async () => {
+  it('a second device signing in gets the budget from the cloud and uploads nothing', async () => {
     const cloud = fakeCloud();
-    const a = await start(device(cloud, { initial: seed() }));
-    const b = await start(device(cloud));
+    const { a, b } = await shared(cloud);
+    expect(titles(b)).toEqual(['Phone', 'Rent']);
+    expect(b.store.data.datasetId).toBe(a.store.data.datasetId);
+    expect(cloud.writes).toBe(1);
+    expect((await b.engine.flush()).outcome).toBe('clean');
+    expect(cloud.writes).toBe(1);
+  });
+
+  it('an old computer takes the new data on launch and uploads nothing on closing', async () => {
+    const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    await b.engine.flush();
+    a.store.add('entries', makeEntry({ date: '2026-10-20', title: 'Gift', amount: 5000, accountId: accountOf(a) }));
+    await a.engine.flush();
+    const writes = cloud.writes;
+    await restart(b);
+    expect(titles(b)).toEqual(['Gift', 'Phone', 'Rent']);
+    expect(cloud.writes).toBe(writes);
+    expect((await b.engine.flush()).outcome).toBe('clean');
+    expect(cloud.writes).toBe(writes);
+    expect(cloudTitles(cloud)).toEqual(['Gift', 'Phone', 'Rent']);
+  });
+
+  it('a computer with old data closed after the other uploaded sends the union', async () => {
+    const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    // B works without seeing A's upload.
+    b.store.add('entries', makeEntry({ date: '2026-10-21', title: 'Books', amount: 2000, accountId: accountOf(b) }));
     await tick();
+    a.store.add('entries', makeEntry({ date: '2026-10-20', title: 'Gift', amount: 5000, accountId: accountOf(a) }));
+    await a.engine.flush();
+    await b.engine.flush();
+    expect(cloudTitles(cloud)).toEqual(['Books', 'Gift', 'Phone', 'Rent']);
+    expect(titles(b)).toEqual(['Books', 'Gift', 'Phone', 'Rent']);
+    await restart(a);
+    expect(titles(a)).toEqual(['Books', 'Gift', 'Phone', 'Rent']);
+    // Both originals of the merge were kept.
+    expect(b.copies.map(c => c.tag).sort()).toEqual(['cloud', 'premerge']);
+    expect(JSON.parse(b.copies.find(c => c.tag === 'cloud').json).entries.some(e => e.title === 'Gift')).toBe(true);
+  });
 
-    // Both change something, then both upload without seeing each other:
-    // B overwrites the cloud copy that A just wrote.
-    a.store.update('entries', live(a.store.data.entries)[0].id, { title: 'Rent A' });
-    b.store.update('entries', live(b.store.data.entries)[1].id, { title: 'Phone B' });
-    await a.engine.sync('manual');
-    const bridge = b.engine.bridge;
-    const realMeta = bridge.meta;
-    bridge.meta = async () => ({ ok: true, exists: true, fileId: 'file-1', version: (await bridge.getState()).version });
-    await b.engine.sync('manual');
-    bridge.meta = realMeta;
+  it('the same data uploaded again does not make the other computer drop its changes', async () => {
+    const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    b.store.update('entries', live(b.store.data.entries).find(e => e.title === 'Phone').id, { amount: 3000 });
+    // A writes the very same content again: the file's version moves.
+    await a.bridge.upload(cloud.file.content, cloud.file.id);
+    const result = await b.engine.sync('interval');
+    expect(result.outcome).toBe('local-ahead');
+    expect(b.copies).toHaveLength(0);
+    expect(live(b.store.data.entries).find(e => e.title === 'Phone').amount).toBe(3000);
+    await b.engine.flush();
+    expect(live(JSON.parse(cloud.file.content).entries).find(e => e.title === 'Phone').amount).toBe(3000);
+  });
 
-    // A notices a version it has not seen, merges and re-uploads; B follows.
-    await a.engine.sync('manual');
-    await b.engine.sync('manual');
-    const titles = (d) => live(d.store.data.entries).map(e => e.title).sort();
-    expect(titles(a)).toEqual(['Phone B', 'Rent A']);
-    expect(titles(b)).toEqual(['Phone B', 'Rent A']);
+  it('pulls in the background, merges what both changed, and leaves the upload for closing', async () => {
+    const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    b.store.add('entries', makeEntry({ date: '2026-10-21', title: 'Books', amount: 2000, accountId: accountOf(b) }));
+    a.store.add('entries', makeEntry({ date: '2026-10-20', title: 'Gift', amount: 5000, accountId: accountOf(a) }));
+    await a.engine.flush();
+    const writes = cloud.writes;
+    expect((await b.engine.sync('focus')).outcome).toBe('merged');
+    expect(titles(b)).toEqual(['Books', 'Gift', 'Phone', 'Rent']);
+    expect(cloud.writes).toBe(writes);
+    expect(b.engine.state.pending).toBe(true);
+    await b.engine.flush();
+    expect(cloudTitles(cloud)).toEqual(['Books', 'Gift', 'Phone', 'Rent']);
+  });
+
+  it('an upload that finds the cloud changed under it merges first', async () => {
+    const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    b.store.add('entries', makeEntry({ date: '2026-10-21', title: 'Books', amount: 2000, accountId: accountOf(b) }));
+    a.store.add('entries', makeEntry({ date: '2026-10-20', title: 'Gift', amount: 5000, accountId: accountOf(a) }));
+    // A uploads between B's look at the cloud and B's write.
+    const realMeta = b.bridge.meta;
+    let calls = 0;
+    b.bridge.meta = async () => {
+      calls++;
+      if (calls === 2) await a.engine.flush();
+      return realMeta();
+    };
+    await b.engine.flush();
+    b.bridge.meta = realMeta;
+    expect(cloudTitles(cloud)).toEqual(['Books', 'Gift', 'Phone', 'Rent']);
+  });
+
+  it('a merge keeps deletions', async () => {
+    const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    // B edits the record first, A deletes it later; B also adds one.
+    b.store.update('entries', live(b.store.data.entries).find(e => e.title === 'Phone').id, { amount: 3000 });
+    b.store.add('entries', makeEntry({ date: '2026-10-21', title: 'Books', amount: 2000, accountId: accountOf(b) }));
+    await tick();
+    a.store.remove('entries', live(a.store.data.entries).find(e => e.title === 'Phone').id);
+    await a.engine.flush();
+    await b.engine.flush();
+    expect(titles(b)).toEqual(['Books', 'Rent']);
+    expect(cloudTitles(cloud)).toEqual(['Books', 'Rent']);
+    await restart(a);
+    expect(titles(a)).toEqual(['Books', 'Rent']);
   });
 
   it('a deletion travels and is not resurrected', async () => {
     const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    a.store.remove('entries', live(a.store.data.entries).find(e => e.title === 'Phone').id);
+    await a.engine.flush();
+    await restart(b);
+    await b.engine.flush();
+    await restart(a);
+    expect(titles(b)).toEqual(['Rent']);
+    expect(titles(a)).toEqual(['Rent']);
+  });
+
+  it('signing in again without a sync state merges instead of overwriting', async () => {
+    const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    await b.engine.logout();
+    b.store.add('entries', makeEntry({ date: '2026-10-21', title: 'Books', amount: 2000, accountId: accountOf(b) }));
+    a.store.add('entries', makeEntry({ date: '2026-10-20', title: 'Gift', amount: 5000, accountId: accountOf(a) }));
+    await a.engine.flush();
+    const writes = cloud.writes;
+    const login = await b.engine.login('en');
+    expect(login.synced.outcome).toBe('merged');
+    expect(cloud.writes).toBe(writes);
+    expect(titles(b)).toEqual(['Books', 'Gift', 'Phone', 'Rent']);
+    await b.engine.flush();
+    expect(cloudTitles(cloud)).toEqual(['Books', 'Gift', 'Phone', 'Rent']);
+  });
+
+  it('two different budgets meeting are merged, nothing is asked or lost', async () => {
+    const cloud = fakeCloud();
     const a = await start(device(cloud, { initial: seed() }));
-    const b = await start(device(cloud));
-    await tick();
-    const phone = live(a.store.data.entries).find(e => e.title === 'Phone');
-    a.store.remove('entries', phone.id);
-    await a.engine.sync('manual');
-    await b.engine.sync('manual');
-    await a.engine.sync('manual');
-    expect(live(b.store.data.entries).map(e => e.title)).toEqual(['Rent']);
-    expect(live(a.store.data.entries).map(e => e.title)).toEqual(['Rent']);
+    await a.engine.flush();
+    const other = seed();
+    other.entries = [makeEntry({ date: '2026-10-07', title: 'Cinema', amount: 1200, accountId: other.accounts[0].id })];
+    const b = await start(device(cloud, { initial: other }));
+    expect(titles(b)).toEqual(['Cinema', 'Phone', 'Rent']);
+    await b.engine.flush();
+    expect(cloudTitles(cloud)).toEqual(['Cinema', 'Phone', 'Rent']);
+  });
+
+  it('replacing the budget on one device (restore, demo, reset) reaches the other', async () => {
+    const cloud = fakeCloud();
+    const { a, b } = await shared(cloud);
+    const fresh = seed();
+    fresh.entries = [makeEntry({ date: '2026-10-09', title: 'Only', amount: 100, accountId: fresh.accounts[0].id })];
+    a.store.replaceAll(fresh);
+    await a.engine.flush();
+    await restart(b);
+    expect(titles(b)).toEqual(['Only']);
+    expect(b.store.data.datasetId).toBe(a.store.data.datasetId);
+    // A reset leaves tombstones that travel too.
+    b.store.replaceAll({ settings: { language: 'en' } });
+    await b.engine.flush();
+    await restart(a);
+    expect(titles(a)).toEqual([]);
+  });
+
+  it('a spare cloud copy is merged in before it is removed', async () => {
+    const cloud = fakeCloud();
+    const { a } = await shared(cloud);
+    const spare = JSON.parse(cloud.file.content);
+    spare.entries.push(makeEntry({ date: '2026-10-22', title: 'Taxi', amount: 1500, accountId: spare.accounts[0].id }));
+    const realMeta = a.bridge.meta;
+    const realDownload = a.bridge.download;
+    const removed = [];
+    a.bridge.meta = async () => ({ ...(await realMeta()), duplicates: removed.length ? [] : ['file-2'] });
+    a.bridge.download = async (id) => (id === 'file-2' ? { ok: true, content: JSON.stringify(spare), version: '1', fileId: 'file-2' } : realDownload(id));
+    a.bridge.remove = async (ids) => { removed.push(...ids); return { ok: true }; };
+    await a.engine.sync('interval');
+    expect(titles(a)).toContain('Taxi');
+    expect(removed).toEqual([]);
+    await a.engine.flush();
+    expect(cloudTitles(cloud)).toContain('Taxi');
+    expect(removed).toEqual(['file-2']);
   });
 
   it('plan generated on two devices before syncing does not double', async () => {
@@ -205,62 +357,16 @@ describe('two devices', () => {
       schedule: { freq: 'monthly', day: 1, startDate: '2026-10-01' }
     }));
     const a = await start(device(cloud, { initial: data }));
+    await a.engine.flush();
     const b = await start(device(cloud));
     a.store.generate();
     b.store.generate();
-    await a.engine.sync('manual');
-    await b.engine.sync('manual');
-    await a.engine.sync('manual');
+    await a.engine.flush();
+    await b.engine.flush();
+    await restart(a);
     const occurrences = (d) => live(d.store.data.entries).filter(e => e.templateId).map(e => e.occurrence).sort();
     expect(occurrences(a)).toEqual(['2026-10-01', '2026-11-01', '2026-12-01', '2027-01-01']);
     expect(occurrences(b)).toEqual(occurrences(a));
-  });
-
-  it('replacing the budget on one device replaces it on the other', async () => {
-    const cloud = fakeCloud();
-    const a = await start(device(cloud, { initial: seed() }));
-    const b = await start(device(cloud));
-    const fresh = seed();
-    fresh.entries = fresh.entries.slice(0, 1);
-    a.store.replaceAll(fresh);
-    await a.engine.sync('manual');
-    await b.engine.sync('manual');
-    expect(b.store.data.datasetId).toBe(a.store.data.datasetId);
-    expect(live(b.store.data.entries)).toHaveLength(1);
-  });
-
-  it('two different budgets meeting for the first time are never mixed', async () => {
-    const cloud = fakeCloud();
-    await start(device(cloud, { initial: seed() }));
-    const other = seed();
-    other.entries = [];
-    const asked = [];
-    const b = await start(device(cloud, { initial: other, ask: async (info) => { asked.push(info); return 'take-remote'; } }));
-    expect(asked).toHaveLength(1);
-    expect(asked[0].remote.entries).toBe(2);
-    expect(live(b.store.data.entries)).toHaveLength(2);
-  });
-
-  it('background cycles do not ask; the conflict waits for the owner', async () => {
-    const cloud = fakeCloud();
-    await start(device(cloud, { initial: seed() }));
-    let asked = 0;
-    const b = device(cloud, { initial: seed(), ask: async () => { asked++; return null; } });
-    await b.engine.init({ auto: false });
-    expect(asked).toBe(1);
-    const r = await b.engine.sync('interval');
-    expect(r.outcome).toBe('conflict');
-    expect(asked).toBe(1);
-  });
-
-  it('closing the app uploads unsent changes and nothing else', async () => {
-    const cloud = fakeCloud();
-    const a = await start(device(cloud, { initial: seed() }));
-    const writes = cloud.writes;
-    expect((await a.engine.flush()).outcome).toBe('clean');
-    a.store.update('entries', live(a.store.data.entries)[0].id, { note: 'paid by card' });
-    await a.engine.flush();
-    expect(cloud.writes).toBe(writes + 1);
   });
 });
 

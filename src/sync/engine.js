@@ -2,50 +2,69 @@
 //
 // The engine runs in the page. The transport (sign-in, download, upload) is
 // a bridge object: the Electron preload on the desktop, the browser's own
-// OAuth on the phone later. The bridge only moves text; all merging happens
-// here, so every device follows the same rules.
+// OAuth on the phone. The bridge only moves text; all merging happens here,
+// so every device follows the same rules.
 //
-// One cycle:
-//   1. ask the cloud for the file's version (a few bytes);
-//   2. if someone else wrote since our last sync, download and merge;
-//   3. upload when the result differs from what the cloud has.
-// A write that loses a race with another device is not lost: the losing
-// device sees a new version on its next cycle, merges again and re-uploads.
+// Rules, so that a device with old data never overwrites newer work:
+//   - On launch, after signing in and in the background the app only takes
+//     data from the cloud. Uploads happen only when the window closes, when
+//     the app quits and from the Sync button.
+//   - Whether the cloud changed is decided by its content: the hash of the
+//     cloud file against the hash this device saw at its last sync. The same
+//     data uploaded again moves the file's version, but is no change.
+//   - Every upload looks at the cloud first and never replaces content this
+//     device has not seen. Unchanged data is not uploaded at all.
+//   - When both copies changed (or this device has no record of the cloud
+//     file: another OAuth client, a sign-out), they are merged record by
+//     record without asking anyone, and both originals are kept as backups.
 
-import { hasAnyData, live } from '../model.js';
-import { decideDataset, mergeBudgets } from './merge.js';
+import { COLLECTIONS } from '../model.js';
+
+// Anything recorded here, deletions included: a reset is work too.
+function hasRecords(data) {
+  return COLLECTIONS.some(name => (data[name] || []).length > 0);
+}
+import { mergeBudgets } from './merge.js';
 import { hashString } from './hash.js';
 
 // 'renew': the web app's hour of access is over; a tap renews it.
-export const SYNC_STATUSES = ['unavailable', 'unconfigured', 'checking', 'off', 'idle', 'syncing', 'offline', 'renew', 'reauth', 'error', 'conflict'];
+export const SYNC_STATUSES = ['unavailable', 'unconfigured', 'checking', 'off', 'idle', 'syncing', 'offline', 'renew', 'reauth', 'error'];
 
-function budgetSummary(data) {
-  const entries = live(data.entries);
-  const dates = entries.map(e => e.date).sort();
-  return {
-    entries: entries.length,
-    accounts: live(data.accounts).length,
-    from: dates[0] || null,
-    to: dates[dates.length - 1] || null,
-    datasetAt: data.datasetAt || null
-  };
+// What a sync does, from what is known about both copies.
+//   remoteExists   the cloud holds a budget file
+//   known          this device remembers the cloud file and its content at
+//                  its last sync (no: another OAuth client, a sign-out, an
+//                  older version of the app)
+//   remoteChanged  the cloud CONTENT differs from what this device last saw
+//   localChanged   the local budget differs from what it was at that sync
+//   localWork      the local budget holds anything at all
+// Returns 'push', 'pull', 'merge' or 'up_to_date'. 'merge' means both sides
+// hold work the other has not seen; then they are combined, so no copy ever
+// replaces the other.
+export function syncAction({ remoteExists, known, remoteChanged, localChanged, localWork }) {
+  if (!remoteExists) return localWork ? 'push' : 'up_to_date';
+  if (!known) return localWork ? 'merge' : 'pull';
+  if (remoteChanged && localChanged) return 'merge';
+  if (remoteChanged) return 'pull';
+  if (localChanged) return 'push';
+  return 'up_to_date';
 }
 
 export class SyncEngine {
-  constructor({ store, bridge, ask = async () => null, afterApply = null, debounceMs = 8000, intervalMs = 5 * 60 * 1000 }) {
+  // `keepCopy(tag, json)` stores a copy of a budget in the backups (both
+  // originals of a merge); optional.
+  constructor({ store, bridge, keepCopy = null, afterApply = null, intervalMs = 5 * 60 * 1000 }) {
     this.store = store;
     this.bridge = bridge;
-    this.ask = ask;
+    this.keepCopy = keepCopy;
     this.afterApply = afterApply;
-    this.debounceMs = debounceMs;
     this.intervalMs = intervalMs;
     this.loggedIn = false;
     this.running = null;
-    this.again = false;
+    this.again = null;
     this.applying = false;
-    this.timer = null;
     this.listeners = [];
-    this.state = { status: bridge ? 'checking' : 'unavailable', email: '', lastSyncAt: null, error: null, reauthReason: null };
+    this.state = { status: bridge ? 'checking' : 'unavailable', email: '', lastSyncAt: null, error: null, reauthReason: null, pending: false };
   }
 
   onChange(fn) {
@@ -73,8 +92,7 @@ export class SyncEngine {
     return result;
   }
 
-  // `reason`: 'login' right after a sign-in that left the page (web), so
-  // the first sync may ask about two different budgets.
+  // Launch: takes what the cloud has, uploads nothing.
   async init({ auto = true, reason = 'startup' } = {}) {
     if (!this.bridge) return;
     const status = await this.bridge.status();
@@ -97,11 +115,11 @@ export class SyncEngine {
     if (this.loggedIn) await this.sync(reason);
   }
 
+  // While the app is open it keeps taking what other devices uploaded.
+  // Its own changes wait for closing or the Sync button.
   startAuto() {
     this.store.subscribe(() => {
-      if (this.applying || !this.loggedIn) return;
-      clearTimeout(this.timer);
-      this.timer = setTimeout(() => this.sync('change'), this.debounceMs);
+      if (!this.applying && this.loggedIn && !this.state.pending) this.setState({ pending: true });
     });
     setInterval(() => this.sync('interval'), this.intervalMs);
     if (typeof window !== 'undefined' && window.addEventListener) {
@@ -115,6 +133,7 @@ export class SyncEngine {
     }
   }
 
+  // Sign-in: like a launch, it only takes data from the cloud.
   async login(lang) {
     const result = await this.bridge.login(lang);
     if (!result || !result.ok) return result || { ok: false };
@@ -126,41 +145,45 @@ export class SyncEngine {
 
   async logout() {
     await this.bridge.logout();
-    await this.bridge.setState({ fileId: null, version: null, datasetId: null, pushedHash: null, lastSyncAt: null });
+    await this.bridge.setState({ fileId: null, version: null, remoteHash: null, localHash: null, lastSyncAt: null });
     this.loggedIn = false;
-    clearTimeout(this.timer);
-    this.setState({ status: 'off', email: '', lastSyncAt: null, error: null, reauthReason: null });
+    this.setState({ status: 'off', email: '', lastSyncAt: null, error: null, reauthReason: null, pending: false });
   }
 
   json() {
     return JSON.stringify(this.store.data);
   }
 
+  // Whether the budget changed here since the last sync.
   isDirty(saved) {
-    return hashString(this.json()) !== (saved && saved.pushedHash);
+    return hashString(this.json()) !== (saved && saved.localHash);
   }
 
-  // Last chance before the app closes: upload what is not in the cloud yet.
+  // Closing the window or quitting: the only automatic upload. Unchanged
+  // data is not uploaded at all; changed data goes up only after a look at
+  // the cloud (see cycle).
   async flush() {
     if (!this.loggedIn) return { ok: true, outcome: 'off' };
     if (this.running) await this.running;
     const saved = await this.bridge.getState();
     if (!this.isDirty(saved)) return { ok: true, outcome: 'clean' };
-    return this.sync('close', { final: true });
+    return this.sync('close', { upload: true });
   }
 
-  sync(reason = 'manual', options = {}) {
+  // `upload` only for closing, quitting and the Sync button ('manual').
+  sync(reason = 'manual', { upload = reason === 'manual' } = {}) {
     if (!this.loggedIn) return Promise.resolve({ ok: false, outcome: 'off' });
     if (this.running) {
-      this.again = true;
+      // A request that may upload is not swallowed by a pull already
+      // running: it runs right after it.
+      if (upload) {
+        this.again = { reason, upload };
+        return this.running.then(() => this.sync(reason, { upload }));
+      }
       return this.running;
     }
-    this.running = this.cycle(reason, options).finally(() => {
+    this.running = this.cycle(reason, { upload }).finally(() => {
       this.running = null;
-      if (this.again) {
-        this.again = false;
-        this.sync('again');
-      }
     });
     return this.running;
   }
@@ -172,84 +195,48 @@ export class SyncEngine {
     } finally {
       this.applying = false;
     }
-    if (this.afterApply) this.afterApply();
+    if (this.afterApply) {
+      this.applying = true;
+      try { this.afterApply(); } finally { this.applying = false; }
+    }
   }
 
-  async remember(location) {
-    await this.bridge.setState({
-      fileId: location.fileId,
-      version: location.version,
-      datasetId: this.store.data.datasetId,
-      pushedHash: hashString(this.json())
-    });
+  async remember(patch) {
+    await this.bridge.setState(patch);
   }
 
-  async upload(fileId) {
-    const up = await this.call('upload', this.json(), fileId);
-    await this.remember(up);
+  // Uploads `text` over the file this device just looked at. Right before
+  // writing, the cloud is asked again: if another device wrote in the
+  // meantime, nothing is written and the cycle starts over.
+  async uploadOver(fileId, version, text) {
+    if (fileId) {
+      const now = await this.call('meta');
+      if (!now.exists || now.fileId !== fileId || now.version !== version) return null;
+    }
+    const up = await this.call('upload', text, fileId);
+    const hash = hashString(text);
+    await this.remember({ fileId: up.fileId, version: up.version, remoteHash: hash, localHash: hashString(this.json()) });
+    return up;
   }
 
-  async cycle(reason, { final = false } = {}) {
+  keep(tag, text) {
+    if (!this.keepCopy) return;
+    try { this.keepCopy(tag, text); } catch (e) { console.error('Could not keep a copy', e); }
+  }
+
+  async cycle(reason, { upload }) {
     this.setState({ status: 'syncing' });
     try {
+      let result = null;
+      for (let attempt = 0; attempt < 3 && !result; attempt++) {
+        result = await this.step({ upload });
+      }
+      if (!result) throw new Error('The cloud kept changing while uploading');
       const saved = await this.bridge.getState();
-      const meta = await this.call('meta');
-      let outcome = 'unchanged';
-
-      if (!meta.exists) {
-        if (hasAnyData(this.store.data)) {
-          await this.upload(null);
-          outcome = 'pushed';
-        } else {
-          outcome = 'empty';
-        }
-      } else if (meta.fileId !== saved.fileId || meta.version !== saved.version) {
-        if (final && !this.isDirty(saved)) {
-          outcome = 'skipped';
-        } else {
-          const remote = await this.call('download', meta.fileId);
-          const remoteData = JSON.parse(remote.content);
-          let decision = decideDataset(this.store.data, remoteData, saved);
-          // Only a sync the owner started may ask a question; background
-          // cycles leave the conflict standing instead of nagging.
-          const mayAsk = !final && ['manual', 'login', 'startup'].includes(reason);
-          if (decision === 'ask') {
-            decision = !mayAsk ? 'skip' : ((await this.ask({
-              local: budgetSummary(this.store.data),
-              remote: budgetSummary(remoteData)
-            })) || 'skip');
-          }
-
-          if (decision === 'take-remote') {
-            this.apply(remoteData);
-            await this.remember({ fileId: meta.fileId, version: remote.version });
-            outcome = 'pulled';
-          } else if (decision === 'keep-local') {
-            await this.upload(meta.fileId);
-            outcome = 'pushed';
-          } else if (decision === 'merge') {
-            const { data, localChanged, remoteChanged } = mergeBudgets(this.store.data, remoteData);
-            if (localChanged) this.apply(data);
-            if (remoteChanged) await this.upload(meta.fileId);
-            else await this.remember({ fileId: meta.fileId, version: remote.version });
-            outcome = 'merged';
-          } else {
-            this.setState({ status: 'conflict' });
-            return { ok: false, outcome: 'conflict' };
-          }
-        }
-      } else if (this.isDirty(saved)) {
-        await this.upload(meta.fileId);
-        outcome = 'pushed';
-      }
-
-      if (meta.duplicates && meta.duplicates.length) {
-        try { await this.call('remove', meta.duplicates); } catch (e) { /* tidy-up only */ }
-      }
       const lastSyncAt = new Date().toISOString();
       await this.bridge.setState({ lastSyncAt });
-      this.setState({ status: 'idle', lastSyncAt, error: null });
-      return { ok: true, outcome, reason };
+      this.setState({ status: 'idle', lastSyncAt, error: null, pending: this.isDirty(saved) });
+      return { ok: true, outcome: result, reason };
     } catch (e) {
       if (e.reauth) this.loggedIn = false;
       this.setState({
@@ -259,5 +246,117 @@ export class SyncEngine {
       });
       return { ok: false, error: e.message, reason };
     }
+  }
+
+  // One look at both copies and what follows from it. Returns the outcome,
+  // or null when an upload found the cloud changed under it (try again).
+  async step({ upload }) {
+    const saved = await this.bridge.getState();
+    const meta = await this.call('meta');
+    // Two devices creating the file at the same moment leave two copies.
+    // A spare copy is merged in before it may go: it can hold work the
+    // main one lacks.
+    const duplicates = (meta.exists && meta.duplicates) || [];
+    for (const id of duplicates) {
+      const spare = await this.call('download', id);
+      this.keep('cloud', spare.content);
+      const { data, localChanged } = mergeBudgets(this.store.data, JSON.parse(spare.content));
+      if (localChanged) {
+        this.apply(data);
+        saved.localHash = null;
+        await this.remember({ localHash: null });
+      }
+    }
+    // Spare copies are removed once the main file holds everything.
+    const tidy = async () => {
+      if (!duplicates.length) return;
+      try { await this.call('remove', duplicates); } catch (e) { /* tidy-up only */ }
+    };
+    const localText = this.json();
+    const localHash = hashString(localText);
+    const localWork = hasRecords(this.store.data);
+
+    if (!meta.exists) {
+      const action = syncAction({ remoteExists: false, localWork });
+      if (action !== 'push') return 'empty';
+      if (!upload) return 'local-ahead';
+      return (await this.uploadOver(null, null, localText)) ? 'pushed' : null;
+    }
+
+    // The version is only a shortcut: unchanged means nobody wrote. When it
+    // moved, the content decides.
+    const known = Boolean(saved.fileId && saved.fileId === meta.fileId && saved.remoteHash);
+    let remoteText = null;
+    let remoteHash = known ? saved.remoteHash : null;
+    let version = meta.version;
+    if (!known || meta.version !== saved.version) {
+      const remote = await this.call('download', meta.fileId);
+      remoteText = remote.content;
+      remoteHash = hashString(remoteText);
+      version = remote.version || meta.version;
+    }
+
+    // Both copies hold the same data: nothing to move either way.
+    if (remoteHash === localHash) {
+      await this.remember({ fileId: meta.fileId, version, remoteHash, localHash });
+      await tidy();
+      return 'unchanged';
+    }
+
+    const action = syncAction({
+      remoteExists: true,
+      known,
+      remoteChanged: !known || remoteHash !== saved.remoteHash,
+      localChanged: localHash !== saved.localHash,
+      localWork
+    });
+
+    if (action === 'up_to_date') {
+      await this.remember({ fileId: meta.fileId, version });
+      return 'unchanged';
+    }
+
+    if (action === 'push') {
+      if (!upload) return 'local-ahead';
+      if (!(await this.uploadOver(meta.fileId, version, localText))) return null;
+      await tidy();
+      return 'pushed';
+    }
+
+    if (!remoteText) {
+      const remote = await this.call('download', meta.fileId);
+      remoteText = remote.content;
+      remoteHash = hashString(remoteText);
+      version = remote.version || version;
+    }
+    // Unreadable data on either side is still data: never replace it.
+    const remoteData = JSON.parse(remoteText);
+
+    if (action === 'pull') {
+      this.apply(remoteData);
+      await this.remember({ fileId: meta.fileId, version, remoteHash, localHash: hashString(this.json()) });
+      return 'pulled';
+    }
+
+    // merge: both originals go to the backups first.
+    this.keep('premerge', localText);
+    this.keep('cloud', remoteText);
+    const { data, localChanged, remoteChanged } = mergeBudgets(this.store.data, remoteData);
+    if (localChanged) this.apply(data);
+    const mergedText = this.json();
+    // The cloud copy is now part of the local budget. Whatever the cloud
+    // still lacks goes up now when uploading is allowed, otherwise on
+    // closing or from the Sync button.
+    await this.remember({
+      fileId: meta.fileId,
+      version,
+      remoteHash,
+      localHash: remoteChanged ? null : hashString(mergedText)
+    });
+    if (remoteChanged && upload) {
+      if (!(await this.uploadOver(meta.fileId, version, mergedText))) return null;
+      await tidy();
+    }
+    return 'merged';
   }
 }

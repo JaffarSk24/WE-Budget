@@ -96,7 +96,8 @@ function looksLikeFullReplace(prevJson, nextJson) {
   try {
     const prev = JSON.parse(prevJson);
     const next = JSON.parse(nextJson);
-    const ids = (d) => new Set([...(d.entries || []), ...(d.accounts || [])].map(r => r.id));
+    // Deleted records stay as tombstones; only live ones count.
+    const ids = (d) => new Set([...(d.entries || []), ...(d.accounts || [])].filter(r => !r.deleted).map(r => r.id));
     const before = ids(prev);
     if (before.size < 20) return false;
     const after = ids(next);
@@ -128,6 +129,18 @@ function initStorageIpc() {
       saveDataFile(json);
     } catch (e) {
       console.error('Failed to save data file:', e);
+    }
+  });
+
+  // Both originals of a sync merge, kept as they were.
+  ipcMain.on('storage:keep-copy', (_event, tag, json) => {
+    if (!['premerge', 'cloud'].includes(tag) || typeof json !== 'string' || !json) return;
+    try {
+      JSON.parse(json);
+      fs.mkdirSync(backupsDir(), { recursive: true });
+      fs.writeFileSync(path.join(backupsDir(), `we-budget-data-${tag}-${localTimeStamp()}.json`), json, 'utf8');
+    } catch (e) {
+      console.error('Could not keep a copy:', e);
     }
   });
 

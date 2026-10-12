@@ -13,7 +13,8 @@ contextBridge.exposeInMainWorld('weStorage', {
   // Synchronous read at startup: the store initializes before the first render.
   load: () => ipcRenderer.sendSync('storage:load'),
   save: (json) => ipcRenderer.send('storage:save', json),
-  backupsFolder: () => ipcRenderer.invoke('storage:open-backups')
+  backupsFolder: () => ipcRenderer.invoke('storage:open-backups'),
+  keepCopy: (tag, json) => ipcRenderer.send('storage:keep-copy', tag, json)
 });
 
 contextBridge.exposeInMainWorld('weCloud', {

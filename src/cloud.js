@@ -1,49 +1,28 @@
 // The app's sync engine and the pieces of interface around it: the status
-// line in the sidebar and the question asked when two different budgets
-// meet.
+// line in the sidebar and the sign-in.
 
 import { store } from './store.js';
-import { t, tn } from './i18n.js';
+import { t } from './i18n.js';
 import { SyncEngine } from './sync/engine.js';
-import { h, openModal, lang, icon, refreshIcons, clear } from './ui.js';
-import { formatTimestamp, formatDay } from './dates.js';
+import { h, lang, icon, refreshIcons, clear } from './ui.js';
+import { formatTimestamp } from './dates.js';
 import { showToast } from './toast.js';
 
-function describeBudget(info) {
-  if (!info.entries) return t('conflict-empty');
-  const span = info.from && info.to
-    ? `${formatDay(info.from, lang())}.${info.from.slice(0, 4)} - ${formatDay(info.to, lang())}.${info.to.slice(0, 4)}`
-    : '';
-  return [tn('conflict-entries', info.entries), tn('conflict-accounts', info.accounts), span].filter(Boolean).join(', ');
-}
-
-// Two different budgets: never mix them, let the owner choose.
-function askDatasetConflict({ local, remote }) {
-  return new Promise(resolve => {
-    let answered = false;
-    const choose = (value, m) => { answered = true; resolve(value); m.close(); };
-    openModal({
-      title: t('conflict-title'),
-      body: h('div', { class: 'form-stack' },
-        h('p', {}, t('conflict-text')),
-        h('div', { class: 'conflict-grid' },
-          h('div', { class: 'conflict-card' }, icon('monitor'), h('strong', {}, t('conflict-local')), h('span', {}, describeBudget(local))),
-          h('div', { class: 'conflict-card' }, icon('cloud'), h('strong', {}, t('conflict-remote')), h('span', {}, describeBudget(remote)))),
-        h('p', { class: 'field-hint' }, t('conflict-safety'))),
-      onClose: () => { if (!answered) resolve(null); },
-      actions: [
-        { label: t('conflict-later'), onClick: (m) => choose(null, m) },
-        { label: t('conflict-keep-local'), onClick: (m) => choose('keep-local', m) },
-        { label: t('conflict-take-remote'), kind: 'primary', onClick: (m) => choose('take-remote', m) }
-      ]
-    });
-  });
+// Both originals of a merge are kept: on the desktop in the backups folder,
+// in the browser the latest pair in local storage.
+function keepCopy(tag, json) {
+  if (typeof window === 'undefined') return;
+  if (window.weStorage && typeof window.weStorage.keepCopy === 'function') {
+    window.weStorage.keepCopy(tag, json);
+    return;
+  }
+  try { localStorage.setItem(`we-budget-copy-${tag}`, json); } catch (e) { /* no room: the merge itself keeps everything */ }
 }
 
 export const sync = new SyncEngine({
   store,
   bridge: typeof window !== 'undefined' ? window.weCloud || null : null,
-  ask: askDatasetConflict,
+  keepCopy,
   afterApply: () => store.generate()
 });
 
@@ -65,7 +44,8 @@ export async function signIn() {
       return false;
     }
     const outcome = result.synced && result.synced.outcome;
-    showToast(outcome === 'pulled' ? t('sync-login-pulled', { email: sync.state.email }) : t('sync-login-ok', { email: sync.state.email }), { type: 'success', duration: 7000 });
+    const key = outcome === 'pulled' ? 'sync-login-pulled' : outcome === 'merged' ? 'sync-login-merged' : 'sync-login-ok';
+    showToast(t(key, { email: sync.state.email }), { type: 'success', duration: 7000 });
     return true;
   } finally {
     sync.setState({ signingIn: false });
@@ -83,7 +63,8 @@ export async function renewAccess() {
       if (result && result.error === 'drive_scope_missing') showToast(t('sync-scope-missing'), { type: 'error', duration: 12000 });
       return false;
     }
-    await sync.sync('manual');
+    // Like a launch: take what the cloud has; own changes go up on closing.
+    await sync.sync('renew');
     return true;
   } finally {
     sync.setState({ signingIn: false });
@@ -102,7 +83,8 @@ export async function signOut() {
 
 export function syncStatusText(state = sync.state) {
   switch (state.status) {
-    case 'idle': return state.lastSyncAt
+    case 'idle': if (state.pending) return t('sync-pending');
+      return state.lastSyncAt
       ? t('sync-idle', { time: formatTimestamp(state.lastSyncAt, lang()) })
       : t('sync-idle-never');
     case 'syncing': return t('sync-syncing');
@@ -110,7 +92,6 @@ export function syncStatusText(state = sync.state) {
     case 'renew': return t('sync-renew');
     case 'reauth': return t('sync-reauth');
     case 'error': return t('sync-error');
-    case 'conflict': return t('sync-conflict');
     case 'off': return t('sync-off');
     default: return '';
   }
@@ -118,7 +99,7 @@ export function syncStatusText(state = sync.state) {
 
 const STATUS_ICON = {
   idle: 'cloud', syncing: 'refresh-cw', offline: 'cloud-off', renew: 'refresh-cw', reauth: 'log-in',
-  error: 'alert-triangle', conflict: 'alert-triangle', off: 'cloud-off'
+  error: 'alert-triangle', off: 'cloud-off'
 };
 
 // The line at the bottom of the sidebar; a click opens the sync settings.

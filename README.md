@@ -141,7 +141,15 @@ While the desktop app is open, it can also show a notification at that time, and
 
 Sign in with Google in Settings, or on the first-launch screen of a new computer. The budget is stored as one compressed file in the app's hidden folder on your Google Drive: neither other apps nor you see it in Drive, and nothing is kept on any other server.
 
-The app syncs on start, a few seconds after a change, every five minutes and before it closes. Changes made on different computers are merged record by record; the newer change of a record wins and deletions are kept. If a computer and the cloud hold two different budgets, the app asks which one to keep and never mixes them. Without a connection everything keeps working and goes up later. If Google stops honouring the sign-in (for example after access was revoked), a banner at the top asks to sign in again on every start until you do; meanwhile changes are kept on the computer. What the app stores, where, and how to remove it is described in the [privacy policy](https://jaffarsk24.github.io/WE-Budget/privacy.html).
+Sync is built so that a computer with old data can never overwrite newer work from another one:
+
+- On launch, after signing in and while the app is open, it only takes changes from the cloud. It sends its own changes when the window closes, when you quit and with Sync now (on the phone: when you leave the app).
+- Whether the cloud changed is decided by its content, not by the file's time: the same data uploaded again is no change.
+- Every upload looks at the cloud first and never replaces data this computer has not seen. Unchanged data is not uploaded at all.
+- When both copies changed, or a computer signs in again after signing out, the copies are merged record by record without asking anything: every account, entry, template, goal and category from both, the newer version of each record winning and deletions kept. Both originals are saved in the backups folder.
+- Restoring a backup, loading the demo and deleting everything are changes like any other, so they reach the other computers instead of being undone by them.
+
+Without a connection everything keeps working and goes up later. If Google stops honouring the sign-in (for example after access was revoked), a banner at the top asks to sign in again on every start until you do; meanwhile changes are kept on the computer. What the app stores, where, and how to remove it is described in the [privacy policy](https://jaffarsk24.github.io/WE-Budget/privacy.html).
 
 ## Updates
 
