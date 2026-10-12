@@ -1,11 +1,13 @@
 // Merging two copies of the same budget, record by record.
 //
 // Every record carries updatedAt; the newer copy of a record wins. Deleted
-// records are tombstones, so a deletion travels like any other change.
+// records are tombstones, so a deletion travels like any other change and
+// an older copy of the record cannot bring it back. Nothing is ever dropped:
+// a record known on one side only is kept.
 // The result does not depend on which side is called local and which remote:
 // two devices merging the same pair end up with the same document.
 
-import { COLLECTIONS, hasAnyData, nowIso } from '../model.js';
+import { COLLECTIONS, nowIso } from '../model.js';
 import { canonical } from './hash.js';
 
 const STATUS_RANK = { done: 3, reserved: 2, cancelled: 1, planned: 0 };
@@ -105,20 +107,4 @@ export function mergeBudgets(local, remote, now = nowIso()) {
     remoteChanged = true;
   }
   return { data: out, localChanged, remoteChanged };
-}
-
-// What to do when the cloud copy is fetched. `state` is what this device
-// remembers about the last successful sync.
-//   merge        same budget on both sides
-//   take-remote  this device has nothing yet, or the other device replaced
-//                the budget after this one last synced
-//   keep-local   the cloud is empty, or this device replaced the budget
-//   ask          two different budgets met for the first time
-export function decideDataset(local, remote, state = {}) {
-  if (local.datasetId && local.datasetId === remote.datasetId) return 'merge';
-  if (!hasAnyData(local)) return 'take-remote';
-  if (!hasAnyData(remote)) return 'keep-local';
-  if (state.datasetId && state.datasetId === remote.datasetId) return 'keep-local';
-  if (state.datasetId && state.datasetId === local.datasetId) return 'take-remote';
-  return 'ask';
 }

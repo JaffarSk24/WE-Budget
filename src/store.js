@@ -7,7 +7,7 @@
 
 import {
   COLLECTIONS, defaultCategories, emptyData, hasAnyData, live, makeAccount, makeEntry,
-  newId, normalizeData, nowIso
+  normalizeData, nowIso
 } from './model.js';
 import { generationHorizon, pendingGeneration, futureOpenEntries, amountFor } from './schedule.js';
 import { buildAllocation } from './allocation.js';
@@ -197,12 +197,27 @@ export class Store {
     });
   }
 
-  // Replaces the whole document (restore from backup, import, demo, reset).
-  // This is a new budget as far as sync is concerned.
+  // Replaces the budget's content (restore from a backup, import, demo,
+  // reset) as one change like any other: what the new content brings is the
+  // newest version of each record, and records it does not have become
+  // tombstones. Sync then carries the replacement to the other devices
+  // record by record, instead of one copy replacing the other.
   replaceAll(raw) {
     const next = normalizeData(raw);
-    next.datasetId = newId();
-    next.datasetAt = nowIso();
+    const now = nowIso();
+    COLLECTIONS.forEach(name => {
+      const incoming = (next[name] || []).map(r => ({ ...r, updatedAt: now }));
+      const ids = new Set(incoming.map(r => r.id));
+      const gone = (this.loadError ? [] : (this.data[name] || []))
+        .filter(r => !ids.has(r.id))
+        .map(r => (r.deleted ? r : { ...r, deleted: true, updatedAt: now }));
+      next[name] = [...incoming, ...gone];
+    });
+    next.settings = { ...next.settings, updatedAt: now };
+    if (!this.loadError && this.data.datasetId) {
+      next.datasetId = this.data.datasetId;
+      next.datasetAt = this.data.datasetAt || next.datasetAt;
+    }
     this.loadError = null;
     this.data = next;
     this.save();

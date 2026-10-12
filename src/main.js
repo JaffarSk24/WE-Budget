@@ -168,6 +168,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // In the browser and on the phone, leaving the page is the close.
+  if (!window.weApp) {
+    const leave = () => { sync.flush().catch(e => console.error('sync on leaving failed', e)); };
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leave(); });
+    window.addEventListener('pagehide', leave);
+  }
+
   if (!needsWelcome()) store.generate();
   if (phone) {
     store.subscribe(() => applyTheme());
@@ -187,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     show(VIEWS[initial] ? initial : 'month');
   }
   // A sign-in that had to leave the page (web, windows blocked) is finished
-  // here; its first sync may then ask about two different budgets.
+  // here. Either way the first sync only takes data from the cloud.
   const finishing = window.weStorage ? Promise.resolve(false) : finishRedirectSignIn();
   finishing
     .then(signedIn => sync.init({ reason: signedIn ? 'login' : 'startup' }))

@@ -69,7 +69,7 @@ export function syncSection() {
   } else {
     rows.push(settingRow(t('sync-account'), h('span', { class: 'setting-value' }, st.email || '')));
     rows.push(settingRow(t('sync-state'), h('span', { class: `setting-value sync-text-${st.status}` }, syncStatusText(st)),
-      st.status === 'conflict' ? t('sync-conflict-hint') : st.status === 'offline' ? t('sync-offline-hint') : null));
+      st.status === 'offline' ? t('sync-offline-hint') : null));
     rows.push(h('div', { class: 'inline-actions' },
       h('button', {
         type: 'button', class: 'btn btn-secondary', disabled: st.status === 'syncing',
@@ -259,7 +259,7 @@ export function renderSettings(root) {
         const snap = store.snapshot();
         store.replaceAll(parsed);
         store.generate();
-        showToast(t('toast-restored'), { type: 'success', actionLabel: t('undo'), onAction: () => store.applySynced(snap) });
+        showToast(t('toast-restored'), { type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap) });
       }
     }, icon('upload'), t('restore')), t('backup-restore-hint')),
     settingRow(t('export-csv'), h('button', { type: 'button', class: 'btn btn-secondary', onclick: exportCsv }, icon('file-spreadsheet'), t('export')), t('export-csv-hint')),
@@ -274,7 +274,7 @@ export function renderSettings(root) {
         }
         const snap = store.snapshot();
         store.replaceAll(buildDemo(todayKey(), lang()));
-        showToast(t('toast-demo'), { type: 'success', actionLabel: t('undo'), onAction: () => store.applySynced(snap) });
+        showToast(t('toast-demo'), { type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap) });
       }
     }, icon('sparkles'), t('demo-load-btn')), t('demo-load-hint')),
     settingRow(t('reset-all'), h('button', {
@@ -283,7 +283,7 @@ export function renderSettings(root) {
         if (!ok) return;
         const snap = store.snapshot();
         store.replaceAll({ settings: { language: s.language, theme: s.theme } });
-        showToast(t('toast-reset'), { type: 'success', actionLabel: t('undo'), onAction: () => store.applySynced(snap) });
+        showToast(t('toast-reset'), { type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap) });
       }
     }, icon('trash-2'), t('reset-all-btn')), t('reset-all-hint'))));
 
