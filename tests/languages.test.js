@@ -75,8 +75,8 @@ describe('language registry', () => {
 describe('first run language', () => {
   it('takes the first ready browser language by its primary subtag', () => {
     expect(matchBrowserLanguage(['ru-RU', 'en'])).toBe('ru');
-    expect(matchBrowserLanguage(['de-DE', 'en-US'])).toBe('en');
-    expect(matchBrowserLanguage(['de-DE'])).toBe(null);
+    expect(matchBrowserLanguage(['it-IT', 'en-US'])).toBe('en');
+    expect(matchBrowserLanguage(['it-IT'])).toBe(null);
     expect(matchBrowserLanguage([])).toBe(null);
     expect(matchBrowserLanguage(undefined)).toBe(null);
   });
@@ -90,7 +90,7 @@ describe('first run language', () => {
     expect(resolveLanguage('ru', ['en-US'])).toBe('ru');
     expect(resolveLanguage('en', ['ru-RU'])).toBe('en');
     expect(resolveLanguage(null, ['ru-RU'])).toBe('ru');
-    expect(resolveLanguage(null, ['de-DE'])).toBe(DEFAULT_LANGUAGE);
+    expect(resolveLanguage(null, ['it-IT'])).toBe(DEFAULT_LANGUAGE);
     expect(resolveLanguage('xx', [])).toBe('en');
   });
 
