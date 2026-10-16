@@ -163,7 +163,10 @@ function initCloudIpc() {
   ipcMain.handle('cloud:set-state', (_e, patch) => cloud.setState(patch || {}));
   ipcMain.handle('cloud:meta', () => cloud.meta());
   ipcMain.handle('cloud:download', (_e, fileId) => cloud.download(fileId));
-  ipcMain.handle('cloud:upload', (_e, content, fileId) => cloud.upload(content, fileId));
+  ipcMain.handle('cloud:upload', (_e, content, fileId, encrypted) => cloud.upload(content, fileId, encrypted === true));
+  ipcMain.handle('cloud:get-key', () => cloud.getKey());
+  ipcMain.handle('cloud:set-key', (_e, value) => cloud.setKey(value));
+  ipcMain.handle('cloud:forget-key', () => cloud.forgetKey());
   ipcMain.handle('cloud:remove', (_e, ids) => cloud.remove(ids));
 }
 

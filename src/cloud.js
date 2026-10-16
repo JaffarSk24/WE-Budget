@@ -7,6 +7,9 @@ import { SyncEngine } from './sync/engine.js';
 import { h, lang, icon, refreshIcons, clear } from './ui.js';
 import { formatTimestamp } from './dates.js';
 import { showToast } from './toast.js';
+import { Vault } from './sync/vault.js';
+import { deviceKeyring } from './keyring.js';
+import { promptUnlock } from './views/encryption.js';
 
 // Both originals of a merge are kept: on the desktop in the backups folder,
 // in the browser the latest pair in local storage.
@@ -23,7 +26,8 @@ export const sync = new SyncEngine({
   store,
   bridge: typeof window !== 'undefined' ? window.weCloud || null : null,
   keepCopy,
-  afterApply: () => store.generate()
+  afterApply: () => store.generate(),
+  vault: new Vault(deviceKeyring())
 });
 
 // Sign-in from the settings or the welcome screen. Resolves to true when
@@ -42,6 +46,12 @@ export async function signIn() {
       const quiet = result && (result.error === 'timeout' || result.error === 'access_denied' || result.error === 'cancelled');
       if (!quiet) showToast(result && result.offline ? t('sync-login-offline') : t('sync-login-failed'), { type: 'error' });
       return false;
+    }
+    // An encrypted file in the cloud: the password is asked right away.
+    if (result.synced && result.synced.error === 'locked') {
+      showToast(t('sync-login-ok', { email: sync.state.email }), { type: 'success' });
+      promptUnlock();
+      return true;
     }
     const outcome = result.synced && result.synced.outcome;
     const key = outcome === 'pulled' ? 'sync-login-pulled' : outcome === 'merged' ? 'sync-login-merged' : 'sync-login-ok';
@@ -91,7 +101,11 @@ export function syncStatusText(state = sync.state) {
     case 'offline': return t('sync-offline');
     case 'renew': return t('sync-renew');
     case 'reauth': return t('sync-reauth');
-    case 'error': return t('sync-error');
+    case 'locked': return t('sync-locked');
+    case 'error':
+      if (state.error === 'damaged') return t('sync-error-damaged');
+      if (state.error === 'newer_format') return t('sync-error-newer');
+      return t('sync-error');
     case 'off': return t('sync-off');
     default: return '';
   }
@@ -99,7 +113,7 @@ export function syncStatusText(state = sync.state) {
 
 const STATUS_ICON = {
   idle: 'cloud', syncing: 'refresh-cw', offline: 'cloud-off', renew: 'refresh-cw', reauth: 'log-in',
-  error: 'alert-triangle', off: 'cloud-off'
+  locked: 'lock', error: 'alert-triangle', off: 'cloud-off'
 };
 
 // The line at the bottom of the sidebar; a click opens the sync settings.
@@ -116,6 +130,7 @@ export function initSyncStatus(el) {
   };
   el.addEventListener('click', () => {
     if (sync.state.status === 'renew') renewAccess();
+    else if (sync.state.status === 'locked') promptUnlock();
     else window.location.hash = '#settings';
   });
   sync.onChange(render);
@@ -123,18 +138,31 @@ export function initSyncStatus(el) {
   render();
 }
 
-// Sync stopped because Google wants a new sign-in. A line in the sidebar is
-// easy to miss, so a banner stays on top of every screen until the owner
-// signs in again; "Later" hides it until the next start of the app.
+// Sync stopped because Google wants a new sign-in, or because the file in
+// Google Drive is encrypted and this device has no password for it. A line
+// in the sidebar is easy to miss, so a banner stays on top of every screen
+// until the owner acts; "Later" hides it until the next start of the app.
 export function initSyncBanner(el) {
   if (!el) return;
   let hiddenForNow = false;
   const render = () => {
     const st = sync.state;
-    const show = st.status === 'reauth' && !hiddenForNow;
+    const locked = st.locked && sync.loggedIn;
+    const show = (st.status === 'reauth' || locked) && !hiddenForNow;
     clear(el);
     el.hidden = !show;
     if (!show) return;
+    if (locked && st.status !== 'reauth') {
+      el.append(
+        h('div', { class: 'sync-banner-text' }, icon('lock'),
+          h('div', {}, h('strong', {}, t('sync-locked-title')), ' ',
+            h('span', {}, t(st.lockReason === 'changed' ? 'enc-unlock-changed' : 'enc-unlock-text')))),
+        h('div', { class: 'sync-banner-actions' },
+          h('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: promptUnlock }, icon('key-round'), t('enc-unlock-button')),
+          h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onclick: () => { hiddenForNow = true; render(); } }, t('sync-banner-later'))));
+      refreshIcons();
+      return;
+    }
     const text = st.reauthReason === 'drive_scope' ? t('sync-banner-scope') : t('sync-banner-expired');
     el.append(
       h('div', { class: 'sync-banner-text' }, icon('cloud-off'),

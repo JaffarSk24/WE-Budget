@@ -4,7 +4,7 @@ import {
   AlertTriangle, Archive, ArchiveRestore, ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, Ban, Bell, Calculator, Calendar,
   CalendarCheck, CalendarClock, CalendarDays, CalendarRange, ChartColumn, ChartLine, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
   Circle, Cloud, CloudOff, Copy, Database, Download, ExternalLink, Eye, FileInput, FileSpreadsheet, FolderOpen,
-  FolderPlus, Gauge, Gem, History, Import, Inbox, Info, Landmark, Languages, LayoutDashboard, Link, List, Loader, LogIn,
+  FolderPlus, Gauge, Gem, History, Import, Inbox, Info, KeyRound, Landmark, Languages, LayoutDashboard, Link, List, Loader, Lock, LogIn,
   LogOut, MinusCircle, Monitor, Palette, Pencil, PiggyBank, Plus, RefreshCw,
   Repeat, RotateCcw, Scale, Search, Settings, ShieldCheck, SlidersHorizontal, Smartphone, Sparkle, Sparkles, Split,
   Tag, Tags, Target, Trash2, TrendingUp, Upload, Wallet, Wand2, Waypoints, X
@@ -14,7 +14,7 @@ export const usedIcons = {
   AlertTriangle, Archive, ArchiveRestore, ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, Ban, Bell, Calculator, Calendar,
   CalendarCheck, CalendarClock, CalendarDays, CalendarRange, ChartColumn, ChartLine, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
   Circle, Cloud, CloudOff, Copy, Database, Download, ExternalLink, Eye, FileInput, FileSpreadsheet, FolderOpen,
-  FolderPlus, Gauge, Gem, History, Import, Inbox, Info, Landmark, Languages, LayoutDashboard, Link, List, Loader, LogIn,
+  FolderPlus, Gauge, Gem, History, Import, Inbox, Info, KeyRound, Landmark, Languages, LayoutDashboard, Link, List, Loader, Lock, LogIn,
   LogOut, MinusCircle, Monitor, Palette, Pencil, PiggyBank, Plus, RefreshCw,
   Repeat, RotateCcw, Scale, Search, Settings, ShieldCheck, SlidersHorizontal, Smartphone, Sparkle, Sparkles, Split,
   Tag, Tags, Target, Trash2, TrendingUp, Upload, Wallet, Wand2, Waypoints, X
