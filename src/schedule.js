@@ -101,6 +101,7 @@ export function entryFromTemplate(template, day) {
     accountId: template.accountId,
     toAccountId: template.type === 'transfer' ? template.toAccountId : null,
     categoryId: template.categoryId,
+    tagIds: template.tagIds || [],
     isTransit: template.isTransit,
     status: 'planned'
   });

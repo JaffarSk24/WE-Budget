@@ -11,6 +11,11 @@
 import { live, makeSchedule } from './model.js';
 import { addDays, addMonthsToMonth, daysBetween, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
 import { nextOccurrence, occurrences, pendingGeneration } from './schedule.js';
+import { categoryParts } from './splits.js';
+
+// Every per-category figure below counts the parts of a split payment in
+// their own categories (categoryParts), never the whole in one.
+export { categoryParts };
 
 const OPEN_STATUSES = ['planned', 'reserved'];
 
@@ -362,8 +367,7 @@ export function categoryTotals(data, fromDay, toDay, type = 'expense') {
   const totals = new Map();
   live(data.entries).forEach(e => {
     if (e.type !== type || !countsInFlow(e) || e.date < fromDay || e.date > toDay) return;
-    const key = e.categoryId || null;
-    totals.set(key, (totals.get(key) || 0) + (e.amount || 0));
+    categoryParts(e).forEach(p => totals.set(p.categoryId, (totals.get(p.categoryId) || 0) + p.amount));
   });
   return totals;
 }
@@ -371,9 +375,9 @@ export function categoryTotals(data, fromDay, toDay, type = 'expense') {
 // Money spent this month in a category, for quick-expense limits.
 export function categorySpentInMonth(data, categoryId, month) {
   return live(data.entries)
-    .filter(e => e.categoryId === categoryId && e.type === 'expense' && e.status === 'done'
+    .filter(e => e.type === 'expense' && e.status === 'done'
       && monthOf(e.date) === month && !e.isTransit && !e.isAdjustment)
-    .reduce((s, e) => s + (e.amount || 0), 0);
+    .reduce((s, e) => s + categoryParts(e).reduce((x, p) => x + (p.categoryId === categoryId ? p.amount : 0), 0), 0);
 }
 
 // What a category's limit carries into `month` (cents, may be negative with
@@ -678,8 +682,7 @@ export function categoryBreakdown(data, fromDay, toDay, type = 'expense') {
   const totals = new Map();
   live(data.entries).forEach(e => {
     if (e.type !== type || !realFlow(e) || e.date < fromDay || e.date > toDay) return;
-    const key = e.categoryId || null;
-    totals.set(key, (totals.get(key) || 0) + (e.amount || 0));
+    categoryParts(e).forEach(p => totals.set(p.categoryId, (totals.get(p.categoryId) || 0) + p.amount));
   });
   return [...totals.entries()]
     .map(([categoryId, amount]) => ({ categoryId, amount }))

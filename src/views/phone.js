@@ -18,6 +18,7 @@ import { selectEl } from '../ui.js';
 import { openSearch } from './search.js';
 import { debtBar } from './debts.js';
 import { debtState } from '../debts.js';
+import { tagChips } from '../tag-ui.js';
 
 const TABS = [
   { id: 'today', icon: 'calendar-check', label: 'today-title' },
@@ -76,7 +77,8 @@ function phoneEntry(entry, { showDate }) {
       h('span', { class: 'phone-entry-title' }, entry.title || t('untitled')),
       h('span', { class: 'phone-entry-meta' },
         [showDate ? formatDay(entry.date, lang()) : null, where, entry.status === 'reserved' ? t('status-reserved') : null]
-          .filter(Boolean).join(' · '))),
+          .filter(Boolean).join(' · ')),
+      tagChips(entry)),
     h('span', { class: `phone-entry-amount money ${sign > 0 ? 'positive' : sign === 0 ? 'neutral' : ''}` },
       sign === 0 ? money(entry.amount) : money(sign * entry.amount, { signed: sign > 0 })),
     reserveButton(entry));

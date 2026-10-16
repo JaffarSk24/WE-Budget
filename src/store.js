@@ -14,6 +14,7 @@ import { generationHorizon, pendingGeneration, futureOpenEntries, amountFor } fr
 import { buildAllocation } from './allocation.js';
 import { buildReconciliation } from './reconcile.js';
 import { todayKey, addDays } from './dates.js';
+import { fitSplits } from './splits.js';
 
 const STORAGE_KEY = 'we_budget_data';
 
@@ -133,6 +134,8 @@ export class Store {
       const rec = data[collection].find(r => r.id === id);
       if (!rec) return null;
       Object.assign(rec, patch, { updatedAt: nowIso() });
+      // A new amount on a split payment carries its parts along.
+      if (collection === 'entries') Object.assign(rec, fitSplits(rec));
       return rec;
     });
   }
@@ -393,6 +396,9 @@ export class Store {
           accountId: template.accountId,
           toAccountId: template.type === 'transfer' ? template.toAccountId : null,
           categoryId: template.categoryId,
+          // A template has no parts: its category replaces them.
+          splits: null,
+          tagIds: [...(template.tagIds || [])],
           isTransit: template.isTransit,
           updatedAt: now
         }));
@@ -471,6 +477,7 @@ export class Store {
         e.status = 'done';
         e.doneAt = now;
         if (amount !== null) e.amount = amount;
+        Object.assign(e, fitSplits(e));
         Store.settle(e, today);
       } else if (status === 'reserved') {
         e.status = 'reserved';
@@ -606,8 +613,29 @@ export class Store {
     });
   }
 
+  // ---------- tags ----------
+
+  // A deleted tag leaves no dangling ids behind: entries and templates lose
+  // it in the same step (one undo), with a fresh updatedAt so the change
+  // travels to the other devices.
+  removeTag(id) {
+    return this.commit(data => {
+      const now = nowIso();
+      const tag = data.tags.find(x => x.id === id);
+      if (!tag) return 0;
+      Object.assign(tag, { deleted: true, updatedAt: now });
+      let changed = 0;
+      [...data.entries, ...data.templates].forEach(r => {
+        if (r.deleted || !Array.isArray(r.tagIds) || !r.tagIds.includes(id)) return;
+        Object.assign(r, { tagIds: r.tagIds.filter(x => x !== id), updatedAt: now });
+        changed++;
+      });
+      return changed;
+    });
+  }
+
   // A payment or an income outside the plan, done at once.
-  addQuickEntry({ type = 'expense', amount, categoryId, accountId, note = '', date = this.today() }) {
+  addQuickEntry({ type = 'expense', amount, categoryId, accountId, note = '', date = this.today(), tagIds = [] }) {
     return this.add('entries', makeEntry({
       date,
       title: note,
@@ -617,7 +645,8 @@ export class Store {
       categoryId,
       status: 'done',
       doneAt: nowIso(),
-      isQuick: true
+      isQuick: true,
+      tagIds
     }));
   }
 }

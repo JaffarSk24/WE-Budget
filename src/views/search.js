@@ -4,12 +4,14 @@
 
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
-import { h, clear, icon, money, refreshIcons, lang, openModal, selectEl, accountOptions, accountLabel, categoryName, field } from '../ui.js';
+import { h, clear, icon, money, refreshIcons, lang, openModal, selectEl, accountOptions, accountLabel, field } from '../ui.js';
 import { searchEntries, hasActiveFilters } from '../search.js';
 import { statusButton } from '../actions.js';
 import { openEntryModal } from '../modals.js';
 import { formatDate, todayKey } from '../dates.js';
 import { live } from '../model.js';
+import { categoryText, splitTooltip } from '../split-editor.js';
+import { tagChips, tagFilterOptions } from '../tag-ui.js';
 
 // Drawing thousands of rows makes typing lag; the rest is counted instead.
 export const RESULT_LIMIT = 200;
@@ -45,7 +47,7 @@ function resultRow(entry, onOpen) {
   const where = entry.type === 'transfer'
     ? `${accountLabel(entry.accountId)} → ${accountLabel(entry.toAccountId)}`
     : accountLabel(entry.accountId);
-  const meta = [entry.categoryId ? categoryName(entry.categoryId) : null, where].filter(Boolean).join(' · ');
+  const meta = [categoryText(entry) || null, where].filter(Boolean).join(' · ');
   return h('div', {
     class: `search-row status-row-${entry.status} ${overdue ? 'is-overdue' : ''}`,
     role: 'button', tabindex: '0',
@@ -61,9 +63,10 @@ function resultRow(entry, onOpen) {
     statusButton(entry),
     h('div', { class: 'search-row-main' },
       h('span', { class: 'search-row-title' }, entry.title || t('untitled')),
-      h('span', { class: 'search-row-meta' },
+      h('span', { class: 'search-row-meta', title: splitTooltip(entry) },
         h('span', { class: 'search-row-date' }, formatDate(entry.date, lang())),
-        meta ? ' · ' + meta : '')),
+        meta ? ' · ' + meta : ''),
+      tagChips(entry)),
     h('div', { class: 'search-row-side' },
       h('span', { class: `search-row-amount money ${sign > 0 ? 'positive' : sign === 0 ? 'neutral' : ''}` },
         sign === 0 ? money(entry.amount) : money(sign * entry.amount, { signed: sign > 0 })),
@@ -97,6 +100,8 @@ export function openSearch({ phone = false } = {}) {
   ], filters.type || '');
   const account = selectEl(accountOptions({ includeArchived: true, emptyLabel: t('search-any-account') }), filters.accountId || '');
   const category = categorySelect(filters.categoryId);
+  const hasTags = store.list('tags').length > 0 || Boolean(filters.tagId);
+  const tag = selectEl(tagFilterOptions(t('search-any-tag'), filters.tagId || ''), filters.tagId || '');
   const status = selectEl([
     { value: '', label: t('search-any-status') },
     { value: 'planned', label: t('status-planned') },
@@ -113,6 +118,7 @@ export function openSearch({ phone = false } = {}) {
     field(t('search-type'), type),
     field(t('field-account'), account),
     field(t('field-category'), category),
+    hasTags ? field(t('field-tag'), tag) : null,
     field(t('field-status'), status),
     h('div', { class: 'search-filter-end' },
       h('label', { class: 'checkbox-row' }, quick, h('span', {}, t('search-quick-only'))),
@@ -135,6 +141,7 @@ export function openSearch({ phone = false } = {}) {
     filters.type = type.value || null;
     filters.accountId = account.value || null;
     filters.categoryId = category.value || null;
+    filters.tagId = tag.value || null;
     filters.status = status.value || null;
     filters.quickOnly = quick.checked;
   }
@@ -174,9 +181,9 @@ export function openSearch({ phone = false } = {}) {
     clearTimeout(timer);
     timer = setTimeout(run, DEBOUNCE_MS);
   });
-  [from, to, type, account, category, status, quick].forEach(el => el.addEventListener('change', () => { readFilters(); run(); }));
+  [from, to, type, account, category, tag, status, quick].forEach(el => el.addEventListener('change', () => { readFilters(); run(); }));
   reset.addEventListener('click', () => {
-    from.value = ''; to.value = ''; type.value = ''; account.value = ''; category.value = ''; status.value = '';
+    from.value = ''; to.value = ''; type.value = ''; account.value = ''; category.value = ''; tag.value = ''; status.value = '';
     quick.checked = false;
     readFilters();
     run();

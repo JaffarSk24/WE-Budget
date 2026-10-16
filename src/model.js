@@ -5,7 +5,7 @@
 
 export const SCHEMA_VERSION = 1;
 
-export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts'];
+export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts', 'tags'];
 
 export const ENTRY_TYPES = ['expense', 'income', 'transfer'];
 export const ENTRY_STATUSES = ['planned', 'reserved', 'done', 'cancelled'];
@@ -16,6 +16,9 @@ export const RULE_MATCHES = ['contains', 'startsWith', 'exact'];
 export const RULE_TYPES = ['expense', 'income', 'any'];
 export const LIMIT_ROLLOVERS = ['none', 'unspent', 'both'];
 export const DEBT_KINDS = ['owe', 'owed'];
+// Tag colors are names, not hex values: style.css gives each one a shade
+// that reads on the dark and on the light theme.
+export const TAG_COLORS = ['blue', 'green', 'amber', 'red', 'purple', 'teal', 'pink', 'gray'];
 
 export const DEFAULT_SETTINGS = {
   language: 'ru',
@@ -125,6 +128,8 @@ export function makeTemplate(f = {}) {
     debtId: f.debtId || null,
     // Last day for which entries have already been generated.
     generatedThrough: f.generatedThrough || null,
+    // Passed on to every generated entry.
+    tagIds: tagList(f.tagIds),
     note: f.note || ''
   });
 }
@@ -156,7 +161,29 @@ export function makeEntry(f = {}) {
     importKey: f.importKey || null,
     // The loan or debt this payment pays off (or the money that came back).
     debtId: f.debtId || null,
+    // A payment spread over several categories, see splits.js; null when
+    // the whole amount is in categoryId.
+    splits: Array.isArray(f.splits) && f.splits.length ? f.splits.map(p => ({ ...p })) : null,
+    tagIds: tagList(f.tagIds),
     note: f.note || ''
+  });
+}
+
+function tagList(ids) {
+  return Array.isArray(ids) ? [...new Set(ids.filter(Boolean))] : [];
+}
+
+// A tag groups payments across categories: a trip, a renovation, a
+// project. With a budget and dates it becomes a small budget of its own.
+export function makeTag(f = {}) {
+  const budget = Number(f.budget);
+  return base({
+    name: f.name || '',
+    color: TAG_COLORS.includes(f.color) ? f.color : TAG_COLORS[0],
+    budget: Number.isFinite(budget) && budget > 0 ? Math.round(budget) : null,
+    startDate: f.startDate || null,
+    endDate: f.endDate || null,
+    archived: !!f.archived
   });
 }
 
@@ -249,6 +276,7 @@ export function emptyData() {
     reminders: [],
     rules: [],
     debts: [],
+    tags: [],
     settings: { ...DEFAULT_SETTINGS, importMappings: {}, updatedAt: nowIso() }
   };
 }
@@ -274,8 +302,13 @@ export function normalizeData(raw) {
   data.entries.forEach(e => {
     if (e.plannedAmount === undefined) e.plannedAmount = e.amount || 0;
     if (!ENTRY_STATUSES.includes(e.status)) e.status = 'planned';
+    if (!Array.isArray(e.tagIds)) e.tagIds = [];
+    if (e.splits !== undefined && e.splits !== null && !Array.isArray(e.splits)) e.splits = null;
   });
-  data.templates.forEach(t => { t.schedule = makeSchedule(t.schedule); });
+  data.templates.forEach(t => {
+    t.schedule = makeSchedule(t.schedule);
+    if (!Array.isArray(t.tagIds)) t.tagIds = [];
+  });
   data.schemaVersion = SCHEMA_VERSION;
   return data;
 }

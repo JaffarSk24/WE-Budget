@@ -17,6 +17,7 @@ import {
 } from './import/bank.js';
 import { matchStatement, countActions, buildImportChanges } from './import/match.js';
 import { applyRules, suggestRuleText } from './rules.js';
+import { fitSplits } from './splits.js';
 import { openBalancesModal } from './balances.js';
 import { ruleFromRow } from './views/rules.js';
 
@@ -377,7 +378,12 @@ export function openStatementImport({ accountId = null } = {}) {
       data.entries.push(...newEntries);
       updates.forEach(u => {
         const e = data.entries.find(x => x.id === u.id);
-        if (e) Object.assign(e, u.patch, { updatedAt: now });
+        if (!e) return;
+        // A category picked for the bank row replaces the parts of a split
+        // payment; a new amount scales them.
+        const picked = u.patch.categoryId !== undefined && u.patch.categoryId !== e.categoryId;
+        Object.assign(e, u.patch, picked ? { splits: null } : null, { updatedAt: now });
+        Object.assign(e, fitSplits(e));
       });
       data.settings.importMappings = { ...(data.settings.importMappings || {}), [accountId]: saved };
       data.settings.updatedAt = now;

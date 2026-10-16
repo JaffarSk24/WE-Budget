@@ -177,7 +177,9 @@ export function initModalKeys() {
     if (e.key === 'Escape') {
       e.preventDefault();
       m.close();
-    } else if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') {
+    } else if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON'
+      // A field with its own use for Enter (a new tag) does not save the dialog.
+      && !(e.target.closest && e.target.closest('[data-own-enter]'))) {
       const primary = m.footer.querySelector('[data-primary]');
       if (primary) {
         e.preventDefault();

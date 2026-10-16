@@ -7,7 +7,7 @@ import {
   FolderPlus, Gauge, History, Import, Inbox, Info, Landmark, Languages, LayoutDashboard, Link, Loader, LogIn,
   LogOut, MinusCircle, Monitor, Palette, Pencil, PiggyBank, Plus, RefreshCw,
   Repeat, RotateCcw, Scale, Search, Settings, ShieldCheck, SlidersHorizontal, Smartphone, Sparkle, Sparkles, Split,
-  Tags, Target, Trash2, TrendingUp, Upload, Wallet, Wand2, X
+  Tag, Tags, Target, Trash2, TrendingUp, Upload, Wallet, Wand2, X
 } from 'lucide';
 
 export const usedIcons = {
@@ -17,5 +17,5 @@ export const usedIcons = {
   FolderPlus, Gauge, History, Import, Inbox, Info, Landmark, Languages, LayoutDashboard, Link, Loader, LogIn,
   LogOut, MinusCircle, Monitor, Palette, Pencil, PiggyBank, Plus, RefreshCw,
   Repeat, RotateCcw, Scale, Search, Settings, ShieldCheck, SlidersHorizontal, Smartphone, Sparkle, Sparkles, Split,
-  Tags, Target, Trash2, TrendingUp, Upload, Wallet, Wand2, X
+  Tag, Tags, Target, Trash2, TrendingUp, Upload, Wallet, Wand2, X
 };
