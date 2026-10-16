@@ -10,7 +10,7 @@
 
 import { live, makeSchedule } from './model.js';
 import { addDays, addMonthsToMonth, daysBetween, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
-import { occurrences, pendingGeneration } from './schedule.js';
+import { nextOccurrence, occurrences, pendingGeneration } from './schedule.js';
 
 const OPEN_STATUSES = ['planned', 'reserved'];
 
@@ -420,15 +420,18 @@ export function goalOutlook(data, goal, today, { without = null } = {}) {
   const ids = [goal.accountId, ...live(data.accounts).filter(a => a.parentId === goal.accountId).map(a => a.id)];
   const effect = e => ids.reduce((s, id) => s + accountEffect(e, id), 0);
   const own = e => contribution && e.templateId === contribution.id && e.status === 'planned' && e.date >= today;
+  // A goal that saves ahead for a payment is paid out by that payment on the
+  // deadline: the payment is what the money is for, not a loss to cover.
+  const skip = e => (without && e.templateId === without) || (goal.templateId && e.templateId === goal.templateId);
   let planned = 0;
   live(data.entries).forEach(e => {
-    if (!isOpen(e) || !isTracked(data, e) || e.date > goal.deadline || (without && e.templateId === without)) return;
+    if (!isOpen(e) || !isTracked(data, e) || e.date > goal.deadline || skip(e)) return;
     planned += effect(e);
     if (own(e)) out.contributionsLeft++;
   });
   if (goal.deadline >= today) {
     pendingGeneration(data, today, goal.deadline).entries.forEach(e => {
-      if (without && e.templateId === without) return;
+      if (skip(e)) return;
       planned += effect(e);
       if (own(e)) out.contributionsLeft++;
     });
@@ -451,10 +454,149 @@ export function raisedContribution(outlook) {
 export function suggestedContribution(data, goal, today, day, replacing = null) {
   const o = goalOutlook(data, goal, today, { without: replacing });
   if (o.projected === null) return { amount: null, count: 0, need: null };
-  const schedule = makeSchedule({ freq: 'monthly', day, startDate: today, endDate: goal.deadline });
-  const count = goal.deadline >= today ? occurrences(schedule, today, goal.deadline).length : 0;
   const need = Math.max(0, o.target - o.projected);
-  return { amount: count ? Math.ceil(need / count) : need, count, need };
+  return { ...monthlyNeeded(need, today, goal.deadline, day), need };
+}
+
+// Spreads `need` over monthly payments on `day` from today to the deadline
+// (both included). Rounded up so that the last payment does not fall short;
+// with no payment left the whole sum is due at once.
+export function monthlyNeeded(need, today, deadline, day) {
+  const schedule = makeSchedule({ freq: 'monthly', day, startDate: today, endDate: deadline });
+  const count = deadline >= today ? occurrences(schedule, today, deadline).length : 0;
+  return { amount: count ? Math.ceil(need / count) : need, count };
+}
+
+// ---------- saving ahead for payments that do not come every month ----------
+
+// A yearly or every-N-months expense is the kind that catches a budget out:
+// the money for it has to be put aside month by month beforehand.
+export function canSaveAhead(template) {
+  return !!template && template.type === 'expense' && !template.goalId && !template.isTransit
+    && (template.schedule.freq === 'yearly' || template.schedule.freq === 'everyNMonths');
+}
+
+// The active goal that saves ahead for a template, if any.
+export function saveAheadGoal(data, templateId) {
+  return live(data.goals || []).find(g => g.templateId === templateId && !g.archived) || null;
+}
+
+// The day the money is being saved for: the earliest payment of the template
+// still open after the last one that was paid or skipped, otherwise its next
+// scheduled day from today on. Deriving it from the entries (instead of
+// moving it when a payment is marked) makes undoing the mark move it back.
+export function saveAheadDeadline(data, template, today) {
+  const key = e => e.occurrence || e.date;
+  const own = live(data.entries).filter(e => e.templateId === template.id);
+  const last = own.filter(e => e.status === 'done' || e.status === 'cancelled').map(key).sort().pop() || null;
+  const open = own.filter(e => isOpen(e) && (e.amount || 0) > 0 && (!last || key(e) > last))
+    .sort((a, b) => key(a).localeCompare(key(b)))[0];
+  if (open) return open.date;
+  const after = last ? addDays(last, 1) : today;
+  return nextOccurrence(template.schedule, after > today ? after : today);
+}
+
+// What a saving-ahead goal should look like now: the target is the payment's
+// amount and the deadline its next open occurrence. Returns the patch, or
+// null when the goal is up to date. Once the payment is marked done, this
+// rolls the goal on to the next occurrence.
+export function saveAheadRoll(data, goal, today) {
+  if (!goal.templateId || goal.archived) return null;
+  const template = live(data.templates).find(t => t.id === goal.templateId);
+  if (!template) return null;
+  const deadline = saveAheadDeadline(data, template, today);
+  if (!deadline) return null;
+  const targetAmount = template.amount || 0;
+  if (deadline === goal.deadline && targetAmount === goal.targetAmount) return null;
+  return { deadline, targetAmount };
+}
+
+// ---------- recurring costs ----------
+
+function chargesPerYear(schedule) {
+  switch (schedule.freq) {
+    case 'monthly': return 12;
+    case 'everyNMonths': return 12 / Math.max(1, schedule.interval || 1);
+    case 'yearly': return 1;
+    case 'weekly': return 52 * Math.max(1, (schedule.weekdays || []).length);
+    default: return 0;
+  }
+}
+
+// What a recurring payment costs per year and per month on average: a
+// yearly payment counts a twelfth each month, every N months an Nth, weekly
+// 52 times a year (per weekday). One-off payments are not recurring costs.
+export function yearlyCost(template) {
+  return Math.round((template.amount || 0) * chargesPerYear(template.schedule));
+}
+
+export function monthlyEquivalent(template) {
+  return Math.round((template.amount || 0) * chargesPerYear(template.schedule) / 12);
+}
+
+// What a template actually charged: its payments marked done, oldest first.
+// Zero rows (months an every-N-months payment is not due) charge nothing.
+export function chargeHistory(data, templateId) {
+  return live(data.entries)
+    .filter(e => e.templateId === templateId && e.status === 'done' && (e.amount || 0) > 0)
+    .map(e => ({ date: e.occurrence || e.date, amount: e.amount }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// The latest change of price in a charge history: the charge whose amount
+// differs from the one before it. `percent` is rounded to whole percent.
+export function priceChange(history) {
+  for (let i = history.length - 1; i > 0; i--) {
+    const from = history[i - 1].amount;
+    const to = history[i].amount;
+    if (from === to) continue;
+    return { from, to, date: history[i].date, percent: from ? Math.round(((to - from) / from) * 100) : null };
+  }
+  return null;
+}
+
+// The next charge of a template from today on: an open entry already in the
+// plan (it may have been moved), otherwise the schedule's next due day.
+export function nextCharge(data, template, today) {
+  const open = live(data.entries)
+    .filter(e => e.templateId === template.id && isOpen(e) && (e.amount || 0) > 0 && e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  return open ? open.date : nextOccurrence(template.schedule, today);
+}
+
+// Active recurring expenses with what they cost, the most expensive per year
+// first. Pass-through payments are someone else's money and goal
+// contributions are savings, so neither is a cost. `categoryId` keeps one
+// category with its subcategories.
+export function recurringOverview(data, today, { categoryId = null } = {}) {
+  const inCategory = id => {
+    if (!categoryId) return true;
+    if (id === categoryId) return true;
+    const c = live(data.categories).find(x => x.id === id);
+    return !!c && c.parentId === categoryId;
+  };
+  const rows = live(data.templates)
+    .filter(t => t.active && t.type === 'expense' && !t.isTransit && !t.goalId && t.schedule.freq !== 'once'
+      && !(t.schedule.endDate && t.schedule.endDate < today) && inCategory(t.categoryId))
+    .map(t => {
+      const history = chargeHistory(data, t.id);
+      return {
+        template: t,
+        monthly: monthlyEquivalent(t),
+        yearly: yearlyCost(t),
+        next: nextCharge(data, t, today),
+        last: history.length ? history[history.length - 1] : null,
+        // Estimated amounts (electricity, water) change every time; a
+        // change of price only means something for a fixed one.
+        change: t.amountIsEstimate ? null : priceChange(history)
+      };
+    })
+    .sort((a, b) => (b.yearly - a.yearly) || a.template.title.localeCompare(b.template.title));
+  return {
+    rows,
+    monthly: rows.reduce((s, r) => s + r.monthly, 0),
+    yearly: rows.reduce((s, r) => s + r.yearly, 0)
+  };
 }
 
 // ---------- analytics ----------

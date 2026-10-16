@@ -1864,6 +1864,46 @@ body.is-phone { overscroll-behavior-y: none; }
   .phone-free-value { font-size: 2rem; }
 }
 
+/* ---------- Recurring: saving ahead and the costs overview ---------- */
+.tpl-actions { display: inline-flex; gap: 4px; justify-content: flex-end; }
+.icon-btn.is-on { color: var(--accent-indigo); }
+.tpl-ahead { color: var(--text-secondary); gap: 6px; flex-wrap: nowrap; }
+.tpl-ahead i, .tpl-ahead svg { width: 13px; height: 13px; flex-shrink: 0; }
+.tpl-header-actions { flex-wrap: wrap; }
+.ovr-toolbar select { min-width: 240px; max-width: 100%; }
+.ovr-table .ovr-next { white-space: nowrap; }
+.ovr-percent { font-weight: 600; }
+/* Price changes are not statuses: they take the chart colours. */
+.ovr-price-up .ovr-percent { color: var(--series-2); }
+.ovr-price-down .ovr-percent { color: var(--series-1); }
+/* Narrow windows: each cost becomes a small card, the headers move into
+   the cells, nothing scrolls sideways. */
+@media (max-width: 760px) {
+  .ovr-table thead { display: none; }
+  .ovr-table, .ovr-table tbody, .ovr-table tfoot { display: block; }
+  .ovr-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .ovr-table td { display: block; padding: 0; border: none; text-align: left; min-width: 0; overflow-wrap: anywhere; }
+  .ovr-table td.ovr-item, .ovr-table td.ovr-price-cell, .ovr-table .ovr-total td:first-child { grid-column: 1 / -1; }
+  .ovr-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  .ovr-table .ovr-empty-cell { display: none; }
+  .ovr-toolbar select { min-width: 0; width: 100%; }
+  .tpl-header-actions { width: 100%; }
+}
+
 /* ---------- Goals ---------- */
 .goal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
 .goal-card { display: flex; flex-direction: column; gap: 10px; margin-bottom: 0; }

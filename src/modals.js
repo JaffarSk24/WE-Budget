@@ -10,7 +10,8 @@ import {
 } from './ui.js';
 import { makeAccount, makeEntry, makeTemplate, nowIso, live } from './model.js';
 import { todayKey, isDayKey, formatDay, monthOf, addDays } from './dates.js';
-import { accountSummaries, categorySpentInMonth } from './ledger.js';
+import { accountSummaries, canSaveAhead, categorySpentInMonth, saveAheadGoal } from './ledger.js';
+import { openSaveAheadModal, stopSaveAhead } from './views/save-ahead.js';
 import { allocationCandidates, defaultAllocationEnd, planForSelection, suggestAllocation } from './allocation.js';
 
 const LAST_QUICK_ACCOUNT = 'we-budget-last-quick-account';
@@ -30,7 +31,7 @@ function dateInput(value) {
   return h('input', { type: 'date', value: value || todayKey() });
 }
 
-function segmented(options, value, onChange) {
+export function segmented(options, value, onChange) {
   const wrap = h('div', { class: 'segmented', role: 'radiogroup' });
   options.forEach(o => {
     const btn = h('button', {
@@ -602,6 +603,8 @@ export function openTemplateModal(template = null) {
   const transit = checkbox(t('entry-transit'), src.isTransit);
   const active = checkbox(t('template-active'), src.active);
   const applyFuture = checkbox(t('template-apply-future'), true);
+  const aheadGoal = isNew ? null : saveAheadGoal(store.data, src.id);
+  const saveAhead = checkbox(t('save-ahead-check'), !!aheadGoal);
 
   const toField = field(t('field-to-account'), toAccount);
   const categoryField = field(t('field-category'), category);
@@ -617,6 +620,7 @@ export function openTemplateModal(template = null) {
     }
     toField.style.display = type === 'transfer' ? '' : 'none';
     categoryField.style.display = type === 'transfer' ? 'none' : '';
+    syncSaveAhead();
   }
   function syncFreq() {
     const f = freq.value;
@@ -624,6 +628,12 @@ export function openTemplateModal(template = null) {
     intervalField.style.display = f === 'everyNMonths' ? '' : 'none';
     fillGaps.el.style.display = f === 'everyNMonths' ? '' : 'none';
     weekdaysField.style.display = f === 'weekly' ? '' : 'none';
+    syncSaveAhead();
+  }
+  // Saving ahead is for expenses that do not come every month.
+  function syncSaveAhead() {
+    const f = freq.value;
+    saveAhead.el.style.display = type === 'expense' && (f === 'yearly' || f === 'everyNMonths') ? '' : 'none';
   }
   freq.addEventListener('change', syncFreq);
 
@@ -690,6 +700,10 @@ export function openTemplateModal(template = null) {
       });
       showToast(isNew ? t('toast-template-added') : t('toast-template-saved'), { type: 'success' });
       m.close();
+      const saved = store.find('templates', next.id);
+      const wantAhead = saveAhead.input.checked && canSaveAhead(saved) && saved.active;
+      if (aheadGoal && !wantAhead) stopSaveAhead(aheadGoal);
+      else if (!aheadGoal && wantAhead) openSaveAheadModal(saved);
       return true;
     }
   });
@@ -706,7 +720,7 @@ export function openTemplateModal(template = null) {
       fillGaps.el,
       weekdaysField,
       h('div', { class: 'form-row' }, field(t('template-start'), startDate), field(t('template-end'), endDate, t('template-end-hint'))),
-      h('div', { class: 'checkbox-group' }, transit.el, active.el, isNew ? null : applyFuture.el)),
+      h('div', { class: 'checkbox-group' }, transit.el, active.el, saveAhead.el, isNew ? null : applyFuture.el)),
     actions
   });
 }

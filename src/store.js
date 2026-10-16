@@ -7,8 +7,9 @@
 
 import {
   COLLECTIONS, defaultCategories, emptyData, hasAnyData, live, makeAccount, makeEntry,
-  normalizeData, nowIso
+  makeGoal, makeTemplate, normalizeData, nowIso
 } from './model.js';
+import { goalContribution, saveAheadDeadline, saveAheadRoll, suggestedContribution } from './ledger.js';
 import { generationHorizon, pendingGeneration, futureOpenEntries, amountFor } from './schedule.js';
 import { buildAllocation } from './allocation.js';
 import { buildReconciliation } from './reconcile.js';
@@ -245,7 +246,10 @@ export class Store {
       const t = this.find('templates', m.id);
       return t && t.generatedThrough !== m.generatedThrough;
     });
-    if (!entries.length && !changed) return 0;
+    if (!entries.length && !changed) {
+      this.followSaveAhead(today);
+      return 0;
+    }
     this.commit(data => {
       data.entries.push(...entries);
       // generatedThrough is bookkeeping, not an edit: updatedAt stays as it
@@ -256,7 +260,107 @@ export class Store {
         if (t) t.generatedThrough = m.generatedThrough;
       });
     });
+    this.followSaveAhead(today);
     return entries.length;
+  }
+
+  // ---------- saving ahead ----------
+
+  // Saving ahead for a payment that does not come every month: a goal on
+  // the chosen account (target the payment, deadline its next occurrence),
+  // the goal's monthly contribution from `fromAccountId`, and the payment
+  // itself paid from the goal's account from now on. That is where the money
+  // for it lies, frozen for the goal; paid from there, it is not taken out
+  // of the budget a second time.
+  startSaveAhead(templateId, { accountId, fromAccountId, day, amount, name, contributionTitle }) {
+    const today = this.today();
+    const template = this.find('templates', templateId);
+    if (!template || !accountId) return null;
+    const deadline = saveAheadDeadline(this.data, template, today);
+    if (!deadline) return null;
+    const goal = this.add('goals', makeGoal({
+      name: name || template.title,
+      targetAmount: template.amount,
+      accountId,
+      deadline,
+      templateId,
+      templateAccountId: template.accountId
+    }));
+    if (amount > 0 && fromAccountId) {
+      this.saveTemplate(makeTemplate({
+        title: contributionTitle || goal.name,
+        type: 'transfer',
+        amount,
+        accountId: fromAccountId,
+        toAccountId: accountId,
+        goalId: goal.id,
+        schedule: { freq: 'monthly', day, startDate: today, endDate: deadline }
+      }), { applyToFuture: false });
+    }
+    this.saveTemplate({ ...this.find('templates', templateId), accountId }, { applyToFuture: true });
+    return goal;
+  }
+
+  // Stops saving ahead: the payment goes back to the account it was paid
+  // from, the monthly contribution ends and the goal is archived (or
+  // deleted with `remove`). The goal's record and its history stay.
+  stopSaveAhead(goalId, { remove = false } = {}) {
+    const goal = this.find('goals', goalId);
+    if (!goal) return;
+    const contribution = goalContribution(this.data, goal);
+    const template = goal.templateId ? this.find('templates', goal.templateId) : null;
+    const back = goal.templateAccountId || (contribution && contribution.accountId);
+    if (template && back && template.accountId === goal.accountId && this.find('accounts', back)) {
+      this.saveTemplate({ ...template, accountId: back }, { applyToFuture: true });
+    }
+    if (contribution) this.removeTemplate(contribution.id, { removeFuture: true });
+    this.update('goals', goalId, remove ? { deleted: true } : { archived: true });
+  }
+
+  // An archived saving-ahead goal taken back from the archive pays the
+  // payment from its account again (its contribution is added anew on the
+  // goal's card).
+  resumeSaveAhead(goalId) {
+    const goal = this.find('goals', goalId);
+    if (!goal) return;
+    const template = goal.templateId ? this.find('templates', goal.templateId) : null;
+    const taken = template && live(this.data.goals).some(g => g.id !== goalId && !g.archived && g.templateId === template.id);
+    this.update('goals', goalId, { archived: false });
+    if (template && !taken && template.accountId !== goal.accountId) {
+      this.update('goals', goalId, { templateAccountId: template.accountId });
+      this.saveTemplate({ ...template, accountId: goal.accountId }, { applyToFuture: true });
+    }
+  }
+
+  // Keeps saving-ahead goals on their payment: a new amount becomes the
+  // target, and once the payment is marked done (or skipped) the deadline
+  // and the contribution move on to the next occurrence. The contribution is
+  // worked out again for the new period: what is left on the account after
+  // the payment counts. Runs after every status change and generation.
+  followSaveAhead(today = this.today()) {
+    if (this.following) return 0;
+    this.following = true;
+    try {
+      let rolled = 0;
+      live(this.data.goals).forEach(goal => {
+        const patch = saveAheadRoll(this.data, goal, today);
+        if (!patch) return;
+        const forward = !goal.deadline || patch.deadline > goal.deadline;
+        const next = this.update('goals', goal.id, patch);
+        const c = goalContribution(this.data, next);
+        if (c && (c.schedule.endDate || null) !== patch.deadline) {
+          const changed = { ...c, schedule: { ...c.schedule, endDate: patch.deadline } };
+          // Without the contribution's own future payments, they are being replaced.
+          const s = forward ? suggestedContribution(this.data, next, today, c.schedule.day, c.id) : null;
+          if (s && s.count && s.amount > 0) changed.amount = s.amount;
+          this.saveTemplate(changed, { applyToFuture: true, scheduleChanged: true });
+        }
+        rolled++;
+      });
+      return rolled;
+    } finally {
+      this.following = false;
+    }
   }
 
   // Saves template edits. With applyToFuture, open entries from today on
@@ -307,6 +411,18 @@ export class Store {
       if (removeFuture) {
         futureOpenEntries(data, id, today).forEach(e => Object.assign(e, { deleted: true, updatedAt: now }));
       }
+      // A goal that saved ahead for this payment has nothing left to save
+      // for: it goes to the archive with what it has, and its contribution
+      // ends.
+      data.goals.forEach(g => {
+        if (g.deleted || g.archived || g.templateId !== id) return;
+        Object.assign(g, { archived: true, updatedAt: now });
+        data.templates.forEach(c => {
+          if (c.deleted || c.goalId !== g.id) return;
+          Object.assign(c, { deleted: true, updatedAt: now });
+          futureOpenEntries(data, c.id, today).forEach(e => Object.assign(e, { deleted: true, updatedAt: now }));
+        });
+      });
     });
   }
 
@@ -346,7 +462,7 @@ export class Store {
   }
 
   setStatus(id, status, { amount = null, today = null } = {}) {
-    return this.commit(data => {
+    const result = this.commit(data => {
       const e = data.entries.find(x => x.id === id);
       if (!e) return null;
       const now = nowIso();
@@ -372,6 +488,8 @@ export class Store {
       e.updatedAt = now;
       return e;
     });
+    this.followSaveAhead();
+    return result;
   }
 
   // ---------- several entries at once ----------
@@ -380,7 +498,7 @@ export class Store {
   // the status are skipped: only expenses can be set aside, a transfer is
   // either planned or done. Returns how many changed.
   bulkSetStatus(ids, status) {
-    return this.commit(data => {
+    const result = this.commit(data => {
       const now = nowIso();
       let changed = 0;
       ids.forEach(id => {
@@ -405,6 +523,8 @@ export class Store {
       });
       return changed;
     });
+    this.followSaveAhead();
+    return result;
   }
 
   // The same fields for many entries (date, account). `skip` lets the caller

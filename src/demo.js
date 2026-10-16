@@ -34,7 +34,8 @@ export function buildDemo(today, lang = 'en') {
   const food = makeAccount({ name: L('Groceries', 'Продукты'), parentId: main.id, order: 2 });
   const holiday = makeAccount({ name: L('Holiday', 'Отпуск'), parentId: main.id, kind: 'savings', openingBalance: 40000, order: 3 });
   const cash = makeAccount({ name: L('Cash', 'Наличные'), kind: 'cash', openingBalance: 6000, order: 4 });
-  data.accounts.push(main, bills, food, holiday, cash);
+  const carFund = makeAccount({ name: L('Car insurance', 'Страховка машины'), parentId: main.id, kind: 'savings', openingBalance: 36000, order: 5 });
+  data.accounts.push(main, bills, food, holiday, cash, carFund);
   data.settings.defaultIncomeAccountId = main.id;
 
   const tpl = (f) => { const x = makeTemplate({ ...f, schedule: { startDate: start, ...f.schedule } }); data.templates.push(x); return x; };
@@ -50,7 +51,9 @@ export function buildDemo(today, lang = 'en') {
   tpl({ title: L('Groceries, first half', 'Продукты, первая половина'), amount: 25000, accountId: food.id, categoryId: cat(L('Groceries', 'Продукты')), schedule: { freq: 'monthly', day: 6 } });
   tpl({ title: L('Groceries, second half', 'Продукты, вторая половина'), amount: 25000, accountId: food.id, categoryId: cat(L('Groceries', 'Продукты')), schedule: { freq: 'monthly', day: 21 } });
   const holidaySaving = tpl({ title: L('Save for the holiday', 'Откладываем на отпуск'), type: 'transfer', amount: 15000, accountId: main.id, toAccountId: holiday.id, schedule: { freq: 'monthly', day: 6 } });
-  tpl({ title: L('Car insurance', 'Страховка машины'), amount: 42000, accountId: main.id, categoryId: cat(L('Car', 'Авто')), schedule: { freq: 'yearly', day: 14, startDate: `${month.slice(0, 4)}-${addMonthsToMonth(month, 1).slice(5, 7)}-14` } });
+  const insurance = tpl({ title: L('Car insurance', 'Страховка машины'), amount: 42000, accountId: carFund.id, categoryId: cat(L('Car', 'Авто')), schedule: { freq: 'yearly', day: 14, startDate: `${month.slice(0, 4)}-${addMonthsToMonth(month, 1).slice(5, 7)}-14` } });
+  tpl({ title: L('Cloud storage', 'Облачное хранилище'), amount: 3000, accountId: bills.id, categoryId: cat(L('Phone and subscriptions', 'Связь и подписки')), schedule: { freq: 'yearly', day: 2, startDate: `${addMonthsToMonth(month, 2)}-02` } });
+  const insuranceSaving = tpl({ title: L('Saving for Car insurance', 'Откладываем: Страховка машины'), type: 'transfer', amount: 6000, accountId: main.id, toAccountId: carFund.id, schedule: { freq: 'monthly', day: 6, startDate: today, endDate: insurance.schedule.startDate } });
 
   // The holiday envelope saves for a summer trip; its monthly transfer is the
   // goal's contribution.
@@ -58,6 +61,15 @@ export function buildDemo(today, lang = 'en') {
   const trip = makeGoal({ name: L('Summer holiday', 'Отпуск на море'), targetAmount: 240000, accountId: holiday.id, deadline: `${tripYear}-07-01` });
   data.goals.push(trip);
   holidaySaving.goalId = trip.id;
+
+  // The car insurance comes once a year: its envelope saves ahead for it and
+  // the payment is paid from there.
+  const insuranceGoal = makeGoal({
+    name: insurance.title, targetAmount: insurance.amount, accountId: carFund.id,
+    deadline: insurance.schedule.startDate, templateId: insurance.id, templateAccountId: main.id
+  });
+  data.goals.push(insuranceGoal);
+  insuranceSaving.goalId = insuranceGoal.id;
 
   const horizon = generationHorizon(today, 3);
   const generated = pendingGeneration(data, today, horizon);
@@ -70,6 +82,11 @@ export function buildDemo(today, lang = 'en') {
     if (e.date > today) return;
     const template = data.templates.find(x => x.id === e.templateId);
     if (template && template.amountIsEstimate) e.amount = Math.round(e.plannedAmount * (0.85 + rand() * 0.3));
+    // The streaming service raised its price two months ago.
+    if (template && template.title === L('Streaming', 'Онлайн-кинотеатр') && e.date < firstDayOfMonth(addMonthsToMonth(month, -2))) {
+      e.amount = 999;
+      e.plannedAmount = 999;
+    }
     e.status = 'done';
     e.doneAt = nowIso();
   });

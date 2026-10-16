@@ -20,6 +20,8 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
 - **Alerts**: an Attention card on the overview and the phone's Today tab when a category reaches 80% or 100% of its monthly limit, free money drops below a threshold or a large payment is due within 3 days; on the computer each also comes as a notification, at most once a day.
 - **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
+- **Saving ahead** for payments that do not come every month (car insurance once a year, water every two months). Tick "Save ahead" on the payment or press the piggy bank on its row in Recurring, pick a savings account or envelope, and the app creates a goal for the payment's next date with a monthly contribution. From then on the payment is paid from that envelope, where its money lies frozen for it. The row shows how much is saved ("saved 180€ of 420€, 60€ a month"). Once the payment is marked done, the goal moves on to the next date and the contribution is worked out again. Stopping it, or deleting the payment, archives the goal and hands the payment back to its old account.
+- **Recurring costs overview.** The Overview switch in Recurring lists the recurring expenses by what they cost a year, with the amount per month (a yearly payment counts a twelfth, every N months an Nth, weekly ones 52 times a year), the next charge and the price history from the payments marked done ("was 9.99€, now 12.99€, +30%"), with totals and a category filter.
 - **Goals**: an amount, the envelope you save on and a date; the app shows how far you are and how much to set aside per month. A goal can put its monthly contribution into the plan as a transfer to the envelope, tells you whether the plan makes the amount by the date and raises the contribution in one click when it does not.
 - **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick entry in its menu.
 - **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
@@ -216,13 +218,14 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | Path | What is there |
 |---|---|
 | `src/model.js`, `src/store.js` | Data model and the store that changes and saves it |
-| `src/ledger.js` | Balances, money set aside, month totals, forecast, runway, alerts |
+| `src/ledger.js` | Balances, money set aside, month totals, forecast, goals, recurring costs, runway, alerts |
 | `src/quicklink.js`, `src/insights.js` | Quick entry links, texts of the runway and alerts |
 | `src/schedule.js`, `src/allocation.js`, `src/reconcile.js` | Recurring payments, splitting income, checking against the bank |
 | `src/sync/` | Merging budgets and the sync cycle |
 | `src/reminders.js`, `src/reminder-sync.js`, `src/notify.js` | Reminders in Google Calendar, notifications on the computer |
 | `src/web/`, `src/views/phone.js` | Google sign-in and Drive in the browser, the phone screens |
 | `src/views/analytics.js`, `src/views/goals.js`, `src/tray.js` | Analytics, goals, the menu bar |
+| `src/views/templates.js`, `src/views/save-ahead.js` | Recurring payments, the costs overview, saving ahead |
 | `src/views/` | Screens |
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |
 | `src/import/` | Spreadsheet import |

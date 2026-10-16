@@ -154,7 +154,13 @@ export function makeGoal(f = {}) {
     targetAmount: f.targetAmount || 0,
     accountId: f.accountId || null,
     deadline: f.deadline || null,
-    archived: !!f.archived
+    archived: !!f.archived,
+    // Set when the goal saves ahead for a recurring payment that does not
+    // come every month: the goal follows that template's next occurrence.
+    templateId: f.templateId || null,
+    // The account the payment was paid from before saving ahead moved it to
+    // the goal's account; it goes back there when saving ahead stops.
+    templateAccountId: f.templateAccountId || null
   });
 }
 
