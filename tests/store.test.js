@@ -244,3 +244,15 @@ describe('pass-through money and early payments', () => {
     expect(store.find('entries', past.id).date).toBe('2026-10-02');
   });
 });
+
+describe('quick entries', () => {
+  it('writes down an unplanned expense or income as done and never as planned', () => {
+    const store = new Store(memoryAdapter(null), { today: () => '2026-10-16' });
+    const acc = store.add('accounts', makeAccount({ name: 'Main', openingBalance: 10000 }));
+    const income = store.addQuickEntry({ type: 'income', amount: 12050, accountId: acc.id, note: 'Tax refund' });
+    const expense = store.addQuickEntry({ amount: 2000, accountId: acc.id });
+    expect(income).toMatchObject({ type: 'income', amount: 12050, status: 'done', isQuick: true, title: 'Tax refund', date: '2026-10-16' });
+    expect(expense).toMatchObject({ type: 'expense', amount: 2000, status: 'done', isQuick: true });
+    expect(store.addQuickEntry({ type: 'transfer', amount: 1, accountId: acc.id }).type).toBe('expense');
+  });
+});

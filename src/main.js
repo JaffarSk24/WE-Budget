@@ -23,7 +23,7 @@ import { renderSettings } from './views/settings.js';
 import { renderAnalytics } from './views/analytics.js';
 import { renderGoals } from './views/goals.js';
 import { renderWelcome } from './views/welcome.js';
-import { openQuickExpense, openEntryModal } from './modals.js';
+import { openQuickEntry, openEntryModal } from './modals.js';
 import { todayKey } from './dates.js';
 import { hasAnyData } from './model.js';
 import { setNavigator } from './router.js';
@@ -63,7 +63,11 @@ function viewFromHash() {
 }
 
 function applyTheme() {
-  document.documentElement.setAttribute('data-theme', store.settings.theme === 'light' ? 'light' : 'dark');
+  const light = store.settings.theme === 'light';
+  document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
+  // The phone's status bar and browser bars take the page's colour.
+  const bar = document.querySelector('meta[name="theme-color"]');
+  if (bar) bar.setAttribute('content', light ? '#f8fafc' : '#090b11');
 }
 
 function show(name) {
@@ -107,7 +111,7 @@ function initKeys() {
     if (mod && !topModal() && (e.key === 'n' || e.key === 'N' || e.key === 'т' || e.key === 'Т')) {
       e.preventDefault();
       if (e.shiftKey) openEntryModal(null, {});
-      else openQuickExpense();
+      else openQuickEntry();
       return;
     }
     if (mod && !e.shiftKey && /^[1-7]$/.test(e.key) && !needsWelcome()) {
@@ -142,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('#main-nav .nav-item').forEach(a => {
     a.setAttribute('href', '#' + a.dataset.view);
   });
-  document.getElementById('quick-add-btn').addEventListener('click', () => openQuickExpense());
+  document.getElementById('quick-add-btn').addEventListener('click', () => openQuickEntry());
   window.addEventListener('hashchange', () => { if (!phone) show(viewFromHash() || 'month'); });
   setNavigator((name) => show(name));
 

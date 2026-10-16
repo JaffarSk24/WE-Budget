@@ -6,7 +6,7 @@ import { store } from './store.js';
 import { t } from './i18n.js';
 import { grandTotals } from './ledger.js';
 import { money } from './ui.js';
-import { openQuickExpense } from './modals.js';
+import { openQuickEntry } from './modals.js';
 import { hasAnyData } from './model.js';
 
 let last = null;
@@ -31,7 +31,7 @@ function send() {
 
 export function initTray() {
   if (!window.weApp || typeof window.weApp.setTray !== 'function') return;
-  window.weApp.onQuickExpense(() => openQuickExpense());
+  window.weApp.onQuickExpense(() => openQuickEntry());
   store.subscribe(() => {
     clearTimeout(timer);
     timer = setTimeout(send, 400);

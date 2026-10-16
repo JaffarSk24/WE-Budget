@@ -5,7 +5,7 @@ export const en = {
   'nav-accounts': 'Accounts and envelopes',
   'nav-templates': 'Recurring',
   'nav-settings': 'Settings',
-  'quick-add': 'Quick expense',
+  'quick-add': 'Quick entry',
 
   // Common
   'ok': 'OK',
@@ -102,7 +102,7 @@ export const en = {
   'show-cancelled': 'Show cancelled',
   'entry-add': 'Item',
   'month-empty': 'Nothing in this month yet. Add an item or a recurring payment.',
-  'month-keys': 'Keys: ↑ ↓ row, Space mark done, R set aside, X select, {mod}A select all, Esc clear, Enter edit, Delete remove, N new item, ← → months, {mod}N quick expense. Shift-click selects a range.',
+  'month-keys': 'Keys: ↑ ↓ row, Space mark done, R set aside, X select, {mod}A select all, Esc clear, Enter edit, Delete remove, N new item, ← → months, {mod}N quick entry. Shift-click selects a range.',
 
   // Overview
   'kpi-free': 'Free',
@@ -162,7 +162,10 @@ export const en = {
   'actual-amount-text': '"{name}" is planned at {planned}. Enter the exact amount.',
 
   // Quick expense
-  'quick-title': 'Quick expense',
+  'quick-title': 'Quick entry',
+  'quick-type-expense': 'Expense',
+  'quick-type-income': 'Income',
+  'quick-note-placeholder-income': 'From where, optional',
   'quick-note-placeholder': 'What for, optional',
   'quick-save-more': 'Save and add another',
   'limit-left': '{left} left of the {limit} monthly limit',
@@ -322,6 +325,7 @@ export const en = {
   'toast-income-done': '{amount} arrived. Split it across envelopes?',
   'toast-cancelled': '"{name}" skipped this month',
   'toast-quick-added': 'Expense of {amount} saved',
+  'toast-quick-income': 'Income of {amount} saved',
   'toast-allocated': 'Split done. Items set aside: {n}',
   'toast-account-deleted': 'Account deleted',
   'toast-template-added': 'Recurring payment added',
@@ -477,7 +481,7 @@ export const en = {
   'tray-title-win': 'Notification area',
   'tray-setting': 'Show free money in the menu bar',
   'tray-setting-win': 'Show an icon with free money',
-  'tray-hint': 'Its menu offers a quick expense.',
+  'tray-hint': 'Its menu offers a quick entry.',
   'inline-edit-amount': 'Click to change the amount',
   'auth-window-done': 'Done. You can close this window and return to WE Budget.',
   'phone-tab-accounts': 'Accounts',
@@ -489,7 +493,7 @@ export const en = {
   'phone-welcome-title': 'WE Budget on your phone',
   'phone-welcome-text': 'On the phone WE Budget works together with your computer. Sign in with the same Google account as in the desktop app, and your budget comes down from your Google Drive.',
   'phone-welcome-demo': 'Look at the demo',
-  'phone-welcome-note': 'The plan, recurring payments and accounts are set up in the desktop app. Here you mark payments, add small expenses and see what is free.',
+  'phone-welcome-note': 'The plan, recurring payments and accounts are set up in the desktop app. Here you mark payments, write down small expenses and unplanned income and see what is free.',
   'phone-install-hint': 'To open it as an app: in Safari tap Share, then Add to Home Screen.',
   'phone-desktop-note': 'The plan, recurring payments and accounts are edited in the desktop app.',
   'footer-promo': 'Modern websites and effective online advertising in Google and social media.',

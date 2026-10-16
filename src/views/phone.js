@@ -8,7 +8,7 @@ import { h, clear, icon, money, refreshIcons, lang, accountLabel } from '../ui.j
 import { accountSummaries, entriesOn, grandTotals, overdueEntries, upcomingEntries } from '../ledger.js';
 import { addDays, formatDay, formatDayLong, isDayKey, todayKey } from '../dates.js';
 import { statusButton, reserveButton } from '../actions.js';
-import { openEntryModal, openQuickExpense } from '../modals.js';
+import { openEntryModal, openQuickEntry } from '../modals.js';
 import { live, hasAnyData } from '../model.js';
 import { sync, syncStatusText, signIn, renewAccess, initSyncBanner } from '../cloud.js';
 import { syncSection, remindersSection, section, settingRow } from './settings.js';
@@ -185,7 +185,7 @@ export function initPhone(root) {
   const chip = h('div', { class: 'phone-chip' });
   const banner = h('div', { class: 'sync-banner', role: 'alert', hidden: true });
   const main = h('div', { class: 'phone-main' });
-  const fab = h('button', { type: 'button', class: 'phone-fab', 'aria-label': t('quick-add'), onclick: () => openQuickExpense() }, icon('plus'));
+  const fab = h('button', { type: 'button', class: 'phone-fab', 'aria-label': t('quick-add'), onclick: () => openQuickEntry() }, icon('plus'));
   const tabs = h('nav', { class: 'phone-tabs' }, TABS.map(x => h('button', {
     type: 'button', 'data-tab': x.id,
     onclick: () => { tab = x.id; focusDay = null; if (window.location.hash) history.replaceState(null, '', window.location.pathname); render(); window.scrollTo(0, 0); }

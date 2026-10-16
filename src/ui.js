@@ -158,7 +158,10 @@ export function openModal({ title, body, actions = [], wide = false, onClose = n
   const api = { close, overlay, content, footer };
   modalStack.push(api);
   refreshIcons();
-  const first = content.querySelector('[autofocus], input, select, textarea');
+  // On touch screens a focused field pops up the keyboard or a picker the
+  // person did not ask for; there only fields marked autofocus get focus.
+  const touch = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  const first = content.querySelector(touch ? '[autofocus]' : '[autofocus], input, select, textarea');
   if (first) setTimeout(() => first.focus(), 30);
   return api;
 }

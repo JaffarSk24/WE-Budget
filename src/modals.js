@@ -1,4 +1,4 @@
-// Dialogs: entry, quick expense, allocation, reconciliation, account,
+// Dialogs: entry, quick entry, allocation, reconciliation, account,
 // template, actual amount prompt.
 
 import { store } from './store.js';
@@ -15,6 +15,8 @@ import { allocationCandidates, defaultAllocationEnd, planForSelection, suggestAl
 
 const LAST_QUICK_ACCOUNT = 'we-budget-last-quick-account';
 const LAST_QUICK_CATEGORY = 'we-budget-last-quick-category';
+const LAST_QUICK_INCOME_ACCOUNT = 'we-budget-last-quick-income-account';
+const LAST_QUICK_INCOME_CATEGORY = 'we-budget-last-quick-income-category';
 
 function remember(key, value) {
   try { localStorage.setItem(key, value); } catch (e) { /* not essential */ }
@@ -271,28 +273,59 @@ export function promptAmount(entry) {
   });
 }
 
-// ---------- quick expense ----------
+// ---------- quick entry ----------
 
-export function openQuickExpense() {
+// A payment or an income that was not in the plan, written down in a few
+// taps: it is done at once and never counted as planned.
+export function openQuickEntry({ type: startType = 'expense' } = {}) {
   if (!store.list('accounts').length) {
     showToast(t('err-no-accounts'), { type: 'error' });
     return;
   }
+  let type = startType === 'income' ? 'income' : 'expense';
+  const categoryKey = () => (type === 'income' ? LAST_QUICK_INCOME_CATEGORY : LAST_QUICK_CATEGORY);
+  const accountKey = () => (type === 'income' ? LAST_QUICK_INCOME_ACCOUNT : LAST_QUICK_ACCOUNT);
+  const accountFor = () => recall(accountKey()) || store.settings.defaultIncomeAccountId || '';
+
   const amount = moneyInput({ autofocus: true });
-  const category = selectEl(categoryOptions('expense', { emptyLabel: t('no-category') }), recall(LAST_QUICK_CATEGORY) || '');
-  const account = selectEl(accountOptions(), recall(LAST_QUICK_ACCOUNT) || store.settings.defaultIncomeAccountId || '');
+  amount.classList.add('quick-amount');
+  const category = selectEl([], '');
+  const account = selectEl(accountOptions(), accountFor());
   const date = dateInput(todayKey());
-  const note = h('input', { type: 'text', placeholder: t('quick-note-placeholder') });
+  const note = h('input', { type: 'text', enterkeyhint: 'done', autocomplete: 'off' });
   const limitHint = h('div', { class: 'field-hint' });
 
+  function fillCategories() {
+    clear(category);
+    const wanted = recall(categoryKey()) || '';
+    categoryOptions(type, { emptyLabel: t('no-category') }).forEach(o => {
+      category.appendChild(h('option', { value: o.value, selected: o.value === wanted }, o.label));
+    });
+    note.placeholder = t(type === 'income' ? 'quick-note-placeholder-income' : 'quick-note-placeholder');
+  }
+
   function updateLimit() {
-    const cat = store.find('categories', category.value);
+    const cat = type === 'expense' ? store.find('categories', category.value) : null;
     if (!cat || !cat.monthlyLimit) { limitHint.textContent = ''; return; }
     const spent = categorySpentInMonth(store.data, cat.id, monthOf(date.value || todayKey()));
     const left = cat.monthlyLimit - spent;
     limitHint.textContent = t('limit-left', { left: money(left), limit: money(cat.monthlyLimit) });
     limitHint.classList.toggle('negative', left < 0);
   }
+
+  const typeSwitch = segmented([
+    { value: 'expense', label: t('quick-type-expense') },
+    { value: 'income', label: t('quick-type-income') }
+  ], type, (value) => {
+    type = value;
+    fillCategories();
+    account.value = accountFor() || account.value;
+    updateLimit();
+    amount.focus();
+  });
+  typeSwitch.classList.add('quick-type');
+
+  fillCategories();
   category.addEventListener('change', updateLimit);
   date.addEventListener('change', updateLimit);
   updateLimit();
@@ -301,13 +334,13 @@ export function openQuickExpense() {
     const cents = amount.readCents();
     if (cents === null || cents <= 0) return fail(t('err-amount'));
     if (!isDayKey(date.value)) return fail(t('err-date'));
-    remember(LAST_QUICK_ACCOUNT, account.value);
-    remember(LAST_QUICK_CATEGORY, category.value);
-    const added = store.addQuickExpense({
-      amount: cents, categoryId: category.value || null, accountId: account.value,
+    remember(accountKey(), account.value);
+    remember(categoryKey(), category.value);
+    const added = store.addQuickEntry({
+      type, amount: cents, categoryId: category.value || null, accountId: account.value,
       note: note.value.trim(), date: date.value
     });
-    showToast(t('toast-quick-added', { amount: money(cents) }), {
+    showToast(t(type === 'income' ? 'toast-quick-income' : 'toast-quick-added', { amount: money(cents) }), {
       type: 'success', actionLabel: t('undo'), onAction: () => store.remove('entries', added.id)
     });
     if (again) {
@@ -323,7 +356,8 @@ export function openQuickExpense() {
 
   openModal({
     title: t('quick-title'),
-    body: h('div', { class: 'form-stack' },
+    body: h('div', { class: 'form-stack quick-form' },
+      typeSwitch,
       field(t('field-amount'), amount),
       h('div', { class: 'form-row' }, field(t('field-category'), category), field(t('field-account'), account)),
       limitHint,
