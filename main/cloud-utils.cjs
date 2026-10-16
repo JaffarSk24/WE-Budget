@@ -28,4 +28,28 @@ function pendingSignIn(state, loggedIn) {
   return null;
 }
 
-module.exports = { DRIVE_SCOPE, grantsDrive, isInsufficientScope, pendingSignIn };
+// The budget file in the Drive app folder. The encrypted one has a name of
+// its own: versions 1.1.5 and older look only for the plain name, so they
+// never read (and never write over) an encrypted budget.
+const PLAIN_NAME = 'we-budget-data.json.gz';
+const ENCRYPTED_NAME = 'we-budget-data.enc.gz';
+
+// Which of the listed files (newest first) is the budget. An encrypted file
+// wins over plain ones: a plain file next to it was written by an older
+// version or before encryption was turned on, and is merged in as a spare
+// copy. Same rule in src/web/cloud-web.js.
+function pickMain(files) {
+  const list = files || [];
+  if (!list.length) return { exists: false };
+  const main = list.find(f => f.name === ENCRYPTED_NAME) || list[0];
+  return {
+    exists: true,
+    fileId: main.id,
+    version: String(main.version),
+    modifiedTime: main.modifiedTime,
+    encrypted: main.name === ENCRYPTED_NAME,
+    duplicates: list.filter(f => f !== main).map(f => f.id)
+  };
+}
+
+module.exports = { DRIVE_SCOPE, grantsDrive, isInsufficientScope, pendingSignIn, PLAIN_NAME, ENCRYPTED_NAME, pickMain };

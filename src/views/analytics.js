@@ -7,9 +7,12 @@ import Chart from 'chart.js/auto';
 import { store } from '../store.js';
 import { t } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, categoryName } from '../ui.js';
-import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, firstFlowMonth } from '../ledger.js';
-import { addMonthsToMonth, firstDayOfMonth, formatMonth, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
+import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, effectiveLimit, firstFlowMonth, limitCarry } from '../ledger.js';
+import { addMonthsToMonth, firstDayOfMonth, formatMonth, formatMonthShort, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { live } from '../model.js';
+import { tagsAnalyticsCard } from './tags.js';
+import { moneyFlowCard } from './money-flow.js';
+import { netWorthCard } from './networth.js';
 
 const PERIODS = ['3', '6', '12', 'all'];
 const TOP_CATEGORIES = 8;
@@ -30,8 +33,7 @@ function monthLabel(month) {
 }
 
 function shortMonth(month) {
-  const [y, m] = month.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(lang() === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', year: '2-digit' });
+  return formatMonthShort(month, lang());
 }
 
 function catLabel(id) {
@@ -177,15 +179,18 @@ function limitsCard(month) {
     h('div', { class: 'card-title-row' }, icon('gauge'), h('h3', {}, t('an-limits', { month: monthLabel(month) }))),
     h('div', { class: 'an-limits' }, cats.map(c => {
       const spent = categorySpentInMonth(store.data, c.id, month);
-      const pct = Math.min(100, Math.round((spent / c.monthlyLimit) * 100));
-      const over = spent > c.monthlyLimit;
+      const limit = effectiveLimit(store.data, c.id, month);
+      const carried = limitCarry(store.data, c, month);
+      const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : (spent > 0 ? 100 : 0);
+      const over = spent > limit;
       return h('div', { class: `an-limit ${over ? 'is-over' : ''}` },
         h('div', { class: 'an-limit-head' },
           h('span', {}, c.name),
-          h('span', { class: 'money' }, `${money(spent)} / ${money(c.monthlyLimit)}`)),
+          h('span', { class: 'money' }, `${money(spent)} / ${money(limit)}`)),
         h('div', { class: 'goal-bar' }, h('div', { class: 'goal-bar-fill', style: `width: ${pct}%` })),
-        over ? h('div', { class: 'an-limit-note' }, icon('alert-triangle'), t('an-limit-over', { amount: money(spent - c.monthlyLimit) }))
-          : h('div', { class: 'an-limit-note muted' }, t('an-limit-left', { amount: money(c.monthlyLimit - spent) })));
+        over ? h('div', { class: 'an-limit-note' }, icon('alert-triangle'), t('an-limit-over', { amount: money(spent - limit) }))
+          : h('div', { class: 'an-limit-note muted' }, t('an-limit-left', { amount: money(limit - spent) })),
+        carried ? h('div', { class: 'an-limit-note muted' }, t(carried > 0 ? 'rollover-carried-in' : 'rollover-carried-off', { amount: money(Math.abs(carried)) })) : null);
     })));
 }
 
@@ -202,7 +207,15 @@ export function renderAnalytics(root) {
 
   if (!first) {
     root.appendChild(h('div', { class: 'card' }, emptyState(t('an-empty'), 'chart-column')));
+    // A trip planned ahead has a budget before anything is spent.
+    const tags = tagsAnalyticsCard(today);
+    if (tags) root.appendChild(tags);
+    // Property and debts make a net worth even before any money moved.
+    const worth = netWorthCard(today, period === 'all' ? 12 : Number(period));
+    root.appendChild(worth.card);
     refreshIcons();
+    const worthChart = worth.draw();
+    if (worthChart) charts.push(worthChart);
     return;
   }
 
@@ -227,6 +240,8 @@ export function renderAnalytics(root) {
     h('div', { class: 'card-title-row' }, icon('chart-column'), h('h3', {}, t('an-months-title'))),
     h('div', { class: 'an-chart' }, monthsCanvas)));
 
+  root.appendChild(moneyFlowCard(today, from, to));
+
   const expenses = categoryBreakdown(store.data, from, to, 'expense');
   const top = expenses.slice(0, TOP_CATEGORIES);
   const rest = expenses.slice(TOP_CATEGORIES).reduce((s, r) => s + r.amount, 0);
@@ -249,6 +264,11 @@ export function renderAnalytics(root) {
         h('td', { class: 'num money' }, money(r.amount)),
         h('td', { class: 'num muted' }, income ? `${Math.round((r.amount / income) * 100)}%` : '')))))) : h('p', { class: 'muted small' }, t('an-none'))));
 
+  // 'All' reaches back to the first month with money, never before the
+  // tracking start (balances are not known before it).
+  const worth = netWorthCard(today, rows.length);
+  root.appendChild(worth.card);
+
   root.appendChild(h('div', { class: 'card' },
     h('div', { class: 'card-title-row' }, icon('scale'), h('h3', {}, t('an-plan-title'))),
     h('p', { class: 'field-hint' }, t('an-plan-hint')),
@@ -256,9 +276,13 @@ export function renderAnalytics(root) {
 
   const limits = limitsCard(month);
   if (limits) root.appendChild(limits);
+  const tags = tagsAnalyticsCard(today);
+  if (tags) root.appendChild(tags);
   refreshIcons();
 
   // Charts need their canvas in the page to measure it.
   drawMonths(monthsCanvas, rows);
   if (expenses.length) drawCategories(catCanvas, barItems);
+  const worthChart = worth.draw();
+  if (worthChart) charts.push(worthChart);
 }

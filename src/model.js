@@ -5,15 +5,27 @@
 
 export const SCHEMA_VERSION = 1;
 
-export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders'];
+export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts', 'tags', 'scenarios', 'assets'];
+export const SCENARIO_REPEATS = ['once', 'monthly'];
 
 export const ENTRY_TYPES = ['expense', 'income', 'transfer'];
 export const ENTRY_STATUSES = ['planned', 'reserved', 'done', 'cancelled'];
 export const ACCOUNT_KINDS = ['current', 'savings', 'credit', 'cash'];
 export const SCHEDULE_FREQS = ['monthly', 'everyNMonths', 'yearly', 'weekly', 'once'];
+export const RULE_FIELDS = ['title', 'note', 'any'];
+export const RULE_MATCHES = ['contains', 'startsWith', 'exact'];
+export const RULE_TYPES = ['expense', 'income', 'any'];
+export const LIMIT_ROLLOVERS = ['none', 'unspent', 'both'];
+export const DEBT_KINDS = ['owe', 'owed'];
+// Tag colors are names, not hex values: style.css gives each one a shade
+// that reads on the dark and on the light theme.
+export const TAG_COLORS = ['blue', 'green', 'amber', 'red', 'purple', 'teal', 'pink', 'gray'];
+export const ASSET_KINDS = ['property', 'vehicle', 'investment', 'savings', 'other'];
 
 export const DEFAULT_SETTINGS = {
-  language: 'ru',
+  // null until a language is chosen: the interface then follows the
+  // browser (i18n.js). Saved budgets always carry one.
+  language: null,
   theme: 'dark',
   currency: 'EUR',
   // Account balances are computed from this day on. Entries before it are
@@ -27,8 +39,19 @@ export const DEFAULT_SETTINGS = {
   // The app's own calendar in Google Calendar, shared by all devices.
   reminderCalendarId: null,
   morningDigest: false,
+  // Warnings on the overview and the phone's Today tab (and a notification
+  // on the computer): category limits at 80% and 100%, free money below
+  // alertFreeBelow, payments above alertLargePayment in the next 3 days.
+  // Amounts in cents; null switches that warning off.
+  alertsEnabled: true,
+  alertFreeBelow: 10000,
+  alertLargePayment: 50000,
   // Free money in the menu bar of the Mac (the notification area on Windows).
   menuBarFree: true,
+  // Bank statement import: the column mapping last used for each account,
+  // { [accountId]: { columns: { date: 'Completed Date', ... }, dateOrder } }.
+  // Columns are kept by header name so a file with reordered columns still fits.
+  importMappings: {},
   onboarded: false
 };
 
@@ -66,6 +89,13 @@ export function makeCategory(f = {}) {
     parentId: f.parentId || null,
     color: f.color || null,
     monthlyLimit: f.monthlyLimit ?? null,
+    // What happens to the limit at the end of a month: 'unspent' carries
+    // what was left into the next month, 'both' also takes overspending off
+    // it. Carrying counts from rolloverFrom (the month the option was
+    // switched on or the limit changed), starting with rolloverCarry.
+    limitRollover: LIMIT_ROLLOVERS.includes(f.limitRollover) ? f.limitRollover : 'none',
+    rolloverFrom: f.rolloverFrom || null,
+    rolloverCarry: f.rolloverCarry || 0,
     archived: !!f.archived
   });
 }
@@ -98,8 +128,12 @@ export function makeTemplate(f = {}) {
     active: f.active !== false,
     // Set when the template is a goal's monthly contribution.
     goalId: f.goalId || null,
+    // Set when the template pays off (or collects) a debt.
+    debtId: f.debtId || null,
     // Last day for which entries have already been generated.
     generatedThrough: f.generatedThrough || null,
+    // Passed on to every generated entry.
+    tagIds: tagList(f.tagIds),
     note: f.note || ''
   });
 }
@@ -126,7 +160,34 @@ export function makeEntry(f = {}) {
     isTransit: !!f.isTransit,
     isAdjustment: !!f.isAdjustment,
     isQuick: !!f.isQuick,
+    // Set on entries created or settled by a bank statement import: a hash
+    // of the bank row, so importing the same statement again finds it.
+    importKey: f.importKey || null,
+    // The loan or debt this payment pays off (or the money that came back).
+    debtId: f.debtId || null,
+    // A payment spread over several categories, see splits.js; null when
+    // the whole amount is in categoryId.
+    splits: Array.isArray(f.splits) && f.splits.length ? f.splits.map(p => ({ ...p })) : null,
+    tagIds: tagList(f.tagIds),
     note: f.note || ''
+  });
+}
+
+function tagList(ids) {
+  return Array.isArray(ids) ? [...new Set(ids.filter(Boolean))] : [];
+}
+
+// A tag groups payments across categories: a trip, a renovation, a
+// project. With a budget and dates it becomes a small budget of its own.
+export function makeTag(f = {}) {
+  const budget = Number(f.budget);
+  return base({
+    name: f.name || '',
+    color: TAG_COLORS.includes(f.color) ? f.color : TAG_COLORS[0],
+    budget: Number.isFinite(budget) && budget > 0 ? Math.round(budget) : null,
+    startDate: f.startDate || null,
+    endDate: f.endDate || null,
+    archived: !!f.archived
   });
 }
 
@@ -147,7 +208,99 @@ export function makeGoal(f = {}) {
     targetAmount: f.targetAmount || 0,
     accountId: f.accountId || null,
     deadline: f.deadline || null,
+    archived: !!f.archived,
+    // Set when the goal saves ahead for a recurring payment that does not
+    // come every month: the goal follows that template's next occurrence.
+    templateId: f.templateId || null,
+    // The account the payment was paid from before saving ahead moved it to
+    // the goal's account; it goes back there when saving ahead stops.
+    templateAccountId: f.templateAccountId || null
+  });
+}
+
+// A loan or debt. 'owe': money I pay off (a car loan, a debt to a friend);
+// 'owed': money someone owes me. `balance` on `balanceDate` is the last
+// known remaining amount (from the bank's statement); payments after that
+// day bring it down. Amounts in cents, rate in % a year.
+export function makeDebt(f = {}) {
+  const cents = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.max(0, Math.round(Number(v))) : 0);
+  const original = cents(f.original);
+  return base({
+    name: f.name || '',
+    kind: DEBT_KINDS.includes(f.kind) ? f.kind : 'owe',
+    lender: f.lender || '',
+    original,
+    balance: f.balance === undefined || f.balance === null ? original : cents(f.balance),
+    balanceDate: f.balanceDate || null,
+    rate: Math.max(0, Number(f.rate) || 0),
+    payment: cents(f.payment),
+    paymentDay: Math.min(31, Math.max(1, Number(f.paymentDay) || 1)),
+    accountId: f.accountId || null,
+    templateId: f.templateId || null,
+    categoryId: f.categoryId || null,
+    note: f.note || '',
     archived: !!f.archived
+  });
+}
+
+// Something the household owns outside its budget accounts: a flat, a car,
+// an investment account, savings kept elsewhere. Its worth changes now and
+// then, so it keeps a history of values; the value on a day is the latest
+// one on or before it. archivedAt is the day it was sold or given up: it
+// still counts before that day, so past net worth does not change.
+export function makeAsset(f = {}) {
+  const values = Array.isArray(f.values)
+    ? f.values.filter(v => v && typeof v.date === 'string' && Number.isFinite(Number(v.amount)))
+      .map(v => ({ date: v.date, amount: Math.round(Number(v.amount)) }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+    : [];
+  return base({
+    name: f.name || '',
+    kind: ASSET_KINDS.includes(f.kind) ? f.kind : 'other',
+    note: f.note || '',
+    archived: !!f.archived,
+    archivedAt: f.archivedAt || null,
+    values
+  });
+}
+
+// A category rule: when a payment's text matches, it gets this category (and
+// optionally an account and a clean title). Rules are tried in `order`, the
+// first active match wins.
+export function makeRule(f = {}) {
+  const cents = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Math.abs(Math.round(Number(v))));
+  return base({
+    text: f.text || '',
+    field: RULE_FIELDS.includes(f.field) ? f.field : 'any',
+    match: RULE_MATCHES.includes(f.match) ? f.match : 'contains',
+    type: RULE_TYPES.includes(f.type) ? f.type : 'any',
+    minAmount: cents(f.minAmount),
+    maxAmount: cents(f.maxAmount),
+    categoryId: f.categoryId || null,
+    accountId: f.accountId || null,
+    title: f.title || '',
+    order: Number.isFinite(f.order) ? f.order : 0,
+    active: f.active !== false
+  });
+}
+
+// A what-if draft: a payment or an income that is only being considered.
+// Drafts are not entries: balances, the month table, totals, alerts and
+// reminders never see them; only the forecast on the overview can add the
+// active ones on top of the real plan. `months` limits a monthly draft
+// (null runs to the end of the forecast).
+export function makeScenario(f = {}) {
+  const months = Number(f.months);
+  return base({
+    title: f.title || '',
+    type: f.type === 'income' ? 'income' : 'expense',
+    amount: Math.max(0, Math.round(Number(f.amount) || 0)),
+    date: f.date || null,
+    repeat: SCENARIO_REPEATS.includes(f.repeat) ? f.repeat : 'once',
+    months: Number.isInteger(months) && months > 0 ? months : null,
+    accountId: f.accountId || null,
+    categoryId: f.categoryId || null,
+    active: f.active !== false
   });
 }
 
@@ -166,7 +319,12 @@ export function emptyData() {
     goals: [],
     checks: [],
     reminders: [],
-    settings: { ...DEFAULT_SETTINGS, updatedAt: nowIso() }
+    rules: [],
+    debts: [],
+    tags: [],
+    scenarios: [],
+    assets: [],
+    settings: { ...DEFAULT_SETTINGS, importMappings: {}, updatedAt: nowIso() }
   };
 }
 
@@ -185,12 +343,23 @@ export function normalizeData(raw) {
     data.datasetAt = raw.datasetAt || data.datasetAt;
   }
   data.settings = { ...DEFAULT_SETTINGS, ...(raw.settings || {}) };
+  // Budgets saved before the language could follow the browser had Russian
+  // as the default; a document with settings but no language keeps it.
+  if (raw.settings && typeof raw.settings === 'object' && raw.settings.language === undefined) data.settings.language = 'ru';
+  const mappings = data.settings.importMappings;
+  data.settings.importMappings = mappings && typeof mappings === 'object' && !Array.isArray(mappings) ? { ...mappings } : {};
   if (!data.settings.updatedAt) data.settings.updatedAt = nowIso();
   data.entries.forEach(e => {
     if (e.plannedAmount === undefined) e.plannedAmount = e.amount || 0;
     if (!ENTRY_STATUSES.includes(e.status)) e.status = 'planned';
+    if (!Array.isArray(e.tagIds)) e.tagIds = [];
+    if (e.splits !== undefined && e.splits !== null && !Array.isArray(e.splits)) e.splits = null;
   });
-  data.templates.forEach(t => { t.schedule = makeSchedule(t.schedule); });
+  data.templates.forEach(t => {
+    t.schedule = makeSchedule(t.schedule);
+    if (!Array.isArray(t.tagIds)) t.tagIds = [];
+  });
+  data.assets.forEach(a => { if (!Array.isArray(a.values)) a.values = []; });
   data.schemaVersion = SCHEMA_VERSION;
   return data;
 }

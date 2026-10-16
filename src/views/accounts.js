@@ -3,12 +3,16 @@
 
 import { store } from '../store.js';
 import { t } from '../i18n.js';
-import { h, clear, icon, money, refreshIcons, lang, emptyState, badge, accountLabel, categoryName } from '../ui.js';
+import { h, clear, icon, money, refreshIcons, lang, emptyState, badge, accountLabel } from '../ui.js';
 import { accountSummaries, accountEffect, compareEntries } from '../ledger.js';
-import { formatDay, todayKey } from '../dates.js';
+import { formatDay, formatDayYear, todayKey } from '../dates.js';
 import { live } from '../model.js';
+import { categoryText } from '../split-editor.js';
+import { tagChips } from '../tag-ui.js';
 import { openAccountModal, openAllocationModal, openEntryModal } from '../modals.js';
 import { openBalancesModal } from '../balances.js';
+import { openStatementImport } from '../statement.js';
+import { assetsCard } from './networth.js';
 
 let selectedId = null;
 
@@ -48,7 +52,7 @@ function accountRow(a, s, mode, root) {
     h('td', { class: 'num money reserved' }, reserved ? money(reserved) : ''),
     h('td', { class: `num money ${free < 0 ? 'negative' : ''}` }, money(free)),
     h('td', { class: 'acc-check' }, mode === 'group' ? null : last
-      ? h('span', { title: t('last-check-title') }, formatDay(last.date, lang()) + '.' + last.date.slice(2, 4),
+      ? h('span', { title: t('last-check-title') }, formatDayYear(last.date, lang(), { shortYear: true }),
         last.actualBalance !== last.computedBalance ? h('span', { class: 'muted' }, ' ' + money(last.actualBalance - last.computedBalance, { signed: true })) : null)
       : h('span', { class: 'muted' }, t('never'))),
     h('td', { class: 'col-actions' },
@@ -56,6 +60,8 @@ function accountRow(a, s, mode, root) {
       // account, never to the sum of a group.
       canMove ? actionBtn('scale', t('balances-open'), () => openBalancesModal({ focusAccountId: a.id })) : null,
       canMove ? actionBtn('split', t('alloc-from-here'), () => openAllocationModal({ sourceAccountId: a.id })) : null,
+      // A statement covers the bank account with all its envelopes.
+      (mode === 'group' || mode === 'single') && !a.archived ? actionBtn('import', t('import-statement'), () => openStatementImport({ accountId: a.id })) : null,
       mode === 'group' || mode === 'single' ? actionBtn('folder-plus', t('account-add-envelope'), () => openAccountModal(null, { parentId: a.id })) : null,
       actionBtn('pencil', t('edit'), () => openAccountModal(a)))
   );
@@ -78,9 +84,9 @@ function history(accountId) {
         h('td', {}, h('div', { class: 'row-title' }, e.title || (e.type === 'transfer' ? t('transfer-label') : t('untitled'))),
           h('div', { class: 'row-meta' }, [
             e.type === 'transfer' ? (e.accountId === accountId ? t('transfer-to', { name: accountLabel(e.toAccountId) }) : t('transfer-from', { name: accountLabel(e.accountId) })) : null,
-            e.categoryId ? categoryName(e.categoryId) : null,
+            categoryText(e) || null,
             e.isAdjustment ? t('badge-adjustment') : null
-          ].filter(Boolean).join(' · '))),
+          ].filter(Boolean).join(' · '), tagChips(e) ? [' ', tagChips(e)] : null)),
         h('td', {}, badge(t(`status-${e.status}`), `badge-status-${e.status}`)),
         h('td', { class: `num money ${effect > 0 ? 'positive' : ''}` }, money(effect, { signed: effect > 0 })));
     })));
@@ -96,12 +102,14 @@ export function renderAccounts(root) {
   root.appendChild(h('div', { class: 'view-header' },
     h('div', {}, h('h1', { class: 'view-title' }, t('nav-accounts')), h('p', { class: 'view-subtitle' }, t('accounts-subtitle'))),
     h('div', { class: 'header-actions' },
+      h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openStatementImport({ accountId: selectedId }) }, icon('import'), t('import-statement')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openBalancesModal() }, icon('scale'), t('balances-open')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openAllocationModal() }, icon('split'), t('alloc-open')),
       h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openAccountModal() }, icon('plus'), t('account-new')))));
 
   if (!accounts.length) {
     root.appendChild(h('div', { class: 'card' }, emptyState(t('no-accounts-yet'), 'wallet')));
+    root.appendChild(assetsCard());
     refreshIcons();
     return;
   }
@@ -126,6 +134,8 @@ export function renderAccounts(root) {
         h('th', {}, t('col-last-check')), h('th', { class: 'col-actions' }))),
       h('tbody', {}, rows))),
     h('p', { class: 'field-hint pad' }, t('accounts-hint'))));
+
+  root.appendChild(assetsCard());
 
   const selected = selectedId ? store.find('accounts', selectedId) : null;
   if (selected) {

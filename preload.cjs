@@ -26,7 +26,11 @@ contextBridge.exposeInMainWorld('weCloud', {
   setState: (patch) => ipcRenderer.invoke('cloud:set-state', patch),
   meta: () => ipcRenderer.invoke('cloud:meta'),
   download: (fileId) => ipcRenderer.invoke('cloud:download', fileId),
-  upload: (content, fileId) => ipcRenderer.invoke('cloud:upload', content, fileId),
+  upload: (content, fileId, encrypted) => ipcRenderer.invoke('cloud:upload', content, fileId, encrypted),
+  // The encryption key of this device, kept sealed by the system keychain.
+  getKey: () => ipcRenderer.invoke('cloud:get-key'),
+  setKey: (value) => ipcRenderer.invoke('cloud:set-key', value),
+  forgetKey: () => ipcRenderer.invoke('cloud:forget-key'),
   remove: (ids) => ipcRenderer.invoke('cloud:remove', ids),
   calendar: (method, path, query, body) => ipcRenderer.invoke('cloud:calendar', method, path, query, body)
 });

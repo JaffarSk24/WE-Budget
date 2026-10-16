@@ -9,8 +9,13 @@
 //    touch account balances.
 
 import { live, makeSchedule } from './model.js';
-import { addDays, addMonthsToMonth, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
-import { occurrences, pendingGeneration } from './schedule.js';
+import { addDays, addMonthsToMonth, dayInMonth, daysBetween, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
+import { nextOccurrence, occurrences, pendingGeneration } from './schedule.js';
+import { categoryParts } from './splits.js';
+
+// Every per-category figure below counts the parts of a split payment in
+// their own categories (categoryParts), never the whole in one.
+export { categoryParts };
 
 const OPEN_STATUSES = ['planned', 'reserved'];
 
@@ -362,8 +367,7 @@ export function categoryTotals(data, fromDay, toDay, type = 'expense') {
   const totals = new Map();
   live(data.entries).forEach(e => {
     if (e.type !== type || !countsInFlow(e) || e.date < fromDay || e.date > toDay) return;
-    const key = e.categoryId || null;
-    totals.set(key, (totals.get(key) || 0) + (e.amount || 0));
+    categoryParts(e).forEach(p => totals.set(p.categoryId, (totals.get(p.categoryId) || 0) + p.amount));
   });
   return totals;
 }
@@ -371,9 +375,52 @@ export function categoryTotals(data, fromDay, toDay, type = 'expense') {
 // Money spent this month in a category, for quick-expense limits.
 export function categorySpentInMonth(data, categoryId, month) {
   return live(data.entries)
-    .filter(e => e.categoryId === categoryId && e.type === 'expense' && e.status === 'done'
+    .filter(e => e.type === 'expense' && e.status === 'done'
       && monthOf(e.date) === month && !e.isTransit && !e.isAdjustment)
-    .reduce((s, e) => s + (e.amount || 0), 0);
+    .reduce((s, e) => s + categoryParts(e).reduce((x, p) => x + (p.categoryId === categoryId ? p.amount : 0), 0), 0);
+}
+
+// What a category's limit carries into `month` (cents, may be negative with
+// 'both'). Counting starts at rolloverFrom with rolloverCarry and walks the
+// months up to the one before `month`, each month adding its limit and
+// taking off what was spent. The current limit applies to every month: a
+// changed limit restarts the count (see limitChangePatch), so history kept
+// under the old limit does not get recounted.
+export function limitCarry(data, category, month) {
+  const limit = category && category.monthlyLimit > 0 ? category.monthlyLimit : 0;
+  const mode = category && category.limitRollover;
+  if (!limit || (mode !== 'unspent' && mode !== 'both') || !category.rolloverFrom || month < category.rolloverFrom) return 0;
+  let carry = category.rolloverCarry || 0;
+  for (let m = category.rolloverFrom; m < month; m = addMonthsToMonth(m, 1)) {
+    const left = limit + carry - categorySpentInMonth(data, category.id, m);
+    // 'unspent' never takes anything off: an overspent month starts the
+    // next one from the plain limit.
+    carry = mode === 'both' ? left : Math.max(0, left);
+  }
+  return carry;
+}
+
+// The limit of a category for `month`: its monthly limit plus what carried
+// over, never below zero. Null when the category has no limit.
+export function effectiveLimit(data, categoryId, month) {
+  const category = live(data.categories).find(c => c.id === categoryId);
+  if (!category || !(category.monthlyLimit > 0)) return null;
+  return Math.max(0, category.monthlyLimit + limitCarry(data, category, month));
+}
+
+// Fields to save when the limit or the rollover option of a category changes
+// in `month`. Switching carrying on starts it this month from nothing; a new
+// limit keeps what was carried into this month under the old one.
+export function limitChangePatch(data, category, { monthlyLimit = category.monthlyLimit, limitRollover = category.limitRollover || 'none' }, month) {
+  const limit = monthlyLimit > 0 ? monthlyLimit : null;
+  if (!limit || limitRollover === 'none') return { monthlyLimit: limit, limitRollover: limit ? limitRollover : 'none', rolloverFrom: null, rolloverCarry: 0 };
+  const wasOn = (category.limitRollover === 'unspent' || category.limitRollover === 'both') && category.rolloverFrom && category.monthlyLimit > 0;
+  if (!wasOn) return { monthlyLimit: limit, limitRollover, rolloverFrom: month, rolloverCarry: 0 };
+  const carry = limitCarry(data, category, month);
+  return {
+    monthlyLimit: limit, limitRollover, rolloverFrom: month,
+    rolloverCarry: limitRollover === 'unspent' ? Math.max(0, carry) : carry
+  };
 }
 
 // Progress of a savings goal: what lies on its envelope (the whole group when
@@ -420,15 +467,18 @@ export function goalOutlook(data, goal, today, { without = null } = {}) {
   const ids = [goal.accountId, ...live(data.accounts).filter(a => a.parentId === goal.accountId).map(a => a.id)];
   const effect = e => ids.reduce((s, id) => s + accountEffect(e, id), 0);
   const own = e => contribution && e.templateId === contribution.id && e.status === 'planned' && e.date >= today;
+  // A goal that saves ahead for a payment is paid out by that payment on the
+  // deadline: the payment is what the money is for, not a loss to cover.
+  const skip = e => (without && e.templateId === without) || (goal.templateId && e.templateId === goal.templateId);
   let planned = 0;
   live(data.entries).forEach(e => {
-    if (!isOpen(e) || !isTracked(data, e) || e.date > goal.deadline || (without && e.templateId === without)) return;
+    if (!isOpen(e) || !isTracked(data, e) || e.date > goal.deadline || skip(e)) return;
     planned += effect(e);
     if (own(e)) out.contributionsLeft++;
   });
   if (goal.deadline >= today) {
     pendingGeneration(data, today, goal.deadline).entries.forEach(e => {
-      if (without && e.templateId === without) return;
+      if (skip(e)) return;
       planned += effect(e);
       if (own(e)) out.contributionsLeft++;
     });
@@ -451,10 +501,149 @@ export function raisedContribution(outlook) {
 export function suggestedContribution(data, goal, today, day, replacing = null) {
   const o = goalOutlook(data, goal, today, { without: replacing });
   if (o.projected === null) return { amount: null, count: 0, need: null };
-  const schedule = makeSchedule({ freq: 'monthly', day, startDate: today, endDate: goal.deadline });
-  const count = goal.deadline >= today ? occurrences(schedule, today, goal.deadline).length : 0;
   const need = Math.max(0, o.target - o.projected);
-  return { amount: count ? Math.ceil(need / count) : need, count, need };
+  return { ...monthlyNeeded(need, today, goal.deadline, day), need };
+}
+
+// Spreads `need` over monthly payments on `day` from today to the deadline
+// (both included). Rounded up so that the last payment does not fall short;
+// with no payment left the whole sum is due at once.
+export function monthlyNeeded(need, today, deadline, day) {
+  const schedule = makeSchedule({ freq: 'monthly', day, startDate: today, endDate: deadline });
+  const count = deadline >= today ? occurrences(schedule, today, deadline).length : 0;
+  return { amount: count ? Math.ceil(need / count) : need, count };
+}
+
+// ---------- saving ahead for payments that do not come every month ----------
+
+// A yearly or every-N-months expense is the kind that catches a budget out:
+// the money for it has to be put aside month by month beforehand.
+export function canSaveAhead(template) {
+  return !!template && template.type === 'expense' && !template.goalId && !template.isTransit
+    && (template.schedule.freq === 'yearly' || template.schedule.freq === 'everyNMonths');
+}
+
+// The active goal that saves ahead for a template, if any.
+export function saveAheadGoal(data, templateId) {
+  return live(data.goals || []).find(g => g.templateId === templateId && !g.archived) || null;
+}
+
+// The day the money is being saved for: the earliest payment of the template
+// still open after the last one that was paid or skipped, otherwise its next
+// scheduled day from today on. Deriving it from the entries (instead of
+// moving it when a payment is marked) makes undoing the mark move it back.
+export function saveAheadDeadline(data, template, today) {
+  const key = e => e.occurrence || e.date;
+  const own = live(data.entries).filter(e => e.templateId === template.id);
+  const last = own.filter(e => e.status === 'done' || e.status === 'cancelled').map(key).sort().pop() || null;
+  const open = own.filter(e => isOpen(e) && (e.amount || 0) > 0 && (!last || key(e) > last))
+    .sort((a, b) => key(a).localeCompare(key(b)))[0];
+  if (open) return open.date;
+  const after = last ? addDays(last, 1) : today;
+  return nextOccurrence(template.schedule, after > today ? after : today);
+}
+
+// What a saving-ahead goal should look like now: the target is the payment's
+// amount and the deadline its next open occurrence. Returns the patch, or
+// null when the goal is up to date. Once the payment is marked done, this
+// rolls the goal on to the next occurrence.
+export function saveAheadRoll(data, goal, today) {
+  if (!goal.templateId || goal.archived) return null;
+  const template = live(data.templates).find(t => t.id === goal.templateId);
+  if (!template) return null;
+  const deadline = saveAheadDeadline(data, template, today);
+  if (!deadline) return null;
+  const targetAmount = template.amount || 0;
+  if (deadline === goal.deadline && targetAmount === goal.targetAmount) return null;
+  return { deadline, targetAmount };
+}
+
+// ---------- recurring costs ----------
+
+function chargesPerYear(schedule) {
+  switch (schedule.freq) {
+    case 'monthly': return 12;
+    case 'everyNMonths': return 12 / Math.max(1, schedule.interval || 1);
+    case 'yearly': return 1;
+    case 'weekly': return 52 * Math.max(1, (schedule.weekdays || []).length);
+    default: return 0;
+  }
+}
+
+// What a recurring payment costs per year and per month on average: a
+// yearly payment counts a twelfth each month, every N months an Nth, weekly
+// 52 times a year (per weekday). One-off payments are not recurring costs.
+export function yearlyCost(template) {
+  return Math.round((template.amount || 0) * chargesPerYear(template.schedule));
+}
+
+export function monthlyEquivalent(template) {
+  return Math.round((template.amount || 0) * chargesPerYear(template.schedule) / 12);
+}
+
+// What a template actually charged: its payments marked done, oldest first.
+// Zero rows (months an every-N-months payment is not due) charge nothing.
+export function chargeHistory(data, templateId) {
+  return live(data.entries)
+    .filter(e => e.templateId === templateId && e.status === 'done' && (e.amount || 0) > 0)
+    .map(e => ({ date: e.occurrence || e.date, amount: e.amount }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// The latest change of price in a charge history: the charge whose amount
+// differs from the one before it. `percent` is rounded to whole percent.
+export function priceChange(history) {
+  for (let i = history.length - 1; i > 0; i--) {
+    const from = history[i - 1].amount;
+    const to = history[i].amount;
+    if (from === to) continue;
+    return { from, to, date: history[i].date, percent: from ? Math.round(((to - from) / from) * 100) : null };
+  }
+  return null;
+}
+
+// The next charge of a template from today on: an open entry already in the
+// plan (it may have been moved), otherwise the schedule's next due day.
+export function nextCharge(data, template, today) {
+  const open = live(data.entries)
+    .filter(e => e.templateId === template.id && isOpen(e) && (e.amount || 0) > 0 && e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  return open ? open.date : nextOccurrence(template.schedule, today);
+}
+
+// Active recurring expenses with what they cost, the most expensive per year
+// first. Pass-through payments are someone else's money and goal
+// contributions are savings, so neither is a cost. `categoryId` keeps one
+// category with its subcategories.
+export function recurringOverview(data, today, { categoryId = null } = {}) {
+  const inCategory = id => {
+    if (!categoryId) return true;
+    if (id === categoryId) return true;
+    const c = live(data.categories).find(x => x.id === id);
+    return !!c && c.parentId === categoryId;
+  };
+  const rows = live(data.templates)
+    .filter(t => t.active && t.type === 'expense' && !t.isTransit && !t.goalId && t.schedule.freq !== 'once'
+      && !(t.schedule.endDate && t.schedule.endDate < today) && inCategory(t.categoryId))
+    .map(t => {
+      const history = chargeHistory(data, t.id);
+      return {
+        template: t,
+        monthly: monthlyEquivalent(t),
+        yearly: yearlyCost(t),
+        next: nextCharge(data, t, today),
+        last: history.length ? history[history.length - 1] : null,
+        // Estimated amounts (electricity, water) change every time; a
+        // change of price only means something for a fixed one.
+        change: t.amountIsEstimate ? null : priceChange(history)
+      };
+    })
+    .sort((a, b) => (b.yearly - a.yearly) || a.template.title.localeCompare(b.template.title));
+  return {
+    rows,
+    monthly: rows.reduce((s, r) => s + r.monthly, 0),
+    yearly: rows.reduce((s, r) => s + r.yearly, 0)
+  };
 }
 
 // ---------- analytics ----------
@@ -493,8 +682,7 @@ export function categoryBreakdown(data, fromDay, toDay, type = 'expense') {
   const totals = new Map();
   live(data.entries).forEach(e => {
     if (e.type !== type || !realFlow(e) || e.date < fromDay || e.date > toDay) return;
-    const key = e.categoryId || null;
-    totals.set(key, (totals.get(key) || 0) + (e.amount || 0));
+    categoryParts(e).forEach(p => totals.set(p.categoryId, (totals.get(p.categoryId) || 0) + p.amount));
   });
   return [...totals.entries()]
     .map(([categoryId, amount]) => ({ categoryId, amount }))
@@ -518,4 +706,155 @@ export function firstFlowMonth(data) {
     if (realFlow(e) && (!first || e.date < first)) first = e.date;
   });
   return first ? monthOf(first) : null;
+}
+
+// ---------- runway and alerts ----------
+
+export const RUNWAY_WINDOW_DAYS = 90;
+
+// How many days the free money lasts at the usual spending: the average
+// daily expense of the last 90 days as the budget sees it (budgetFlow, so
+// transit, adjustments and moves between own accounts do not count; money
+// put aside for a goal does). Only what took place counts: planned payments
+// are the plan, not spending. A shorter history is averaged over its own
+// length, from the first day anything took place.
+//
+// status: 'ok' with `days`, 'negative' when free money is below zero,
+// 'no-history' when nothing took place yet, 'no-spending' when nothing was
+// spent in the window (the runway would be infinite).
+export function runway(data, today, { windowDays = RUNWAY_WINDOW_DAYS } = {}) {
+  const { free } = grandTotals(data, today);
+  const frozen = frozenAccounts(data);
+  const windowStart = addDays(today, -(windowDays - 1));
+  let first = null;
+  let spent = 0;
+  live(data.entries).forEach(e => {
+    if (e.status !== 'done' || e.date > today) return;
+    const flow = budgetFlow(e, frozen);
+    if (!flow) return;
+    if (!first || e.date < first) first = e.date;
+    if (flow.type === 'expense' && e.date >= windowStart) spent += flow.amount;
+  });
+  const out = { free, spent, daily: 0, historyDays: 0, days: null, status: 'ok' };
+  if (first) {
+    const from = first > windowStart ? first : windowStart;
+    out.historyDays = daysBetween(from, today) + 1;
+    out.daily = Math.round(spent / out.historyDays);
+  }
+  if (free < 0) out.status = 'negative';
+  else if (!first) out.status = 'no-history';
+  else if (spent <= 0) out.status = 'no-spending';
+  else out.days = Math.floor((free * out.historyDays) / spent);
+  return out;
+}
+
+export const LARGE_PAYMENT_DAYS = 3;
+
+// What needs a look now, from the alert settings: categories at 80% and at
+// 100% of their monthly limit, free money below the threshold, and large
+// payments due in the next three days. Each alert carries a `key` that stays
+// the same for the same situation on the same day (a notification is shown
+// once per key and day). Empty when alerts are switched off.
+export function budgetAlerts(data, today) {
+  const s = data.settings || {};
+  // A budget without accounts has nothing to warn about yet.
+  if (s.alertsEnabled === false || !live(data.accounts).length) return [];
+  const alerts = [];
+  const month = monthOf(today);
+
+  live(data.categories)
+    .filter(c => c.type === 'expense' && !c.archived && c.monthlyLimit > 0)
+    .forEach(c => {
+      const spent = categorySpentInMonth(data, c.id, month);
+      // A limit carried down to zero is used up by any spending.
+      const limit = effectiveLimit(data, c.id, month);
+      const percent = limit > 0 ? Math.floor((spent / limit) * 100) : (spent > 0 ? 100 : 0);
+      if (percent < 80) return;
+      const kind = percent >= 100 ? 'limit-over' : 'limit-near';
+      alerts.push({
+        key: `${kind}:${c.id}:${month}`, kind, level: kind === 'limit-over' ? 'danger' : 'warning',
+        categoryId: c.id, name: c.name, spent, limit, percent
+      });
+    });
+
+  const threshold = s.alertFreeBelow;
+  if (threshold !== null && threshold !== undefined && Number.isFinite(threshold)) {
+    const { free } = grandTotals(data, today);
+    if (free < threshold) {
+      alerts.push({ key: 'free-low', kind: 'free-low', level: free < 0 ? 'danger' : 'warning', free, threshold });
+    }
+  }
+
+  const large = s.alertLargePayment;
+  if (large !== null && large !== undefined && Number.isFinite(large) && large > 0) {
+    upcomingEntries(data, today, addDays(today, LARGE_PAYMENT_DAYS))
+      .filter(e => e.type === 'expense' && !e.isTransit && (e.amount || 0) > large && isTracked(data, e))
+      .forEach(e => alerts.push({
+        key: `large:${e.id}:${e.date}`, kind: 'large-payment', level: 'info',
+        entryId: e.id, name: e.title, amount: e.amount, date: e.date, reserved: e.status === 'reserved'
+      }));
+  }
+  return alerts;
+}
+
+// ---------- what-if drafts ----------
+
+// Days a draft falls on within [today, toDay]. A one-off draft dated in the
+// past counts today, like an overdue planned payment; a monthly one keeps
+// its day of the month (clamped to short months) and stops after `months`.
+export function scenarioDays(scenario, today, toDay) {
+  if (!scenario || !scenario.date || !scenario.amount) return [];
+  if (scenario.repeat !== 'monthly') {
+    const day = scenario.date < today ? today : scenario.date;
+    return day <= toDay ? [day] : [];
+  }
+  const dayOfMonth = Number(scenario.date.slice(8, 10));
+  const endDate = scenario.months
+    ? dayInMonth(addMonthsToMonth(monthOf(scenario.date), scenario.months - 1), dayOfMonth)
+    : null;
+  return occurrences(makeSchedule({ freq: 'monthly', day: dayOfMonth, startDate: scenario.date, endDate }), today, toDay);
+}
+
+// Active drafts as planned entries that exist only for the calculation.
+// They never reach data.entries.
+export function scenarioEntries(scenarios, today, toDay) {
+  return live(scenarios).filter(s => s.active).flatMap(s => scenarioDays(s, today, toDay).map(day => ({
+    id: `scenario:${s.id}:${day}`,
+    scenarioId: s.id,
+    date: day,
+    title: s.title,
+    type: s.type === 'income' ? 'income' : 'expense',
+    amount: s.amount,
+    accountId: s.accountId,
+    categoryId: s.categoryId,
+    status: 'planned',
+    createdAt: s.createdAt,
+    deleted: false
+  })));
+}
+
+// The free-money forecast with the active drafts on top of the real plan.
+// Same shape as forecast(); without active drafts it is the same result.
+export function forecastWithScenarios(data, today, toDay, scenarios = data.scenarios) {
+  const extra = scenarioEntries(scenarios || [], today, toDay);
+  if (!extra.length) return forecast(data, today, toDay);
+  return forecast({ ...data, entries: [...(data.entries || []), ...extra] }, today, toDay);
+}
+
+// What the active drafts change: the lowest free money with and without
+// them (and its day), the difference at the end of the forecast and the
+// first day free money goes below zero with the drafts.
+export function scenarioImpact(data, today, toDay, scenarios = data.scenarios) {
+  const base = forecast(data, today, toDay);
+  const withDrafts = forecastWithScenarios(data, today, toDay, scenarios);
+  return {
+    active: scenarioEntries(scenarios || [], today, toDay).length > 0,
+    lowest: withDrafts.minimum,
+    lowestWithout: base.minimum,
+    end: withDrafts.end,
+    endWithout: base.end,
+    endDifference: withDrafts.end - base.end,
+    firstNegative: withDrafts.firstNegative,
+    firstNegativeWithout: base.firstNegative
+  };
 }

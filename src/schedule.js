@@ -73,6 +73,17 @@ export function isDueOn(schedule, day) {
   return ((diff % schedule.interval) + schedule.interval) % schedule.interval === 0;
 }
 
+// The first day from `from` on when the payment is actually due (zero rows
+// of every-N-months schedules are not), or null when the schedule has ended.
+// Looks a few weeks ahead first: weekly schedules walk day by day.
+export function nextOccurrence(schedule, from, years = 3) {
+  for (const span of [40, 400, years * 366]) {
+    const found = occurrences(schedule, from, addDays(from, span)).find(d => isDueOn(schedule, d));
+    if (found) return found;
+  }
+  return null;
+}
+
 export function amountFor(template, day) {
   return isDueOn(template.schedule, day) ? template.amount : 0;
 }
@@ -90,6 +101,7 @@ export function entryFromTemplate(template, day) {
     accountId: template.accountId,
     toAccountId: template.type === 'transfer' ? template.toAccountId : null,
     categoryId: template.categoryId,
+    tagIds: template.tagIds || [],
     isTransit: template.isTransit,
     status: 'planned'
   });

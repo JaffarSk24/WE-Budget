@@ -4,20 +4,39 @@ import Chart from 'chart.js/auto';
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
 import { h, clear, icon, money, moneyEl, refreshIcons, lang, emptyState, badge } from '../ui.js';
-import { accountSummaries, entriesOn, forecast, grandTotals, monthPlanFact, overdueEntries, upcomingEntries } from '../ledger.js';
+import { accountSummaries, budgetAlerts, entriesOn, forecast, grandTotals, monthPlanFact, overdueEntries, runway, upcomingEntries } from '../ledger.js';
 import { addDays, formatDate, formatDay, formatDayLong, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { generationHorizon } from '../schedule.js';
 import { entryListItem } from '../actions.js';
 import { openAllocationModal, openQuickEntry } from '../modals.js';
 import { live } from '../model.js';
+import { alertRows, runwayHint, runwayText } from '../insights.js';
+import { forecastWithScenarios, scenarioImpact } from '../ledger.js';
+import { openWhatIfModal, scenarioImpactLine } from './whatif.js';
+import { helpHint } from './help.js';
+import { navigate } from '../router.js';
 
 let chart = null;
 
-function kpi(label, value, sub, cls = '') {
+function kpi(label, value, sub, cls = '', extra = null) {
   return h('div', { class: `stat-card kpi ${cls}` },
     h('div', { class: 'stat-header' }, h('span', {}, label)),
     h('div', { class: 'stat-value' }, value),
-    sub ? h('div', { class: 'stat-desc' }, sub) : null);
+    sub ? h('div', { class: 'stat-desc' }, sub) : null,
+    extra);
+}
+
+// How long the free money lasts at the usual spending, under the free money.
+function runwayLine(r) {
+  return h('div', { class: `stat-runway runway-${r.status}`, title: runwayHint(r) }, icon('gauge'), h('span', {}, runwayText(r)));
+}
+
+// Only when something needs a look: limits, low free money, large payments.
+function alertsCard(alerts, today) {
+  if (!alerts.length) return null;
+  return h('div', { class: 'card alerts-card' },
+    h('div', { class: 'card-title-row' }, icon('bell'), h('h3', {}, t('alerts-title')), h('span', { class: 'count-pill' }, alerts.length)),
+    h('div', { class: 'alert-rows' }, alertRows(alerts, today)));
 }
 
 // One line of this month's plan: how much of the planned income came in, or
@@ -94,9 +113,12 @@ function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function drawForecast(canvas, f) {
+// `drafts`: the forecast with the active what-if drafts, drawn as a second,
+// dashed line next to the real one.
+function drawForecast(canvas, f, drafts = null) {
   if (chart) { chart.destroy(); chart = null; }
   const line = cssVar('--accent-indigo');
+  const draftLine = cssVar('--series-2');
   const danger = cssVar('--danger');
   const grid = cssVar('--border-color');
   const text = cssVar('--text-secondary');
@@ -117,7 +139,19 @@ function drawForecast(canvas, f) {
         stepped: 'before',
         segment: { borderColor: ctx => (ctx.p1.parsed.y < 0 ? danger : line) },
         fill: { target: 'origin', above: 'transparent', below: danger + '22' }
-      }]
+      }].concat(drafts ? [{
+        label: t('whatif-legend-drafts'),
+        data: drafts.points.map(p => p.value / 100),
+        borderColor: draftLine,
+        borderWidth: 2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: draftLine,
+        tension: 0,
+        stepped: 'before',
+        fill: false
+      }] : [])
     },
     options: {
       responsive: true,
@@ -130,7 +164,9 @@ function drawForecast(canvas, f) {
           displayColors: false,
           callbacks: {
             title: items => formatDayLong(items[0].label, l),
-            label: item => money(Math.round(item.parsed.y * 100))
+            label: item => (drafts
+              ? `${item.datasetIndex === 1 ? t('whatif-legend-drafts') : t('whatif-legend-real')}: ${money(Math.round(item.parsed.y * 100))}`
+              : money(Math.round(item.parsed.y * 100)))
           }
         }
       },
@@ -167,17 +203,22 @@ export function renderOverview(root) {
   const overdue = overdueEntries(store.data, today);
   const todays = entriesOn(store.data, today, { openOnly: true });
   const week = upcomingEntries(store.data, addDays(today, 1), addDays(today, 7));
+  // What-if drafts only change the chart and the line under it.
+  const impact = scenarioImpact(store.data, today, horizon);
+  const withDrafts = impact.active ? forecastWithScenarios(store.data, today, horizon) : null;
+  const draftCount = store.list('scenarios').length;
 
   root.appendChild(h('div', { class: 'view-header' },
     h('div', {},
       h('h1', { class: 'view-title' }, t('nav-overview')),
-      h('p', { class: 'view-subtitle' }, formatDayLong(today, lang()))),
+      h('p', { class: 'view-subtitle' }, formatDayLong(today, lang())),
+      helpHint(() => navigate('help'))),
     h('div', { class: 'header-actions' },
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openAllocationModal() }, icon('split'), t('alloc-open')),
       h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openQuickEntry() }, icon('plus'), t('quick-add')))));
 
   root.appendChild(h('div', { class: 'dashboard-grid kpi-grid' },
-    kpi(t('kpi-free'), moneyEl(totals.free, { colored: true }), t('kpi-free-desc'), totals.free < 0 ? 'alert' : 'primary'),
+    kpi(t('kpi-free'), moneyEl(totals.free, { colored: true }), t('kpi-free-desc'), totals.free < 0 ? 'alert' : 'primary', runwayLine(runway(store.data, today))),
     kpi(t('kpi-reserved'), moneyEl(totals.reserved + totals.frozen),
       totals.frozen ? t('kpi-reserved-goals', { reserved: money(totals.reserved), frozen: money(totals.frozen) }) : t('kpi-reserved-desc'), 'reserved'),
     kpi(t('kpi-balance'), moneyEl(totals.balance), t('kpi-balance-desc')),
@@ -196,6 +237,9 @@ export function renderOverview(root) {
       }))));
   }
 
+  const attention = alertsCard(budgetAlerts(store.data, today), today);
+  if (attention) root.appendChild(attention);
+
   root.appendChild(h('div', { class: 'overview-lists' },
     listCard(tn('overdue-title', overdue.length), 'alert-triangle', overdue, t('overdue-none'), overdue.length ? 'attention' : ''),
     listCard(t('today-title'), 'calendar-check', todays, t('today-none')),
@@ -206,13 +250,16 @@ export function renderOverview(root) {
     h('div', { class: 'overview-stack' },
       h('div', { class: 'card chart-card' },
         h('div', { class: 'card-title-row' }, icon('trending-up'), h('h3', {}, t('forecast-title')),
-          h('span', { class: 'muted small push-right' }, t('forecast-sub', { amount: money(f.end), date: formatDay(horizon, lang()) }))),
-        h('div', { class: 'chart-container' }, canvas)),
+          h('span', { class: 'muted small push-right' }, t('forecast-sub', { amount: money(f.end), date: formatDay(horizon, lang()) })),
+          h('button', { type: 'button', class: `btn btn-secondary btn-sm whatif-open ${impact.active ? 'is-on' : ''}`, onclick: () => openWhatIfModal(), title: t('whatif-hint') },
+            icon('sparkles'), t('whatif-open'), draftCount ? h('span', { class: 'count-pill' }, draftCount) : null)),
+        h('div', { class: 'chart-container' }, canvas),
+        scenarioImpactLine(impact)),
       planCard(month)),
     h('div', { class: 'card' },
       h('div', { class: 'card-title-row' }, icon('wallet'), h('h3', {}, t('envelopes-title'))),
       envelopeTable())));
 
   refreshIcons();
-  if (f.points.length > 1) requestAnimationFrame(() => drawForecast(canvas, f));
+  if (f.points.length > 1) requestAnimationFrame(() => drawForecast(canvas, f, withDrafts));
 }

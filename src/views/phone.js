@@ -3,17 +3,25 @@
 // Planning, recurring payments and accounts are edited on the computer.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, translatePage, whenLanguageLoaded, flow } from '../i18n.js';
+import { languageOptions } from '../i18n/languages.js';
 import { h, clear, icon, money, refreshIcons, lang, accountLabel } from '../ui.js';
-import { accountSummaries, entriesOn, grandTotals, overdueEntries, upcomingEntries } from '../ledger.js';
+import { accountSummaries, budgetAlerts, entriesOn, grandTotals, overdueEntries, runway, upcomingEntries } from '../ledger.js';
 import { addDays, formatDay, formatDayLong, isDayKey, todayKey } from '../dates.js';
 import { statusButton, reserveButton } from '../actions.js';
 import { openEntryModal, openQuickEntry } from '../modals.js';
 import { live, hasAnyData } from '../model.js';
 import { sync, syncStatusText, signIn, renewAccess, initSyncBanner } from '../cloud.js';
-import { syncSection, remindersSection, section, settingRow } from './settings.js';
+import { syncSection, remindersSection, quickLinkSection, section, settingRow, journalRow } from './settings.js';
+import { alertRows, runwayHint, runwayText } from '../insights.js';
 import { buildDemo } from '../demo.js';
 import { selectEl } from '../ui.js';
+import { openSearch } from './search.js';
+import { debtBar } from './debts.js';
+import { debtState } from '../debts.js';
+import { tagChips } from '../tag-ui.js';
+import { phoneNetWorth } from './networth.js';
+import { helpHint, openHelpModal, runPhoneAction } from './help.js';
 
 const TABS = [
   { id: 'today', icon: 'calendar-check', label: 'today-title' },
@@ -61,7 +69,7 @@ function phoneEntry(entry, { showDate }) {
   const sign = entry.type === 'income' ? 1 : entry.type === 'expense' ? -1 : 0;
   const unreserved = entry.type === 'expense' && entry.status === 'planned' && entry.amount !== 0 && !entry.isTransit;
   const where = entry.type === 'transfer'
-    ? `${accountLabel(entry.accountId)} → ${accountLabel(entry.toAccountId)}`
+    ? flow(accountLabel(entry.accountId), accountLabel(entry.toAccountId))
     : accountLabel(entry.accountId);
   return h('div', {
     class: `phone-entry status-row-${entry.status} ${overdue ? 'is-overdue' : ''} ${unreserved ? 'is-unreserved' : ''}`,
@@ -72,7 +80,8 @@ function phoneEntry(entry, { showDate }) {
       h('span', { class: 'phone-entry-title' }, entry.title || t('untitled')),
       h('span', { class: 'phone-entry-meta' },
         [showDate ? formatDay(entry.date, lang()) : null, where, entry.status === 'reserved' ? t('status-reserved') : null]
-          .filter(Boolean).join(' · '))),
+          .filter(Boolean).join(' · ')),
+      tagChips(entry)),
     h('span', { class: `phone-entry-amount money ${sign > 0 ? 'positive' : sign === 0 ? 'neutral' : ''}` },
       sign === 0 ? money(entry.amount) : money(sign * entry.amount, { signed: sign > 0 })),
     reserveButton(entry));
@@ -86,6 +95,12 @@ function list(title, entries, emptyText, cls = '') {
       : h('p', { class: 'muted small' }, emptyText));
 }
 
+function phoneRunway(r) {
+  return h('div', { class: `phone-free-runway runway-${r.status}` },
+    h('div', {}, runwayText(r)),
+    r.status === 'ok' ? h('div', { class: 'phone-free-runway-hint' }, runwayHint(r)) : null);
+}
+
 function todayTab() {
   const today = todayKey();
   const totals = grandTotals(store.data);
@@ -93,8 +108,16 @@ function todayTab() {
     h('section', { class: 'phone-card phone-free' },
       h('div', { class: 'phone-free-label' }, t('kpi-free')),
       h('div', { class: `phone-free-value money ${totals.free < 0 ? 'negative' : ''}` }, money(totals.free)),
-      h('div', { class: 'phone-free-sub' }, t('phone-free-sub', { reserved: money(totals.reserved + totals.frozen), balance: money(totals.balance) })))
+      h('div', { class: 'phone-free-sub' }, t('phone-free-sub', { reserved: money(totals.reserved + totals.frozen), balance: money(totals.balance) })),
+      phoneRunway(runway(store.data, today))),
+    helpHint(openFeatures)
   ];
+  const alerts = budgetAlerts(store.data, today);
+  if (alerts.length) {
+    parts.push(h('section', { class: 'phone-card phone-alerts' },
+      h('div', { class: 'phone-card-title' }, h('h2', {}, t('alerts-title')), h('span', { class: 'count-pill' }, alerts.length)),
+      h('div', { class: 'alert-rows' }, alertRows(alerts, today))));
+  }
   if (focusDay && focusDay !== today) {
     parts.push(list(t('phone-day-title', { date: formatDayLong(focusDay, lang()) }), entriesOn(store.data, focusDay), t('today-none'), 'is-focus'));
   }
@@ -111,7 +134,7 @@ function accountsTab() {
   if (!accounts.length) return [h('p', { class: 'muted' }, t('no-accounts-yet'))];
   const s = accountSummaries(store.data);
   const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name);
-  return accounts.filter(a => !a.parentId).sort(byOrder).map(top => {
+  const cards = accounts.filter(a => !a.parentId).sort(byOrder).map(top => {
     const sum = s.get(top.id) || {};
     const children = accounts.filter(a => a.parentId === top.id).sort(byOrder);
     const row = (name, balance, reserved, free, cls = '') => h('div', { class: `phone-acc-row ${cls}` },
@@ -127,20 +150,64 @@ function accountsTab() {
         return row(c.name, cs.ownBalance, (cs.ownReserved || 0) + (cs.ownFrozen || 0), cs.ownFree, 'is-child');
       }));
   });
+  return cards.concat(debtsCard(), phoneNetWorth());
+}
+
+// Loans and debts, read only: what is left and how much is paid.
+function debtsCard() {
+  const debts = live(store.data.debts).filter(d => !d.archived)
+    .sort((a, b) => ((a.kind === 'owed') - (b.kind === 'owed')) || a.name.localeCompare(b.name, lang()));
+  if (!debts.length) return [];
+  const today = todayKey();
+  return [h('section', { class: 'phone-card phone-debts' },
+    h('div', { class: 'phone-card-title' }, icon('landmark'), h('h2', {}, t('nav-debts'))),
+    ...debts.map(d => {
+      const s = debtState(store.data, d, today);
+      return h('div', { class: 'phone-debt' },
+        h('div', { class: 'phone-acc-row is-top' },
+          h('div', { class: 'phone-acc-name' }, d.name,
+            h('span', { class: 'phone-acc-meta' }, t(d.kind === 'owed' ? 'debt-left-owed' : 'debt-left'))),
+          h('div', { class: 'phone-acc-free money' }, money(s.remaining))),
+        debtBar(d, s));
+    }))];
+}
+
+// "Open" in a description: the feature's tab, then its dialog if it has one.
+function goToFeature(feature) {
+  tab = feature.phone;
+  focusDay = null;
+  if (window.location.hash) history.replaceState(null, '', window.location.pathname);
+  render();
+  window.scrollTo(0, 0);
+  runPhoneAction(feature);
+}
+
+function openFeatures() {
+  openHelpModal(goToFeature);
+}
+
+function featuresRow() {
+  return h('button', { type: 'button', class: 'phone-card help-more-row', onclick: openFeatures },
+    icon('book-open'),
+    h('span', { class: 'help-more-text' }, h('span', { class: 'help-more-title' }, t('nav-help')), h('span', { class: 'help-more-hint' }, t('help-phone-row-hint'))),
+    icon('chevron-right'));
 }
 
 function moreTab() {
   const s = store.settings;
-  const language = selectEl([{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }], s.language);
+  const language = selectEl(languageOptions(lang()), lang());
   language.addEventListener('change', () => store.updateSettings({ language: language.value }));
   const theme = selectEl([{ value: 'dark', label: t('theme-dark') }, { value: 'light', label: t('theme-light') }], s.theme);
   theme.addEventListener('change', () => store.updateSettings({ theme: theme.value }));
   return [
+    featuresRow(),
     syncSection(),
     remindersSection(),
+    quickLinkSection(),
     section(t('settings-look'), 'palette',
       settingRow(t('settings-language'), language),
       settingRow(t('settings-theme'), theme)),
+    section(t('settings-data'), 'database', journalRow()),
     h('p', { class: 'muted small phone-note' }, t('phone-desktop-note')),
     h('p', { class: 'muted small phone-note' },
       'WE Budget ', typeof __APP_VERSION__ !== 'undefined' ? 'v' + __APP_VERSION__ : '', ' · ',
@@ -166,6 +233,7 @@ function welcome() {
 
 function render() {
   if (!parts) return;
+  whenLanguageLoaded(render);
   const empty = !hasAnyData(store.data);
   clear(parts.chip);
   const chip = empty ? null : syncChip();
@@ -174,8 +242,14 @@ function render() {
   const content = empty ? welcome() : tab === 'accounts' ? accountsTab() : tab === 'more' ? moreTab() : todayTab();
   content.filter(Boolean).forEach(el => parts.main.appendChild(el));
   parts.fab.hidden = empty || tab === 'more';
+  parts.search.hidden = empty;
   parts.tabs.hidden = empty;
   parts.tabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  // Labels made once at start follow a language change too.
+  parts.search.setAttribute('aria-label', t('search-open'));
+  parts.search.title = t('search-open');
+  parts.fab.setAttribute('aria-label', t('quick-add'));
+  translatePage();
   refreshIcons();
 }
 
@@ -185,18 +259,22 @@ export function initPhone(root) {
   const chip = h('div', { class: 'phone-chip' });
   const banner = h('div', { class: 'sync-banner', role: 'alert', hidden: true });
   const main = h('div', { class: 'phone-main' });
+  const search = h('button', {
+    type: 'button', class: 'phone-search-btn', 'aria-label': t('search-open'), title: t('search-open'),
+    onclick: () => openSearch({ phone: true })
+  }, icon('search'));
   const fab = h('button', { type: 'button', class: 'phone-fab', 'aria-label': t('quick-add'), onclick: () => openQuickEntry() }, icon('plus'));
   const tabs = h('nav', { class: 'phone-tabs' }, TABS.map(x => h('button', {
     type: 'button', 'data-tab': x.id,
     onclick: () => { tab = x.id; focusDay = null; if (window.location.hash) history.replaceState(null, '', window.location.pathname); render(); window.scrollTo(0, 0); }
-  }, icon(x.icon), h('span', {}, t(x.label)))));
+  }, icon(x.icon), h('span', { 'data-i18n': x.label }, t(x.label)))));
   root.append(
     h('header', { class: 'phone-top' },
       h('div', { class: 'phone-brand' }, h('img', { src: './white-eagles-logo-white.webp', alt: '', width: 22, height: 22 }), h('span', {}, 'WE Budget')),
-      chip),
+      h('div', { class: 'phone-top-actions' }, chip, search)),
     banner, main, fab, tabs);
   root.hidden = false;
-  parts = { chip, main, fab, tabs };
+  parts = { chip, main, fab, tabs, search };
   initSyncBanner(banner);
   store.subscribe(render);
   sync.onChange(render);

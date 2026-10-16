@@ -13,7 +13,7 @@ import '@fontsource/outfit/800.css';
 import { createIcons } from 'lucide';
 import { usedIcons } from './icons.js';
 import { store } from './store.js';
-import { t, translatePage } from './i18n.js';
+import { t, translatePage, ensureLanguage, currentLang, whenLanguageLoaded } from './i18n.js';
 import { initModalKeys, topModal, h } from './ui.js';
 import { renderOverview } from './views/overview.js';
 import { renderMonth, handleMonthKey } from './views/month.js';
@@ -22,6 +22,8 @@ import { renderTemplates } from './views/templates.js';
 import { renderSettings } from './views/settings.js';
 import { renderAnalytics } from './views/analytics.js';
 import { renderGoals } from './views/goals.js';
+import { renderDebts } from './views/debts.js';
+import { renderHelp } from './views/help.js';
 import { renderWelcome } from './views/welcome.js';
 import { openQuickEntry, openEntryModal } from './modals.js';
 import { todayKey } from './dates.js';
@@ -34,6 +36,9 @@ import { initNotifications } from './notify.js';
 import { initTray } from './tray.js';
 import { finishRedirectSignIn } from './web/cloud-web.js';
 import { isPhoneLayout, initPhone } from './views/phone.js';
+import { parseQuickLink, stripQuickParams } from './quicklink.js';
+import { openSearch, isSearchOpen } from './views/search.js';
+import { journal } from './journal-log.js';
 
 window.lucide = { createIcons: () => createIcons({ icons: usedIcons }) };
 
@@ -44,10 +49,12 @@ const VIEWS = {
   templates: renderTemplates,
   analytics: renderAnalytics,
   goals: renderGoals,
+  debts: renderDebts,
+  help: renderHelp,
   settings: renderSettings,
   welcome: renderWelcome
 };
-const NAV_ORDER = ['overview', 'month', 'accounts', 'templates', 'analytics', 'goals', 'settings'];
+const NAV_ORDER = ['overview', 'month', 'accounts', 'templates', 'analytics', 'goals', 'debts', 'help', 'settings'];
 const LAST_VIEW_KEY = 'we-budget-last-view';
 
 let current = null;
@@ -85,9 +92,25 @@ function show(name) {
 
 function render() {
   if (!current) return;
+  // A language chosen just now (or by another device) may still be loading;
+  // the page is drawn again once it is there.
+  whenLanguageLoaded(render);
   const root = document.getElementById(`view-${current}`);
   if (root) VIEWS[current](root);
   translatePage();
+}
+
+// A link from an iPhone Shortcut (?quick=expense&amount=12.50&note=Lidl)
+// opens the quick entry dialog filled in. Called once the first sync on
+// start has taken what the cloud has, so names match the current budget;
+// opening the dialog changes nothing by itself. The parameters leave the
+// address, so a reload does not open the dialog again.
+function openQuickLink() {
+  const initial = parseQuickLink(window.location.search, store.data);
+  if (!initial) return;
+  try { history.replaceState(history.state, '', stripQuickParams(window.location.href)); } catch (e) { /* the dialog still opens */ }
+  // Without accounts yet this shows why nothing can be entered.
+  openQuickEntry(initial);
 }
 
 function showLoadError() {
@@ -108,13 +131,24 @@ function checkDay() {
 function initKeys() {
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
+    // Cmd+F on the Mac, Ctrl+F on Windows. Inside another field the key
+    // stays with that field, and over another dialog nothing opens.
+    if (mod && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А')) {
+      const tag = (e.target && e.target.tagName) || '';
+      const inField = ['INPUT', 'SELECT', 'TEXTAREA'].includes(tag) || (e.target && e.target.isContentEditable);
+      const top = topModal();
+      if (isSearchOpen() ? !top || !top.content.classList.contains('search-modal') : inField || top || needsWelcome()) return;
+      e.preventDefault();
+      openSearch({ phone: isPhoneLayout() });
+      return;
+    }
     if (mod && !topModal() && (e.key === 'n' || e.key === 'N' || e.key === 'т' || e.key === 'Т')) {
       e.preventDefault();
       if (e.shiftKey) openEntryModal(null, {});
       else openQuickEntry();
       return;
     }
-    if (mod && !e.shiftKey && /^[1-7]$/.test(e.key) && !needsWelcome()) {
+    if (mod && !e.shiftKey && /^[1-9]$/.test(e.key) && !needsWelcome()) {
       e.preventDefault();
       window.location.hash = '#' + NAV_ORDER[Number(e.key) - 1];
       return;
@@ -130,7 +164,13 @@ function registerServiceWorker() {
   navigator.serviceWorker.register('./sw.js').catch(e => console.error('service worker', e));
 }
 
+// The saved language is loaded before anything is drawn, so the first
+// screen does not flash in English.
 document.addEventListener('DOMContentLoaded', () => {
+  ensureLanguage(currentLang()).finally(start);
+});
+
+function start() {
   applyTheme();
   // Google's answer in the sign-in window: the app does not start here.
   if (isAuthWindow) {
@@ -147,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     a.setAttribute('href', '#' + a.dataset.view);
   });
   document.getElementById('quick-add-btn').addEventListener('click', () => openQuickEntry());
+  document.getElementById('search-btn').addEventListener('click', () => openSearch());
   window.addEventListener('hashchange', () => { if (!phone) show(viewFromHash() || 'month'); });
   setNavigator((name) => show(name));
 
@@ -179,6 +220,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('pagehide', leave);
   }
 
+  // The change journal records from here on, the first generation included.
+  journal.attach(store);
+  journal.prune().catch(e => console.error('Change journal could not be pruned', e));
+  // Steps still waiting to be written are written before the page goes.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') journal.flush(); });
+  window.addEventListener('pagehide', () => journal.flush());
+
   if (!needsWelcome()) store.generate();
   if (phone) {
     store.subscribe(() => applyTheme());
@@ -203,10 +251,13 @@ document.addEventListener('DOMContentLoaded', () => {
   finishing
     .then(signedIn => sync.init({ reason: signedIn ? 'login' : 'startup' }))
     .catch(e => console.error('sync init failed', e))
-    .finally(() => initReminders());
+    .finally(() => {
+      initReminders();
+      openQuickLink();
+    });
   initNotifications();
   if (!phone) initTray();
   registerServiceWorker();
   setInterval(checkDay, 60 * 1000);
   window.addEventListener('focus', checkDay);
-});
+}

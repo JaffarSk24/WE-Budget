@@ -2,18 +2,27 @@
 
 import { store } from '../store.js';
 import { t } from '../i18n.js';
+import { decimalOf, languageOptions } from '../i18n/languages.js';
 import { showToast } from '../toast.js';
 import {
   h, clear, icon, refreshIcons, lang, selectEl, accountOptions, moneyInput, confirmDialog,
-  download, pickFile, accountLabel, categoryName
+  download, pickFile, accountLabel, categoryName, money
 } from '../ui.js';
 import { makeCategory, live, hasAnyData } from '../model.js';
-import { isDayKey, todayKey, formatTimestamp } from '../dates.js';
+import { isDayKey, todayKey, formatTimestamp, monthOf } from '../dates.js';
+import { categorySpentInMonth, effectiveLimit, limitCarry, limitChangePatch } from '../ledger.js';
 import { buildDemo } from '../demo.js';
 import { withUndo } from '../modals.js';
 import { sync, signIn, cancelSignIn, signOut, syncStatusText, renewAccess } from '../cloud.js';
 import { checkForUpdates, updateState, updatesAvailable } from '../updates.js';
 import { reminderState, requestCalendarAccess, turnOffReminders, run as runReminders, reminderStatusText } from '../reminder-sync.js';
+import { APP_URL } from '../reminders.js';
+import { quickLinkBase } from '../quicklink.js';
+import { rulesSection } from './rules.js';
+import { tagsSection } from './tags.js';
+import { csvParts, hasSplits } from '../splits.js';
+import { encryptionRows } from './encryption.js';
+import { openJournal } from './journal.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
@@ -23,10 +32,23 @@ export function section(title, iconName, ...children) {
     ...children);
 }
 
+// Sections carry an id, so the Features screen can scroll to one.
+function marked(el, id) {
+  el.dataset.section = id;
+  return el;
+}
+
 export function settingRow(label, control, hint = null) {
   return h('div', { class: 'setting-row' },
     h('div', { class: 'setting-text' }, h('div', { class: 'setting-label' }, label), hint ? h('div', { class: 'setting-hint' }, hint) : null),
     h('div', { class: 'setting-control' }, control));
+}
+
+// Settings > Data on the computer, the More tab on the phone.
+export function journalRow() {
+  return settingRow(t('journal-title'), h('button', {
+    type: 'button', class: 'btn btn-secondary journal-open-btn', onclick: () => openJournal()
+  }, icon('history'), t('open')), t('journal-hint'));
 }
 
 export function csvCell(value) {
@@ -36,16 +58,21 @@ export function csvCell(value) {
   return '"' + s.replace(/"/g, '""') + '"';
 }
 
+// A split payment comes out as one line per part, so a spreadsheet sums
+// the categories right; the "part" column tells which lines are one payment.
 function exportCsv() {
-  const rows = [[t('col-date'), t('col-item'), t('csv-type'), t('col-amount'), t('col-account'), t('field-to-account'), t('field-category'), t('field-status'), t('field-note')]];
+  const rows = [[t('col-date'), t('col-item'), t('csv-type'), t('col-amount'), t('col-account'), t('field-to-account'), t('field-category'), t('field-status'), t('field-note'), t('csv-part'), t('field-tags')]];
+  const tagName = (id) => { const tag = store.find('tags', id); return tag ? tag.name : ''; };
   live(store.data.entries)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
-    .forEach(e => rows.push([
-      e.date, e.title, t(`type-${e.type}`), (e.amount / 100).toFixed(2).replace('.', lang() === 'ru' ? ',' : '.'),
+    .forEach(e => csvParts(e).forEach(p => rows.push([
+      e.date, e.title, t(`type-${e.type}`), (p.amount / 100).toFixed(2).replace('.', decimalOf(lang())),
       accountLabel(e.accountId), e.toAccountId ? accountLabel(e.toAccountId) : '',
-      e.categoryId ? categoryName(e.categoryId) : '', t(`status-${e.status}`), e.note
-    ]));
-  const sep = lang() === 'ru' ? ';' : ',';
+      p.categoryId ? categoryName(p.categoryId) : '', t(`status-${e.status}`), p.note, p.part,
+      (e.tagIds || []).map(tagName).filter(Boolean).join(', ')
+    ])));
+  // Where the comma is the decimal separator, spreadsheets expect semicolons.
+  const sep = decimalOf(lang()) === ',' ? ';' : ',';
   download(`we-budget-${todayKey()}.csv`, '\ufeff' + rows.map(r => r.map(csvCell).join(sep)).join('\r\n'), 'text/csv;charset=utf-8');
 }
 
@@ -76,6 +103,7 @@ export function syncSection() {
         onclick: () => (st.status === 'renew' ? renewAccess() : sync.sync('manual'))
       }, icon('refresh-cw'), t('sync-now')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: signOut }, icon('log-out'), t('sync-logout'))));
+    rows.push(...encryptionRows({ settingRow, checkboxLabel }));
     rows.push(h('p', { class: 'setting-hint' }, t('sync-where')));
   }
   return section(t('sync-title'), 'cloud', ...rows);
@@ -142,7 +170,92 @@ export function remindersSection() {
       settingRow(t('reminder-desktop'), checkboxLabel(desktop, t('reminder-desktop-on')), t('reminder-desktop-hint')),
       settingRow(t('reminder-morning'), checkboxLabel(morning, t('reminder-morning-on'))));
   }
+  rows.push(...alertRowsSettings());
   return section(t('reminder-title'), 'calendar', ...rows);
+}
+
+// An amount setting where an empty field switches the warning off.
+function thresholdInput(key) {
+  const input = moneyInput({ value: store.settings[key] ?? null, placeholder: t('alerts-off-placeholder') });
+  input.addEventListener('change', () => {
+    if (!input.value.trim()) { store.updateSettings({ [key]: null }); return; }
+    const v = input.readCents();
+    if (v === null || v < 0) { showToast(t('err-amount'), { type: 'error' }); return; }
+    store.updateSettings({ [key]: v });
+  });
+  return input;
+}
+
+// Warnings: category limits, low free money and large payments soon.
+function alertRowsSettings() {
+  const s = store.settings;
+  const on = h('input', { type: 'checkbox', checked: s.alertsEnabled !== false });
+  on.addEventListener('change', () => store.updateSettings({ alertsEnabled: on.checked }));
+  const rows = [settingRow(t('alerts-setting'), checkboxLabel(on, t('alerts-on')), t(window.weApp ? 'alerts-hint-desktop' : 'alerts-hint'))];
+  if (s.alertsEnabled !== false) {
+    rows.push(
+      settingRow(t('alerts-free-below'), thresholdInput('alertFreeBelow'), t('alerts-free-below-hint')),
+      settingRow(t('alerts-large'), thresholdInput('alertLargePayment'), t('alerts-large-hint')));
+  }
+  return rows;
+}
+
+// The address of the web app, which the links open: this page when it is
+// the web app, the published one from the desktop app.
+function webAppUrl() {
+  const loc = typeof window !== 'undefined' ? window.location : null;
+  if (!window.weApp && loc && /^https?:$/.test(loc.protocol)) return loc.origin + loc.pathname;
+  return APP_URL;
+}
+
+async function copyText(text, input) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    // Older browsers and pages without clipboard access: the old way.
+    input.select();
+    try { document.execCommand('copy'); } catch (err) { showToast(t('qlink-copy-failed'), { type: 'error' }); return; }
+  }
+  showToast(t('qlink-copied'), { type: 'success' });
+}
+
+// How to enter a payment from an iPhone Shortcut, Siri or a Wallet
+// automation: the web app opens the quick entry dialog from a link.
+export function quickLinkSection() {
+  const base = quickLinkBase(webAppUrl());
+  const link = h('input', { type: 'text', readonly: true, value: base, class: 'qlink-input', 'aria-label': t('qlink-title') });
+  link.addEventListener('focus', () => link.select());
+  const pattern = `${base}&amount=${t('qlink-var-amount')}&note=${t('qlink-var-merchant')}`;
+  return section(t('qlink-title'), 'smartphone',
+    h('p', { class: 'setting-hint' }, t('qlink-intro')),
+    h('div', { class: 'qlink-copy' }, link,
+      h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => copyText(base, link) }, icon('copy'), t('qlink-copy'))),
+    h('p', { class: 'setting-hint' }, t('qlink-shortcut')),
+    h('p', { class: 'setting-hint' }, t('qlink-wallet')),
+    h('code', { class: 'qlink-pattern' }, pattern),
+    h('p', { class: 'setting-hint' }, t('qlink-params')),
+    h('p', { class: 'setting-hint' }, t('qlink-safari')));
+}
+
+// The rollover option next to a set limit, and what this month's limit is
+// once something carried over.
+function rolloverControl(c) {
+  const month = monthOf(todayKey());
+  const select = selectEl([
+    { value: 'none', label: t('rollover-none') },
+    { value: 'unspent', label: t('rollover-unspent') },
+    { value: 'both', label: t('rollover-both') }
+  ], c.limitRollover || 'none', { class: 'inline-input rollover-select', title: t('rollover-title'), 'aria-label': t('rollover-title') });
+  select.addEventListener('change', () => {
+    store.update('categories', c.id, limitChangePatch(store.data, c, { limitRollover: select.value }, month));
+  });
+  const carried = limitCarry(store.data, c, month);
+  const note = carried ? h('div', { class: 'field-hint cat-limit-note' }, t(carried > 0 ? 'rollover-this-month-plus' : 'rollover-this-month-minus', {
+    limit: money(effectiveLimit(store.data, c.id, month)),
+    amount: money(Math.abs(carried)),
+    spent: money(categorySpentInMonth(store.data, c.id, month))
+  })) : null;
+  return [select, note];
 }
 
 function categoriesSection(root) {
@@ -156,14 +269,16 @@ function categoriesSection(root) {
       limit.addEventListener('change', () => {
         const v = limit.value.trim() ? limit.readCents() : null;
         if (limit.value.trim() && (v === null || v < 0)) { showToast(t('err-amount'), { type: 'error' }); return; }
-        store.update('categories', c.id, { monthlyLimit: v || null });
+        // With rollover on, a new limit keeps what carried over so far.
+        store.update('categories', c.id, limitChangePatch(store.data, c, { monthlyLimit: v || null }, monthOf(todayKey())));
       });
     }
-    const used = live(store.data.entries).some(e => e.categoryId === c.id) || live(store.data.templates).some(x => x.categoryId === c.id);
+    const used = live(store.data.entries).some(e => e.categoryId === c.id || (hasSplits(e) && e.splits.some(p => p.categoryId === c.id)))
+      || live(store.data.templates).some(x => x.categoryId === c.id);
     return h('tr', { class: c.archived ? 'is-archived' : '' },
       h('td', {}, name),
       h('td', {}, t(`type-${c.type}`)),
-      h('td', {}, limit || h('span', { class: 'muted' }, '')),
+      h('td', {}, limit ? h('div', { class: 'cat-limit-cell' }, limit, c.monthlyLimit > 0 ? rolloverControl(c) : null) : h('span', { class: 'muted' }, '')),
       h('td', { class: 'col-actions' },
         h('button', {
           type: 'button', class: 'icon-btn', title: c.archived ? t('cat-unarchive') : t('cat-archive'),
@@ -199,7 +314,7 @@ export function renderSettings(root) {
   root.appendChild(h('div', { class: 'view-header' },
     h('div', {}, h('h1', { class: 'view-title' }, t('nav-settings')), h('p', { class: 'view-subtitle' }, t('settings-subtitle')))));
 
-  const language = selectEl([{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }], s.language);
+  const language = selectEl(languageOptions(lang()), lang());
   language.addEventListener('change', () => store.updateSettings({ language: language.value }));
   const theme = selectEl([{ value: 'dark', label: t('theme-dark') }, { value: 'light', label: t('theme-light') }], s.theme);
   theme.addEventListener('change', () => store.updateSettings({ theme: theme.value }));
@@ -218,8 +333,9 @@ export function renderSettings(root) {
     else tracking.value = s.trackingStart || '';
   });
 
-  root.appendChild(syncSection());
-  root.appendChild(remindersSection());
+  root.appendChild(marked(syncSection(), 'sync'));
+  root.appendChild(marked(remindersSection(), 'reminders'));
+  root.appendChild(marked(quickLinkSection(), 'quicklink'));
 
   let menuBar = null;
   if (window.weApp && typeof window.weApp.setTray === 'function') {
@@ -228,21 +344,23 @@ export function renderSettings(root) {
     box.addEventListener('change', () => store.updateSettings({ menuBarFree: box.checked }));
     menuBar = settingRow(t(windows ? 'tray-title-win' : 'tray-title'), checkboxLabel(box, t(windows ? 'tray-setting-win' : 'tray-setting')), t('tray-hint'));
   }
-  root.appendChild(section(t('settings-look'), 'palette',
+  root.appendChild(marked(section(t('settings-look'), 'palette',
     settingRow(t('settings-language'), language),
     settingRow(t('settings-theme'), theme),
-    menuBar));
+    menuBar), 'look'));
 
-  root.appendChild(section(t('settings-accounting'), 'calculator',
+  root.appendChild(marked(section(t('settings-accounting'), 'calculator',
     settingRow(t('settings-tracking'), tracking, t('settings-tracking-hint')),
     settingRow(t('settings-income-account'), incomeAccount, t('settings-income-account-hint')),
     settingRow(t('settings-horizon'), horizon, t('settings-horizon-hint')),
-    settingRow(t('settings-currency'), currency)));
+    settingRow(t('settings-currency'), currency)), 'accounting'));
 
-  root.appendChild(categoriesSection(root));
+  root.appendChild(marked(categoriesSection(root), 'categories'));
+  root.appendChild(marked(tagsSection(section, () => renderSettings(root)), 'tags'));
+  root.appendChild(marked(rulesSection(section), 'rules'));
 
   const isElectron = !!window.weStorage;
-  root.appendChild(section(t('settings-data'), 'database',
+  root.appendChild(marked(section(t('settings-data'), 'database',
     settingRow(t('backup-download'), h('button', {
       type: 'button', class: 'btn btn-secondary',
       onclick: () => download(`we-budget-backup-${todayKey()}.json`, JSON.stringify(store.data, null, 1))
@@ -257,11 +375,12 @@ export function renderSettings(root) {
         const ok = await confirmDialog(t('restore-confirm', { name: file.name, n: parsed.entries.length }), { danger: true, okLabel: t('restore') });
         if (!ok) return;
         const snap = store.snapshot();
-        store.replaceAll(parsed);
+        store.replaceAll(parsed, { source: 'restore' });
         store.generate();
         showToast(t('toast-restored'), { type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap) });
       }
     }, icon('upload'), t('restore')), t('backup-restore-hint')),
+    journalRow(),
     settingRow(t('export-csv'), h('button', { type: 'button', class: 'btn btn-secondary', onclick: exportCsv }, icon('file-spreadsheet'), t('export')), t('export-csv-hint')),
     isElectron ? settingRow(t('backups-folder'), h('button', {
       type: 'button', class: 'btn btn-secondary', onclick: () => window.weStorage.backupsFolder()
@@ -285,9 +404,9 @@ export function renderSettings(root) {
         store.replaceAll({ settings: { language: s.language, theme: s.theme } });
         showToast(t('toast-reset'), { type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap) });
       }
-    }, icon('trash-2'), t('reset-all-btn')), t('reset-all-hint'))));
+    }, icon('trash-2'), t('reset-all-btn')), t('reset-all-hint'))), 'data'));
 
-  root.appendChild(updatesSection());
+  root.appendChild(marked(updatesSection(), 'updates'));
 
   const stats = store.list('entries').length;
   root.appendChild(section(t('settings-about'), 'info',

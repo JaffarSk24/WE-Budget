@@ -9,9 +9,13 @@ import {
   categoryOptions, icon, refreshIcons, confirmDialog, lang
 } from './ui.js';
 import { makeAccount, makeEntry, makeTemplate, nowIso, live } from './model.js';
-import { todayKey, isDayKey, formatDay, monthOf, addDays } from './dates.js';
-import { accountSummaries, categorySpentInMonth } from './ledger.js';
+import { todayKey, isDayKey, formatDay, formatDayYear, monthOf, addDays } from './dates.js';
+import { accountSummaries, canSaveAhead, categorySpentInMonth, effectiveLimit, saveAheadGoal } from './ledger.js';
+import { openSaveAheadModal, stopSaveAhead } from './views/save-ahead.js';
+import { applyRules } from './rules.js';
 import { allocationCandidates, defaultAllocationEnd, planForSelection, suggestAllocation } from './allocation.js';
+import { splitEditor } from './split-editor.js';
+import { tagPicker } from './tag-ui.js';
 
 const LAST_QUICK_ACCOUNT = 'we-budget-last-quick-account';
 const LAST_QUICK_CATEGORY = 'we-budget-last-quick-category';
@@ -30,7 +34,7 @@ function dateInput(value) {
   return h('input', { type: 'date', value: value || todayKey() });
 }
 
-function segmented(options, value, onChange) {
+export function segmented(options, value, onChange) {
   const wrap = h('div', { class: 'segmented', role: 'radiogroup' });
   options.forEach(o => {
     const btn = h('button', {
@@ -97,14 +101,23 @@ export function openEntryModal(entry = null, defaults = {}) {
   const accountField = field(t('field-account'), account);
   const toField = field(t('field-to-account'), toAccount);
   const categoryField = field(t('field-category'), category);
+  // Which loan or debt the payment goes to; shown only once there are debts.
+  const debts = live(store.data.debts).filter(d => !d.archived || d.id === src.debtId);
+  const debt = debts.length ? selectEl([{ value: '', label: t('entry-no-debt') }].concat(debts.map(d => ({ value: d.id, label: d.name }))), src.debtId || '') : null;
+  const debtField = debt ? field(t('entry-debt'), debt) : null;
+  const split = splitEditor({ entry, type, amount, category, categoryField });
+  categoryField.appendChild(split.button);
+  const tags = tagPicker(src.tagIds || defaults.tagIds || []);
 
   function syncType() {
     const opts = type === 'transfer' ? [] : categoryOptions(type, { emptyLabel: t('no-category') });
     clear(category);
     opts.forEach(o => category.appendChild(h('option', { value: o.value }, o.label)));
     category.value = src.type === type ? (src.categoryId || '') : '';
+    split.reset(type);
     toField.style.display = type === 'transfer' ? '' : 'none';
     categoryField.style.display = type === 'transfer' ? 'none' : '';
+    if (debtField) debtField.style.display = type === 'transfer' ? 'none' : '';
     accountField.querySelector('label').textContent = type === 'transfer' ? t('field-from-account') : t('field-account');
     status.querySelector('option[value="reserved"]').disabled = type !== 'expense';
     if (type !== 'expense' && status.value === 'reserved') status.value = 'planned';
@@ -122,9 +135,12 @@ export function openEntryModal(entry = null, defaults = {}) {
     h('div', { class: 'form-row' }, field(t('field-date'), date), field(t('field-amount'), amount)),
     field(t('field-title'), title),
     h('div', { class: 'form-row' }, accountField, toField, categoryField),
+    debtField,
+    split.panel,
     field(t('field-status'), status),
     transit.el,
     field(t('field-note'), note),
+    field(t('field-tags'), tags.el),
     template ? h('p', { class: 'field-hint' }, icon('repeat'), ' ', t('entry-from-template', { name: template.title })) : null,
     entry && entry.isAdjustment ? h('p', { class: 'field-hint' }, t('entry-is-adjustment')) : null
   );
@@ -148,6 +164,8 @@ export function openEntryModal(entry = null, defaults = {}) {
       if (cents === null || cents < 0) return fail(t('err-amount'));
       if (!account.value) return fail(t('err-account'));
       if (type === 'transfer' && (!toAccount.value || toAccount.value === account.value)) return fail(t('err-to-account'));
+      const parts = split.read();
+      if (parts && parts.error) return fail(parts.error);
       const patch = {
         type,
         date: date.value,
@@ -155,11 +173,14 @@ export function openEntryModal(entry = null, defaults = {}) {
         amount: cents,
         accountId: account.value,
         toAccountId: type === 'transfer' ? toAccount.value : null,
-        categoryId: type === 'transfer' ? null : (category.value || null),
+        categoryId: type === 'transfer' ? null : (parts ? parts.categoryId : (category.value || null)),
+        splits: parts ? parts.splits : null,
+        tagIds: tags.save(),
         status: status.value,
         isTransit: transit.input.checked,
         note: note.value.trim()
       };
+      if (debt) patch.debtId = type === 'transfer' ? null : (debt.value || null);
       if (patch.status === 'done' && (!entry || entry.status !== 'done')) patch.doneAt = nowIso();
       if (patch.status === 'reserved' && (!entry || entry.status !== 'reserved')) patch.reservedAt = nowIso();
       if (patch.status === 'planned') { patch.doneAt = null; patch.reservedAt = null; patch.allocationId = null; }
@@ -277,7 +298,10 @@ export function promptAmount(entry) {
 
 // A payment or an income that was not in the plan, written down in a few
 // taps: it is done at once and never counted as planned.
-export function openQuickEntry({ type: startType = 'expense' } = {}) {
+// `amount` (cents), `note`, `categoryId` and `accountId` fill the dialog in,
+// for a link from an iPhone Shortcut; without them it starts from the last
+// category and account used.
+export function openQuickEntry({ type: startType = 'expense', amount: startAmount = null, note: startNote = '', categoryId: startCategory = null, accountId: startAccount = null } = {}) {
   if (!store.list('accounts').length) {
     showToast(t('err-no-accounts'), { type: 'error' });
     return;
@@ -287,17 +311,57 @@ export function openQuickEntry({ type: startType = 'expense' } = {}) {
   const accountKey = () => (type === 'income' ? LAST_QUICK_INCOME_ACCOUNT : LAST_QUICK_ACCOUNT);
   const accountFor = () => recall(accountKey()) || store.settings.defaultIncomeAccountId || '';
 
-  const amount = moneyInput({ autofocus: true });
+  const amount = moneyInput({ autofocus: true, value: startAmount > 0 ? startAmount : null });
   amount.classList.add('quick-amount');
   const category = selectEl([], '');
-  const account = selectEl(accountOptions(), accountFor());
+  const account = selectEl(accountOptions(), (startAccount && store.find('accounts', startAccount) ? startAccount : null) || accountFor());
   const date = dateInput(todayKey());
-  const note = h('input', { type: 'text', enterkeyhint: 'done', autocomplete: 'off' });
+  const note = h('input', { type: 'text', enterkeyhint: 'done', autocomplete: 'off', value: startNote || '' });
+  // The category from a link wins only for the type it was given with.
+  let linkCategory = startCategory ? { type, id: startCategory } : null;
   const limitHint = h('div', { class: 'field-hint' });
+  const ruleHint = h('div', { class: 'field-hint rule-hint' });
+  // Tags fold away under "More": most quick payments need none, and on a
+  // phone the amount and the buttons keep the screen.
+  const tags = tagPicker([]);
+  const moreBox = h('div', { class: 'quick-more', hidden: true }, field(t('field-tags'), tags.el));
+  const moreBtn = h('button', {
+    type: 'button', class: 'link-btn quick-more-toggle', 'aria-expanded': 'false',
+    onclick: () => {
+      moreBox.hidden = !moreBox.hidden;
+      moreBtn.setAttribute('aria-expanded', moreBox.hidden ? 'false' : 'true');
+    }
+  }, icon('tag'), t('quick-more'));
+  // A category the person picked (or one that came with a link) is theirs;
+  // until then the category follows the first rule that matches the note.
+  let categoryTouched = !!linkCategory;
+  let accountTouched = !!startAccount;
+  let ruleDefault = null;
+
+  function followRules() {
+    if (categoryTouched) return;
+    const text = note.value.trim();
+    const cents = amount.readCents();
+    const rule = text ? applyRules(store.list('rules'), { text, note: text, type, amount: cents }) : null;
+    const known = rule && rule.categoryId && [...category.options].some(o => o.value === rule.categoryId);
+    if (known) {
+      if (ruleDefault === null) ruleDefault = { category: category.value, account: account.value };
+      category.value = rule.categoryId;
+      if (!accountTouched && rule.accountId && store.find('accounts', rule.accountId)) account.value = rule.accountId;
+      ruleHint.textContent = t('quick-rule-applied', { text: rule.text });
+    } else if (ruleDefault !== null) {
+      // The note no longer matches: back to what was there before the rule.
+      category.value = ruleDefault.category;
+      if (!accountTouched) account.value = ruleDefault.account;
+      ruleDefault = null;
+      ruleHint.textContent = '';
+    }
+    updateLimit();
+  }
 
   function fillCategories() {
     clear(category);
-    const wanted = recall(categoryKey()) || '';
+    const wanted = (linkCategory && linkCategory.type === type ? linkCategory.id : null) || recall(categoryKey()) || '';
     categoryOptions(type, { emptyLabel: t('no-category') }).forEach(o => {
       category.appendChild(h('option', { value: o.value, selected: o.value === wanted }, o.label));
     });
@@ -307,9 +371,12 @@ export function openQuickEntry({ type: startType = 'expense' } = {}) {
   function updateLimit() {
     const cat = type === 'expense' ? store.find('categories', category.value) : null;
     if (!cat || !cat.monthlyLimit) { limitHint.textContent = ''; return; }
-    const spent = categorySpentInMonth(store.data, cat.id, monthOf(date.value || todayKey()));
-    const left = cat.monthlyLimit - spent;
-    limitHint.textContent = t('limit-left', { left: money(left), limit: money(cat.monthlyLimit) });
+    const month = monthOf(date.value || todayKey());
+    const spent = categorySpentInMonth(store.data, cat.id, month);
+    // With rollover, this month's limit includes what carried over.
+    const limit = effectiveLimit(store.data, cat.id, month);
+    const left = limit - spent;
+    limitHint.textContent = t('limit-left', { left: money(left), limit: money(limit) });
     limitHint.classList.toggle('negative', left < 0);
   }
 
@@ -320,15 +387,29 @@ export function openQuickEntry({ type: startType = 'expense' } = {}) {
     type = value;
     fillCategories();
     account.value = accountFor() || account.value;
-    updateLimit();
+    ruleDefault = null;
+    ruleHint.textContent = '';
+    // The new type brings its own category list: a pick made for the other
+    // type is gone, so the rules decide again.
+    categoryTouched = !!(linkCategory && linkCategory.type === type);
+    followRules();
     amount.focus();
   });
   typeSwitch.classList.add('quick-type');
 
   fillCategories();
-  category.addEventListener('change', updateLimit);
+  category.addEventListener('change', () => {
+    categoryTouched = true;
+    ruleDefault = null;
+    ruleHint.textContent = '';
+    updateLimit();
+  });
+  account.addEventListener('change', () => { accountTouched = true; });
+  note.addEventListener('input', followRules);
+  amount.addEventListener('input', () => { if (note.value.trim()) followRules(); });
   date.addEventListener('change', updateLimit);
-  updateLimit();
+  // A link from a Shortcut can bring the merchant as the note.
+  followRules();
 
   function save(m, again) {
     const cents = amount.readCents();
@@ -338,12 +419,16 @@ export function openQuickEntry({ type: startType = 'expense' } = {}) {
     remember(categoryKey(), category.value);
     const added = store.addQuickEntry({
       type, amount: cents, categoryId: category.value || null, accountId: account.value,
-      note: note.value.trim(), date: date.value
+      note: note.value.trim(), date: date.value, tagIds: tags.save()
     });
     showToast(t(type === 'income' ? 'toast-quick-income' : 'toast-quick-added', { amount: money(cents) }), {
       type: 'success', actionLabel: t('undo'), onAction: () => store.remove('entries', added.id)
     });
     if (again) {
+      linkCategory = null;
+      categoryTouched = false;
+      ruleDefault = null;
+      ruleHint.textContent = '';
       amount.value = '';
       note.value = '';
       amount.focus();
@@ -361,7 +446,10 @@ export function openQuickEntry({ type: startType = 'expense' } = {}) {
       field(t('field-amount'), amount),
       h('div', { class: 'form-row' }, field(t('field-category'), category), field(t('field-account'), account)),
       limitHint,
-      h('div', { class: 'form-row' }, field(t('field-date'), date), field(t('field-note'), note))
+      h('div', { class: 'form-row' }, field(t('field-date'), date), field(t('field-note'), note)),
+      ruleHint,
+      moreBtn,
+      moreBox
     ),
     actions: [
       { label: t('quick-save-more'), onClick: (m) => save(m, true) },
@@ -557,7 +645,7 @@ export function openAccountModal(account = null, { parentId = null } = {}) {
       h('div', { class: 'form-row' }, field(t('account-parent'), parent, t('account-parent-hint')), field(t('account-bank'), bank)),
       h('div', { class: 'form-row' }, field(t('account-kind'), kind),
         field(t('account-opening'), opening, t(isNew ? 'account-opening-hint-new' : 'account-opening-hint', {
-          date: store.settings.trackingStart ? `${formatDay(store.settings.trackingStart, lang())}.${store.settings.trackingStart.slice(0, 4)}` : ''
+          date: store.settings.trackingStart ? formatDayYear(store.settings.trackingStart, lang()) : ''
         }))),
       field(t('field-note'), note),
       isNew ? null : archived.el),
@@ -596,9 +684,12 @@ export function openTemplateModal(template = null) {
   const transit = checkbox(t('entry-transit'), src.isTransit);
   const active = checkbox(t('template-active'), src.active);
   const applyFuture = checkbox(t('template-apply-future'), true);
+  const aheadGoal = isNew ? null : saveAheadGoal(store.data, src.id);
+  const saveAhead = checkbox(t('save-ahead-check'), !!aheadGoal);
 
   const toField = field(t('field-to-account'), toAccount);
   const categoryField = field(t('field-category'), category);
+  const tags = tagPicker(src.tagIds || []);
   const dayField = field(t('template-day'), day, t('template-day-hint'));
   const intervalField = field(t('template-interval'), interval);
   const weekdaysField = field(t('template-weekdays'), h('div', { class: 'weekday-row' }, weekdays.map(w => w.el)));
@@ -611,6 +702,7 @@ export function openTemplateModal(template = null) {
     }
     toField.style.display = type === 'transfer' ? '' : 'none';
     categoryField.style.display = type === 'transfer' ? 'none' : '';
+    syncSaveAhead();
   }
   function syncFreq() {
     const f = freq.value;
@@ -618,6 +710,12 @@ export function openTemplateModal(template = null) {
     intervalField.style.display = f === 'everyNMonths' ? '' : 'none';
     fillGaps.el.style.display = f === 'everyNMonths' ? '' : 'none';
     weekdaysField.style.display = f === 'weekly' ? '' : 'none';
+    syncSaveAhead();
+  }
+  // Saving ahead is for expenses that do not come every month.
+  function syncSaveAhead() {
+    const f = freq.value;
+    saveAhead.el.style.display = type === 'expense' && (f === 'yearly' || f === 'everyNMonths') ? '' : 'none';
   }
   freq.addEventListener('change', syncFreq);
 
@@ -671,6 +769,7 @@ export function openTemplateModal(template = null) {
         toAccountId: type === 'transfer' ? toAccount.value : null,
         categoryId: type === 'transfer' ? null : (category.value || null),
         schedule,
+        tagIds: tags.save(),
         isTransit: transit.input.checked,
         active: active.input.checked
       };
@@ -684,6 +783,10 @@ export function openTemplateModal(template = null) {
       });
       showToast(isNew ? t('toast-template-added') : t('toast-template-saved'), { type: 'success' });
       m.close();
+      const saved = store.find('templates', next.id);
+      const wantAhead = saveAhead.input.checked && canSaveAhead(saved) && saved.active;
+      if (aheadGoal && !wantAhead) stopSaveAhead(aheadGoal);
+      else if (!aheadGoal && wantAhead) openSaveAheadModal(saved);
       return true;
     }
   });
@@ -700,7 +803,8 @@ export function openTemplateModal(template = null) {
       fillGaps.el,
       weekdaysField,
       h('div', { class: 'form-row' }, field(t('template-start'), startDate), field(t('template-end'), endDate, t('template-end-hint'))),
-      h('div', { class: 'checkbox-group' }, transit.el, active.el, isNew ? null : applyFuture.el)),
+      field(t('field-tags'), tags.el, t('template-tags-hint')),
+      h('div', { class: 'checkbox-group' }, transit.el, active.el, saveAhead.el, isNew ? null : applyFuture.el)),
     actions
   });
 }

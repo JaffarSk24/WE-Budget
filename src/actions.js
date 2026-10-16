@@ -3,11 +3,13 @@
 // split income that just arrived, undo for everything destructive.
 
 import { store } from './store.js';
-import { t } from './i18n.js';
+import { t, flow } from './i18n.js';
 import { showToast } from './toast.js';
-import { h, icon, money, accountLabel, categoryName, lang } from './ui.js';
+import { h, icon, money, accountLabel, lang } from './ui.js';
 import { openAllocationModal, openEntryModal, promptAmount, withUndo } from './modals.js';
 import { formatDay, todayKey } from './dates.js';
+import { categoryText, splitTooltip } from './split-editor.js';
+import { tagChips } from './tag-ui.js';
 
 export async function markDone(entry) {
   let amount = null;
@@ -103,10 +105,11 @@ export function entryListItem(entry, { showDate = true } = {}) {
     showDate ? h('span', { class: 'list-entry-date' }, formatDay(entry.date, lang())) : null,
     h('div', { class: 'list-entry-main' },
       h('span', { class: 'list-entry-title' }, entry.title || t('untitled')),
-      h('span', { class: 'list-entry-meta' },
-        [entry.type === 'transfer' ? `${accountLabel(entry.accountId)} → ${accountLabel(entry.toAccountId)}` : accountLabel(entry.accountId),
-          entry.categoryId ? categoryName(entry.categoryId) : null,
-          entry.status === 'reserved' ? t('status-reserved') : null].filter(Boolean).join(' · '))),
+      h('span', { class: 'list-entry-meta', title: splitTooltip(entry) },
+        [entry.type === 'transfer' ? flow(accountLabel(entry.accountId), accountLabel(entry.toAccountId)) : accountLabel(entry.accountId),
+          categoryText(entry) || null,
+          entry.status === 'reserved' ? t('status-reserved') : null].filter(Boolean).join(' · ')),
+      tagChips(entry)),
     h('span', { class: `list-entry-amount money ${sign > 0 ? 'positive' : sign === 0 ? 'neutral' : ''}` },
       sign === 0 ? money(entry.amount) : money(sign * entry.amount, { signed: sign > 0 })),
     reserveButton(entry),

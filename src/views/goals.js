@@ -4,7 +4,7 @@
 // to its envelope until the deadline, linked to the goal by goalId.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, flow } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, field, moneyInput, selectEl, accountOptions, openModal, accountLabel, badge } from '../ui.js';
 import { centsToInput } from '../money.js';
 import { goalContribution, goalOutlook, raisedContribution, suggestedContribution } from '../ledger.js';
@@ -45,6 +45,9 @@ export function openGoalModal(goal = null) {
     actions.push({
       label: t('delete'), kind: 'danger', onClick: (m) => {
         withUndo(t('toast-goal-deleted'), () => {
+          // A goal saving ahead for a payment also hands the payment back
+          // to the account it was paid from.
+          if (goal.templateId) return store.stopSaveAhead(goal.id, { remove: true });
           const c = goalContribution(store.data, goal);
           store.remove('goals', goal.id);
           if (c) store.removeTemplate(c.id, { removeFuture: true });
@@ -185,6 +188,11 @@ export function openContributionModal(goal) {
 }
 
 function toggleArchive(goal) {
+  if (goal.templateId) {
+    if (goal.archived) store.resumeSaveAhead(goal.id);
+    else withUndo(t('toast-save-ahead-off'), () => store.stopSaveAhead(goal.id));
+    return;
+  }
   const c = goalContribution(store.data, goal);
   if (!goal.archived && c) {
     withUndo(t('toast-goal-archived-contribution'), () => {
@@ -214,12 +222,19 @@ function contributionBlock(goal, o, today) {
       icon('repeat'),
       h('div', { class: 'goal-contribution-text' },
         h('div', {}, t('goal-contribution', { amount: money(c.amount), when: describeSchedule(c.schedule) })),
-        h('div', { class: 'goal-meta' }, `${accountLabel(c.accountId)} → ${accountLabel(c.toAccountId)}`)),
+        h('div', { class: 'goal-meta' }, flow(accountLabel(c.accountId), accountLabel(c.toAccountId)))),
       h('div', { class: 'goal-actions' },
         h('button', { type: 'button', class: 'icon-btn', title: t('goal-contribution-edit'), onclick: () => openContributionModal(goal) }, icon('pencil')),
         h('button', { type: 'button', class: 'icon-btn', title: t('goal-contribution-remove'), onclick: () => removeContribution(c) }, icon('trash-2')))) : null,
     buttons.length ? h('div', { class: 'goal-buttons' }, buttons) : null
   ];
+}
+
+// A goal saving ahead for a payment names it: its deadline follows the
+// payment and moves on by itself once the payment is marked done.
+function paymentLine(goal) {
+  const template = goal.templateId ? store.find('templates', goal.templateId) : null;
+  return template ? h('div', { class: 'goal-meta' }, t('goal-for-payment', { name: template.title })) : null;
 }
 
 function goalCard(goal, today) {
@@ -242,7 +257,8 @@ function goalCard(goal, today) {
     h('div', { class: 'goal-head' },
       h('div', {},
         h('h3', { class: 'goal-name' }, goal.name, goal.archived ? badge(t('archived'), 'badge-muted') : null),
-        h('div', { class: 'goal-meta' }, [accountLabel(goal.accountId), goal.deadline ? t('goal-by', { date: formatDate(goal.deadline, lang()) }) : null].filter(Boolean).join(' · '))),
+        h('div', { class: 'goal-meta' }, [accountLabel(goal.accountId), goal.deadline ? t('goal-by', { date: formatDate(goal.deadline, lang()) }) : null].filter(Boolean).join(' · ')),
+        paymentLine(goal)),
       h('div', { class: 'goal-actions' },
         h('button', {
           type: 'button', class: 'icon-btn', title: goal.archived ? t('goal-unarchive') : t('goal-archive'),

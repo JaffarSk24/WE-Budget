@@ -11,22 +11,37 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 ## What it does
 
 - **Payment calendar.** Each month is a list of payments and incomes with a status: planned, set aside, done or cancelled. Payments still waiting for money are highlighted, done rows fold away under one line, and the balance column shows what is left on the row's own account after each payment. Click an amount to change it right in the row; the arrow keys move between rows and months.
+- **Month as a calendar.** The List / Calendar switch on the Month screen shows the same month as weeks from Monday to Sunday: up to three items per day with their status and amount (income with a plus, payments with a minus, transfers with an arrow), "+2 more" when there are more, and the day's total. The account filter and "Show cancelled" work there too. Click a day for its list with the usual actions (mark done, set aside, edit), click an item to edit it, drag a planned or set-aside item to another day to move it. The app remembers the choice; the phone always shows the list.
 - **Envelopes.** Accounts can hold envelopes (sub-accounts, like the spaces of a banking app). Money set aside on an envelope belongs to its payments and never counts as free money for anything else.
 - **Splitting income.** When income arrives, the app proposes how much to move to each envelope to cover the payments until the next income, and marks those payments as set aside.
 - **Checking against the bank.** Type what your bank shows and any difference becomes a visible adjustment, so balances and the forecast stay true without guesswork.
 - **Recurring payments.** Monthly, every few months (optionally shown in the other months with a zero amount), yearly, weekly or once. The plan for the next months builds itself; approximate amounts are confirmed when a payment is marked done.
-- **Overview.** Free money right now, the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
-- **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
-- **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category.
+- **Overview.** Free money right now and its runway (how many days it lasts at the average spending of the last 90 days), the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
+- **Split payments.** One bank payment, several categories: a supermarket receipt of 60€ can be 40€ groceries, 12€ household and 8€ for the kids. Press "Split" in the payment's dialog, type the parts and the dialog shows what is left to split; it saves once the parts add up. Balances still see one payment, while category totals, limits, alerts and analytics count each part in its own category. Rows show "Groceries +2" with the parts in a tooltip, and when the amount changes (in the row, when marked done or from a bank statement) the parts follow in proportion.
+- **Tags and trip budgets.** Tag payments across categories ("Weekend in Vienna", "Renovation") in the payment, recurring payment and quick entry dialogs. A tag can have a color, a budget and dates; Analytics shows a card per tag with what is spent, what is still planned, the budget used and spending by category inside the tag. Month and search filter by tag, ticked rows get a tag added or removed at once, and tags are managed in Settings.
+- **Change journal** (Settings, Data; on the phone the More tab): what changed on this device in the last 90 days, day by day. Each line is one step (a click, a bulk action, an import, a sync) with its time, where it came from (this device, sync, restore, import, automatic) and a short text such as `Payment "Rent" 950€: amount 900€ → 950€`; open it to see every changed field. Filter by payments, recurring payments, accounts, categories, goals or the rest, by source, or search. "Undo this change" takes a whole step back and "Restore this version" brings one record back to how it was; a confirmation shows what will change, and a record changed again later is shown so you can choose. Taking a change back is a new change, so sync carries it to the other devices. The journal itself stays on the device (in the browser storage of the app window) and is not synced.
+- **Bulk actions.** Tick several rows to mark them done, set money aside, move dates, change accounts or add and remove a tag at once. The bar at the bottom adds the ticked payments up per account.
+- **Search** across the whole plan by name, note, category, account or amount (`12,50`, `12.50` or just `12`), ignoring case and accents, including the categories and notes of split parts and tag names, with filters by dates, type, account (envelopes included), category, tag, status and quick entries, and the totals of what was found. Click a result to edit it.
+- **What if.** The What if button on the forecast tries out a purchase or a new regular payment without adding it to the plan: "a new laptop for 1 200€ in December", "a gym for 40€ a month for 6 months". Switched-on drafts draw a second, dashed line on the forecast chart, with the lowest free money they lead to and a warning when it goes below zero. Balances, Month, totals, alerts and reminders never see drafts. "Add to the plan" turns a draft into a planned item (once) or a recurring payment (monthly), with undo.
+- **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A limit can roll over: what is left this month adds to the next one, and optionally overspending takes off from it ("this month: 54€ with 14€ carried over"). Carrying starts in the month the option is switched on. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
+- **Bank statement import** (desktop): load a CSV statement on the Accounts screen and every bank row is matched to the plan. Planned and set-aside payments of the same amount within 5 days (10% for approximate amounts) are marked done with the bank's amount and date, rows already in the budget are skipped (importing the same file twice adds nothing), the rest become new entries. You see and can change every row before applying, and one click undoes the whole import. When the file has a balance column, the bank's balance is shown next to the app's with a shortcut to checking against the bank.
+- **Category rules**: "LIDL DEKUJE ZA NAKUP 1234" goes to Groceries as "Lidl". Rules fill the category in quick entry and in the statement import, can send a payment to an envelope and are managed in Settings, or created from the import with "Always for".
+- **Alerts**: an Attention card on the overview and the phone's Today tab when a category reaches 80% or 100% of its monthly limit, free money drops below a threshold or a large payment is due within 3 days; on the computer each also comes as a notification, at most once a day.
 - **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
+- **Saving ahead** for payments that do not come every month (car insurance once a year, water every two months). Tick "Save ahead" on the payment or press the piggy bank on its row in Recurring, pick a savings account or envelope, and the app creates a goal for the payment's next date with a monthly contribution. From then on the payment is paid from that envelope, where its money lies frozen for it. The row shows how much is saved ("saved 180€ of 420€, 60€ a month"). Once the payment is marked done, the goal moves on to the next date and the contribution is worked out again. Stopping it, or deleting the payment, archives the goal and hands the payment back to its old account.
+- **Recurring costs overview.** The Overview switch in Recurring lists the recurring expenses by what they cost a year, with the amount per month (a yearly payment counts a twelfth, every N months an Nth, weekly ones 52 times a year), the next charge and the price history from the payments marked done ("was 9.99€, now 12.99€, +30%"), with totals and a category filter.
 - **Goals**: an amount, the envelope you save on and a date; the app shows how far you are and how much to set aside per month. A goal can put its monthly contribution into the plan as a transfer to the envelope, tells you whether the plan makes the amount by the date and raises the contribution in one click when it does not.
+- **Debts and loans**: a car loan, a mortgage or money a friend owes you, with the remaining amount, a bar of how much is paid ("38% paid, 4 560€ of 12 000€"), the monthly payment, the interest rate, when it is paid off at the current payment and how much interest is still to come. Payments count when they are done: entries marked with the debt in the entry dialog and the entries of its recurring payment, each first covering the interest since the previous one. "Update balance" takes the remaining amount from the bank's statement as a new starting point; "Make it a recurring payment" puts the monthly payment into the plan. The payoff planner shows, for some extra money per month, the order to pay several loans off (highest rate first or smallest first), when each one ends and how many months and how much interest that saves. On the phone the Accounts tab lists the debts with the same bar.
+- **Net worth**: what the household owns minus what it owes. The Accounts screen has a "Property and investments" block for a flat, a car, an investment account or savings kept elsewhere; update the value now and then and the latest one counts (archive something when it is sold, the past stays as it was). Analytics shows the total (all accounts once, envelopes included, without pass-through money that belongs to others, plus property and investments and money owed to you, minus what is left on loans and debts), the change over the period, the four parts and a line of the month ends. The phone's Accounts tab ends with the same total.
+- **Money flow**: a Sankey diagram in Analytics of where the money came from and where it went in the last full month, this month or the whole Analytics period: income sources on the left flow into Income, which flows out to the largest expense categories (the rest grouped into Other) and to what was saved, or takes the difference from savings when more went out. Hover a band for the amount and share; a table under it says the same in text, and narrow windows get a two-column list instead.
 - **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick entry in its menu.
 - **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
 - **Sync** between computers and the phone through a hidden app folder on your Google Drive.
-- **Phone app**: today's and overdue payments, marking them, quick entries of expenses and income, and what is free, added to the home screen of an iPhone or an Android phone. Made for iPhone screens from the SE to the Pro Max: no zooming into fields, room for the notch and the home indicator.
+- **Phone app**: today's and overdue payments, marking them, search, quick entries of expenses and income, and what is free, added to the home screen of an iPhone or an Android phone. Made for iPhone screens from the SE to the Pro Max: no zooming into fields, room for the notch and the home indicator.
 - **Reminders** in Google Calendar at the time you choose, so they reach your phone even when every computer is off, and notifications on the computer while the app is open.
 - **Updates** from GitHub Releases, offered right in the app.
-- English and Russian, dark and light theme.
+- **Features**: a screen (on the phone, a row on the More tab) that lists everything the app can do with a short line each; click one for how to use it and a button to the place where it lives. Search it, or filter to what is new.
+- **Languages**: Russian, Ukrainian, English, German, Spanish, Slovak, Czech, French, Portuguese (Brazil), Chinese (Simplified), Hindi, Bengali, Arabic and Urdu; Arabic and Urdu are written right to left and the interface mirrors for them. On the first start the app takes the language of the system or browser when it has it, otherwise English; Settings changes it at any time. Dark and light theme.
 
 ## Screenshots
 
@@ -78,6 +93,22 @@ The phone app is the same app in a browser, made for a phone: today's and overdu
 2. Tap Share, then Add to Home Screen (Chrome: the menu, then Add to Home screen).
 3. Open WE Budget from the home screen and sign in with the same Google account as on the computer. The budget comes down from your Google Drive.
 
+#### Quick entry from iPhone
+
+The web app opens the quick entry dialog filled in when its address carries parameters:
+
+```
+https://jaffarsk24.github.io/WE-Budget/app/?quick=expense&amount=12.50&note=Lidl
+https://jaffarsk24.github.io/WE-Budget/app/?quick=income&amount=200
+```
+
+`quick` is `expense` or `income`; `amount` takes a dot or a comma; `note` is free text; `category` and `account` are names as in the app, matched without regard to case and left out when nothing matches. The dialog opens once the budget has loaded, nothing is saved until you tap Save, and the parameters leave the address so a reload does not open it again. The installed app also has Expense and Income shortcuts on a long press of its icon (Android).
+
+- **A button or Siri**: in the Shortcuts app, make a shortcut with the Open URL action and the link. Name it Expense and say "Hey Siri, expense".
+- **After every card payment**: in Shortcuts, Automation, create a Transaction automation for your Wallet cards, Run Immediately, with Open URL and the link `...?quick=expense&amount=[Amount]&note=[Merchant]`, where Amount and Merchant are the variables of the transaction.
+
+Settings (and More on the phone) have a section with these steps and a button that copies the link. The link opens in Safari, which keeps its own copy of the budget: sign in to Google there too, so the entry reaches the shared budget through sync.
+
 A web app gets access to Google Drive for an hour at a time. When the hour is over, the sync button at the top says so, and one tap opens Google's window, which closes by itself, and sync goes on. The budget itself stays on the phone and works offline.
 
 ## Getting started
@@ -119,7 +150,8 @@ A typical routine:
 |---|---|
 | Cmd/Ctrl+N | Quick entry |
 | Shift+Cmd/Ctrl+N | New item |
-| Cmd/Ctrl+1 to 7 | Switch section |
+| Cmd/Ctrl+1 to 9 | Switch section (Features is 8, Settings 9) |
+| Cmd/Ctrl+F | Search |
 | Up, Down | Move between rows of the month |
 | Space | Mark the row done, or undo |
 | R | Set money aside for the row, or undo |
@@ -128,6 +160,7 @@ A typical routine:
 | Enter | Edit the row |
 | Delete | Delete the row |
 | Left, Right | Previous or next month |
+| Arrows, Enter, N | In the calendar: move between days, open the day, new item on the day |
 
 Shift-click on a checkbox ticks a range. Every destructive action can be undone from the message that appears at the bottom.
 
@@ -136,6 +169,8 @@ Shift-click on a checkbox ticks a range. Every destructive action can be undone 
 In Settings, Reminders, choose the time (23:00 by default) and switch on reminders through Google Calendar. The app creates a calendar of its own, "WE Budget", in your Google account and puts an event with a reminder on every day that still has payments not marked yet; it updates the events as you mark payments, from any computer or the phone. Google sends the reminder, so it reaches your phone even when every computer is off; add the Google account to the iPhone Calendar or install Google Calendar to get it there. The app cannot see your other calendars, and switching the reminders off deletes its calendar.
 
 While the desktop app is open, it can also show a notification at that time, and a morning summary of the day's payments at 8:00.
+
+The same section switches alerts on and off and sets their two amounts: the free money threshold (100€ by default) and what counts as a large payment (above 500€ by default); an empty field turns that alert off. Category limits are set in Settings, Categories.
 
 ## Sync between computers
 
@@ -151,6 +186,10 @@ Sync is built so that a computer with old data can never overwrite newer work fr
 
 Without a connection everything keeps working and goes up later. If Google stops honouring the sign-in (for example after access was revoked), a banner at the top asks to sign in again on every start until you do; meanwhile changes are kept on the computer. What the app stores, where, and how to remove it is described in the [privacy policy](https://jaffarsk24.github.io/WE-Budget/privacy.html).
 
+### Encryption
+
+Settings, Sync, Encrypt the file in Google Drive encrypts the copy in your Drive with a password you choose (AES-GCM 256, with the key derived from the password by PBKDF2-SHA256 at 600 000 iterations and a random salt). Google, or anyone who gets into your Drive, then sees only encrypted bytes. It does not protect the budget on your devices, which stays as it is, nor anyone who can use a device that remembers the password. Every device asks for the password once; the desktop app keeps the derived key (never the password) in the system keychain, the phone app in the browser's storage, or asks once per session where that is not possible, and Settings can make a device forget it. A device without the password pauses sync and never reads or writes the encrypted file until the password is entered. **A forgotten password cannot be recovered**: nobody can open the copy in Drive any more, and only the budgets on your devices remain. Versions 1.1.5 and older do not see the encrypted file at all; until they are updated they keep their own unencrypted copy in Drive, which newer versions merge in and remove.
+
 ## Updates
 
 On start the app checks this repository for a new release. If there is one, a banner offers to update: the app downloads the build for your system and processor, verifies its checksum, replaces itself and starts again. Before it closes it sends unsent changes to Google Drive. On Windows the installer then runs silently into the same folder.
@@ -163,7 +202,18 @@ On start the app checks this repository for a new release. If there is one, a ba
 | Windows | `%APPDATA%\WE Budget\we-budget-data.json` |
 | Phone app | the browser's storage of jaffarsk24.github.io |
 
-The app keeps a copy of the file every day (the last 14) in the `backups` folder next to it, and a separate copy before the whole budget is ever replaced. Settings also has a manual backup and restore and an export of all items to CSV for Excel or Google Sheets.
+Every change is also written to the change journal of the device (at most about 5 000 changed records, kept 90 days), separate from the budget file. The app keeps a copy of the file every day (the last 14) in the `backups` folder next to it, and a separate copy before the whole budget is ever replaced. Settings also has a manual backup and restore and an export of all items to CSV for Excel or Google Sheets (a split payment comes out as one line per part, marked 1/3, 2/3, 3/3, so the categories add up).
+
+## Importing a bank statement
+
+On the Accounts screen press **Import statement** (or the import icon on an account's row), choose the account and a CSV file from your online banking. A statement covers the account with all its envelopes.
+
+- The file may be UTF-8 or Windows-1250 (common with Slovak and Czech banks), separated by commas, semicolons or tabs, with lines above the table.
+- Columns are found by their names: Revolut statements (only completed rows, the fee taken off the amount), one signed amount column, or separate money out and money in columns. Any other bank works too: pick the date, the amount (or money out and money in), the description, counterparty, note and balance columns yourself; the app remembers them for the account.
+- Dates may be `DD.MM.YYYY`, `D.M.YYYY`, `YYYY-MM-DD`, `DD/MM/YYYY` or `MM/DD/YYYY` (the app asks when the dates cannot tell), with or without a time. Amounts may use a comma or a dot for decimals, spaces or dots between thousands, a minus sign or parentheses.
+- Each row is proposed as *Matches plan*, *Already recorded*, *New* or *Skip* (rows before the tracking start). Change the action, match a row to another planned payment or set its category; after you change a category, *Always for "..."* turns it into a rule.
+
+[samples/statement-example.csv](samples/statement-example.csv) is a made-up statement to try it with the demo budget.
 
 ## Importing a spreadsheet
 
@@ -198,19 +248,36 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 |---|---|
 | `src/model.js`, `src/store.js` | Data model and the store that changes and saves it |
 | `src/ledger.js` | Balances, money set aside, month totals, forecast |
+| `src/ledger.js` | Balances, money set aside, month totals, forecast, goals, recurring costs, runway, alerts |
+| `src/quicklink.js`, `src/insights.js` | Quick entry links, texts of the runway and alerts |
 | `src/schedule.js`, `src/allocation.js`, `src/reconcile.js` | Recurring payments, splitting income, checking against the bank |
-| `src/sync/` | Merging budgets and the sync cycle |
+| `src/sync/` | Merging budgets, the sync cycle and encryption of the cloud file |
 | `src/reminders.js`, `src/reminder-sync.js`, `src/notify.js` | Reminders in Google Calendar, notifications on the computer |
 | `src/web/`, `src/views/phone.js` | Google sign-in and Drive in the browser, the phone screens |
 | `src/views/analytics.js`, `src/views/goals.js`, `src/tray.js` | Analytics, goals, the menu bar |
+| `src/debts.js`, `src/views/debts.js` | Debts and loans: what is left, payoff schedule and planner, the Debts screen |
+| `src/networth.js`, `src/views/networth.js` | Net worth: accounts, property and investments, debts; the Analytics card and the Accounts block |
+| `src/sankey.js`, `src/views/money-flow.js` | Money flow: Sankey data and the SVG diagram in Analytics |
+| `src/views/templates.js`, `src/views/save-ahead.js` | Recurring payments, the costs overview, saving ahead |
 | `src/views/` | Screens |
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |
-| `src/import/` | Spreadsheet import |
+| `src/import/`, `src/statement.js` | Spreadsheet import, bank statement import and matching to the plan |
+| `src/rules.js`, `src/views/rules.js` | Category rules |
+| `src/splits.js`, `src/split-editor.js` | Split payments: parts per category, rescaling, the parts editor |
+| `src/tags.js`, `src/tag-ui.js`, `src/views/tags.js` | Tags and trip budgets: summaries, chips and picker, Settings and Analytics |
+| `src/calendar.js`, `src/views/month-calendar.js` | The month as a calendar grid |
+| `src/views/whatif.js` | What-if drafts on the forecast |
+| `src/help.js`, `src/views/help.js`, `src/i18n/help-*.js` | The Features guide: the list of features, its search, the screen and its texts |
+| `src/journal.js`, `src/journal-log.js`, `src/views/journal.js` | Change journal: finding what changed, describing and taking it back; keeping it in IndexedDB; the journal screen |
 | `tests/` | Unit tests |
 | `site/` | The website on GitHub Pages: the app page and the privacy policy |
 | `scripts/check-windows-install.ps1` | Install check on a clean Windows machine, run by CI |
 
 Built with Electron, plain JavaScript modules, Vite, Chart.js and Lucide icons.
+
+## Translations
+
+How to add or finish a language: [TRANSLATING.md](TRANSLATING.md).
 
 ## License
 
