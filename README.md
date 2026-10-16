@@ -11,6 +11,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 ## What it does
 
 - **Payment calendar.** Each month is a list of payments and incomes with a status: planned, set aside, done or cancelled. Payments still waiting for money are highlighted, done rows fold away under one line, and the balance column shows what is left on the row's own account after each payment. Click an amount to change it right in the row; the arrow keys move between rows and months.
+- **Month as a calendar.** The List / Calendar switch on the Month screen shows the same month as weeks from Monday to Sunday: up to three items per day with their status and amount (income with a plus, payments with a minus, transfers with an arrow), "+2 more" when there are more, and the day's total. The account filter and "Show cancelled" work there too. Click a day for its list with the usual actions (mark done, set aside, edit), click an item to edit it, drag a planned or set-aside item to another day to move it. The app remembers the choice; the phone always shows the list.
 - **Envelopes.** Accounts can hold envelopes (sub-accounts, like the spaces of a banking app). Money set aside on an envelope belongs to its payments and never counts as free money for anything else.
 - **Splitting income.** When income arrives, the app proposes how much to move to each envelope to cover the payments until the next income, and marks those payments as set aside.
 - **Checking against the bank.** Type what your bank shows and any difference becomes a visible adjustment, so balances and the forecast stay true without guesswork.
@@ -20,6 +21,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Tags and trip budgets.** Tag payments across categories ("Weekend in Vienna", "Renovation") in the payment, recurring payment and quick entry dialogs. A tag can have a color, a budget and dates; Analytics shows a card per tag with what is spent, what is still planned, the budget used and spending by category inside the tag. Month and search filter by tag, ticked rows get a tag added or removed at once, and tags are managed in Settings.
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates, change accounts or add and remove a tag at once. The bar at the bottom adds the ticked payments up per account.
 - **Search** across the whole plan by name, note, category, account or amount (`12,50`, `12.50` or just `12`), ignoring case and accents, including the categories and notes of split parts and tag names, with filters by dates, type, account (envelopes included), category, tag, status and quick entries, and the totals of what was found. Click a result to edit it.
+- **What if.** The What if button on the forecast tries out a purchase or a new regular payment without adding it to the plan: "a new laptop for 1 200€ in December", "a gym for 40€ a month for 6 months". Switched-on drafts draw a second, dashed line on the forecast chart, with the lowest free money they lead to and a warning when it goes below zero. Balances, Month, totals, alerts and reminders never see drafts. "Add to the plan" turns a draft into a planned item (once) or a recurring payment (monthly), with undo.
 - **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A limit can roll over: what is left this month adds to the next one, and optionally overspending takes off from it ("this month: 54€ with 14€ carried over"). Carrying starts in the month the option is switched on. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
 - **Bank statement import** (desktop): load a CSV statement on the Accounts screen and every bank row is matched to the plan. Planned and set-aside payments of the same amount within 5 days (10% for approximate amounts) are marked done with the bank's amount and date, rows already in the budget are skipped (importing the same file twice adds nothing), the rest become new entries. You see and can change every row before applying, and one click undoes the whole import. When the file has a balance column, the bank's balance is shown next to the app's with a shortcut to checking against the bank.
 - **Category rules**: "LIDL DEKUJE ZA NAKUP 1234" goes to Groceries as "Lidl". Rules fill the category in quick entry and in the statement import, can send a payment to an envelope and are managed in Settings, or created from the import with "Always for".
@@ -154,6 +156,7 @@ A typical routine:
 | Enter | Edit the row |
 | Delete | Delete the row |
 | Left, Right | Previous or next month |
+| Arrows, Enter, N | In the calendar: move between days, open the day, new item on the day |
 
 Shift-click on a checkbox ticks a range. Every destructive action can be undone from the message that appears at the bottom.
 
@@ -252,6 +255,8 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `src/rules.js`, `src/views/rules.js` | Category rules |
 | `src/splits.js`, `src/split-editor.js` | Split payments: parts per category, rescaling, the parts editor |
 | `src/tags.js`, `src/tag-ui.js`, `src/views/tags.js` | Tags and trip budgets: summaries, chips and picker, Settings and Analytics |
+| `src/calendar.js`, `src/views/month-calendar.js` | The month as a calendar grid |
+| `src/views/whatif.js` | What-if drafts on the forecast |
 | `tests/` | Unit tests |
 | `site/` | The website on GitHub Pages: the app page and the privacy policy |
 | `scripts/check-windows-install.ps1` | Install check on a clean Windows machine, run by CI |

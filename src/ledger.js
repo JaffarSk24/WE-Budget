@@ -9,7 +9,7 @@
 //    touch account balances.
 
 import { live, makeSchedule } from './model.js';
-import { addDays, addMonthsToMonth, daysBetween, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
+import { addDays, addMonthsToMonth, dayInMonth, daysBetween, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
 import { nextOccurrence, occurrences, pendingGeneration } from './schedule.js';
 import { categoryParts } from './splits.js';
 
@@ -795,4 +795,66 @@ export function budgetAlerts(data, today) {
       }));
   }
   return alerts;
+}
+
+// ---------- what-if drafts ----------
+
+// Days a draft falls on within [today, toDay]. A one-off draft dated in the
+// past counts today, like an overdue planned payment; a monthly one keeps
+// its day of the month (clamped to short months) and stops after `months`.
+export function scenarioDays(scenario, today, toDay) {
+  if (!scenario || !scenario.date || !scenario.amount) return [];
+  if (scenario.repeat !== 'monthly') {
+    const day = scenario.date < today ? today : scenario.date;
+    return day <= toDay ? [day] : [];
+  }
+  const dayOfMonth = Number(scenario.date.slice(8, 10));
+  const endDate = scenario.months
+    ? dayInMonth(addMonthsToMonth(monthOf(scenario.date), scenario.months - 1), dayOfMonth)
+    : null;
+  return occurrences(makeSchedule({ freq: 'monthly', day: dayOfMonth, startDate: scenario.date, endDate }), today, toDay);
+}
+
+// Active drafts as planned entries that exist only for the calculation.
+// They never reach data.entries.
+export function scenarioEntries(scenarios, today, toDay) {
+  return live(scenarios).filter(s => s.active).flatMap(s => scenarioDays(s, today, toDay).map(day => ({
+    id: `scenario:${s.id}:${day}`,
+    scenarioId: s.id,
+    date: day,
+    title: s.title,
+    type: s.type === 'income' ? 'income' : 'expense',
+    amount: s.amount,
+    accountId: s.accountId,
+    categoryId: s.categoryId,
+    status: 'planned',
+    createdAt: s.createdAt,
+    deleted: false
+  })));
+}
+
+// The free-money forecast with the active drafts on top of the real plan.
+// Same shape as forecast(); without active drafts it is the same result.
+export function forecastWithScenarios(data, today, toDay, scenarios = data.scenarios) {
+  const extra = scenarioEntries(scenarios || [], today, toDay);
+  if (!extra.length) return forecast(data, today, toDay);
+  return forecast({ ...data, entries: [...(data.entries || []), ...extra] }, today, toDay);
+}
+
+// What the active drafts change: the lowest free money with and without
+// them (and its day), the difference at the end of the forecast and the
+// first day free money goes below zero with the drafts.
+export function scenarioImpact(data, today, toDay, scenarios = data.scenarios) {
+  const base = forecast(data, today, toDay);
+  const withDrafts = forecastWithScenarios(data, today, toDay, scenarios);
+  return {
+    active: scenarioEntries(scenarios || [], today, toDay).length > 0,
+    lowest: withDrafts.minimum,
+    lowestWithout: base.minimum,
+    end: withDrafts.end,
+    endWithout: base.end,
+    endDifference: withDrafts.end - base.end,
+    firstNegative: withDrafts.firstNegative,
+    firstNegativeWithout: base.firstNegative
+  };
 }

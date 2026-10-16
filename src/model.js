@@ -5,7 +5,8 @@
 
 export const SCHEMA_VERSION = 1;
 
-export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts', 'tags'];
+export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts', 'tags', 'scenarios'];
+export const SCENARIO_REPEATS = ['once', 'monthly'];
 
 export const ENTRY_TYPES = ['expense', 'income', 'transfer'];
 export const ENTRY_STATUSES = ['planned', 'reserved', 'done', 'cancelled'];
@@ -259,6 +260,26 @@ export function makeRule(f = {}) {
   });
 }
 
+// A what-if draft: a payment or an income that is only being considered.
+// Drafts are not entries: balances, the month table, totals, alerts and
+// reminders never see them; only the forecast on the overview can add the
+// active ones on top of the real plan. `months` limits a monthly draft
+// (null runs to the end of the forecast).
+export function makeScenario(f = {}) {
+  const months = Number(f.months);
+  return base({
+    title: f.title || '',
+    type: f.type === 'income' ? 'income' : 'expense',
+    amount: Math.max(0, Math.round(Number(f.amount) || 0)),
+    date: f.date || null,
+    repeat: SCENARIO_REPEATS.includes(f.repeat) ? f.repeat : 'once',
+    months: Number.isInteger(months) && months > 0 ? months : null,
+    accountId: f.accountId || null,
+    categoryId: f.categoryId || null,
+    active: f.active !== false
+  });
+}
+
 export function emptyData() {
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -277,6 +298,7 @@ export function emptyData() {
     rules: [],
     debts: [],
     tags: [],
+    scenarios: [],
     settings: { ...DEFAULT_SETTINGS, importMappings: {}, updatedAt: nowIso() }
   };
 }
