@@ -1,3 +1,5 @@
+import { helpRu } from './help-ru.js';
+
 export const ru = {
   // Navigation
   'nav-overview': 'Обзор',
@@ -1244,5 +1246,7 @@ export const ru = {
   'journal-field-text': 'Текст',
   'journal-field-lender': 'Кредитор',
   'journal-field-amountIsEstimate': 'Примерная сумма',
-  'journal-field-tagIds': 'Метки'
+  'journal-field-tagIds': 'Метки',
+  // The Features screen: kept in its own file, it is long.
+  ...helpRu
 };
