@@ -9,6 +9,7 @@ import { formatDay, todayKey } from '../dates.js';
 import { live } from '../model.js';
 import { openAccountModal, openAllocationModal, openEntryModal } from '../modals.js';
 import { openBalancesModal } from '../balances.js';
+import { openStatementImport } from '../statement.js';
 
 let selectedId = null;
 
@@ -56,6 +57,8 @@ function accountRow(a, s, mode, root) {
       // account, never to the sum of a group.
       canMove ? actionBtn('scale', t('balances-open'), () => openBalancesModal({ focusAccountId: a.id })) : null,
       canMove ? actionBtn('split', t('alloc-from-here'), () => openAllocationModal({ sourceAccountId: a.id })) : null,
+      // A statement covers the bank account with all its envelopes.
+      (mode === 'group' || mode === 'single') && !a.archived ? actionBtn('import', t('import-statement'), () => openStatementImport({ accountId: a.id })) : null,
       mode === 'group' || mode === 'single' ? actionBtn('folder-plus', t('account-add-envelope'), () => openAccountModal(null, { parentId: a.id })) : null,
       actionBtn('pencil', t('edit'), () => openAccountModal(a)))
   );
@@ -96,6 +99,7 @@ export function renderAccounts(root) {
   root.appendChild(h('div', { class: 'view-header' },
     h('div', {}, h('h1', { class: 'view-title' }, t('nav-accounts')), h('p', { class: 'view-subtitle' }, t('accounts-subtitle'))),
     h('div', { class: 'header-actions' },
+      h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openStatementImport({ accountId: selectedId }) }, icon('import'), t('import-statement')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openBalancesModal() }, icon('scale'), t('balances-open')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openAllocationModal() }, icon('split'), t('alloc-open')),
       h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openAccountModal() }, icon('plus'), t('account-new')))));

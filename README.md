@@ -19,6 +19,8 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
 - **Search** across the whole plan by name, note, category, account or amount (`12,50`, `12.50` or just `12`), ignoring case and accents, with filters by dates, type, account (envelopes included), category, status and quick entries, and the totals of what was found. Click a result to edit it.
 - **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
+- **Bank statement import** (desktop): load a CSV statement on the Accounts screen and every bank row is matched to the plan. Planned and set-aside payments of the same amount within 5 days (10% for approximate amounts) are marked done with the bank's amount and date, rows already in the budget are skipped (importing the same file twice adds nothing), the rest become new entries. You see and can change every row before applying, and one click undoes the whole import. When the file has a balance column, the bank's balance is shown next to the app's with a shortcut to checking against the bank.
+- **Category rules**: "LIDL DEKUJE ZA NAKUP 1234" goes to Groceries as "Lidl". Rules fill the category in quick entry and in the statement import, can send a payment to an envelope and are managed in Settings, or created from the import with "Always for".
 - **Alerts**: an Attention card on the overview and the phone's Today tab when a category reaches 80% or 100% of its monthly limit, free money drops below a threshold or a large payment is due within 3 days; on the computer each also comes as a notification, at most once a day.
 - **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
 - **Saving ahead** for payments that do not come every month (car insurance once a year, water every two months). Tick "Save ahead" on the payment or press the piggy bank on its row in Recurring, pick a savings account or envelope, and the app creates a goal for the payment's next date with a monthly contribution. From then on the payment is paid from that envelope, where its money lies frozen for it. The row shows how much is saved ("saved 180€ of 420€, 60€ a month"). Once the payment is marked done, the goal moves on to the next date and the contribution is worked out again. Stopping it, or deleting the payment, archives the goal and hands the payment back to its old account.
@@ -188,6 +190,17 @@ On start the app checks this repository for a new release. If there is one, a ba
 
 The app keeps a copy of the file every day (the last 14) in the `backups` folder next to it, and a separate copy before the whole budget is ever replaced. Settings also has a manual backup and restore and an export of all items to CSV for Excel or Google Sheets.
 
+## Importing a bank statement
+
+On the Accounts screen press **Import statement** (or the import icon on an account's row), choose the account and a CSV file from your online banking. A statement covers the account with all its envelopes.
+
+- The file may be UTF-8 or Windows-1250 (common with Slovak and Czech banks), separated by commas, semicolons or tabs, with lines above the table.
+- Columns are found by their names: Revolut statements (only completed rows, the fee taken off the amount), one signed amount column, or separate money out and money in columns. Any other bank works too: pick the date, the amount (or money out and money in), the description, counterparty, note and balance columns yourself; the app remembers them for the account.
+- Dates may be `DD.MM.YYYY`, `D.M.YYYY`, `YYYY-MM-DD`, `DD/MM/YYYY` or `MM/DD/YYYY` (the app asks when the dates cannot tell), with or without a time. Amounts may use a comma or a dot for decimals, spaces or dots between thousands, a minus sign or parentheses.
+- Each row is proposed as *Matches plan*, *Already recorded*, *New* or *Skip* (rows before the tracking start). Change the action, match a row to another planned payment or set its category; after you change a category, *Always for "..."* turns it into a rule.
+
+[samples/statement-example.csv](samples/statement-example.csv) is a made-up statement to try it with the demo budget.
+
 ## Importing a spreadsheet
 
 If you kept your budget in a spreadsheet with one block per month (the payments, then a subtotal line with the money carried over), it can be imported:
@@ -231,7 +244,8 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `src/views/templates.js`, `src/views/save-ahead.js` | Recurring payments, the costs overview, saving ahead |
 | `src/views/` | Screens |
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |
-| `src/import/` | Spreadsheet import |
+| `src/import/`, `src/statement.js` | Spreadsheet import, bank statement import and matching to the plan |
+| `src/rules.js`, `src/views/rules.js` | Category rules |
 | `tests/` | Unit tests |
 | `site/` | The website on GitHub Pages: the app page and the privacy policy |
 | `scripts/check-windows-install.ps1` | Install check on a clean Windows machine, run by CI |

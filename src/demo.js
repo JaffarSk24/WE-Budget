@@ -2,7 +2,7 @@
 // up: names, amounts and accounts are invented. Deterministic (seeded), so
 // two runs on the same day produce the same budget.
 
-import { emptyData, defaultCategories, makeAccount, makeEntry, makeGoal, makeTemplate, nowIso } from './model.js';
+import { emptyData, defaultCategories, makeAccount, makeEntry, makeGoal, makeRule, makeTemplate, nowIso } from './model.js';
 import { addMonthsToMonth, firstDayOfMonth, monthOf, addDays, dayInMonth, lastDayOfMonth } from './dates.js';
 import { pendingGeneration, generationHorizon } from './schedule.js';
 
@@ -141,5 +141,14 @@ export function buildDemo(today, lang = 'en') {
       });
     });
   }
+
+  // Category rules for the quick entry and the statement import, the way a
+  // bank writes the shops.
+  [
+    { text: 'lidl', title: 'Lidl', categoryId: cat(L('Groceries', 'Продукты')), accountId: food.id },
+    { text: 'coffee corner', title: 'Coffee Corner', categoryId: cat(L('Eating out', 'Кафе и рестораны')) },
+    { text: 'shell', title: 'Shell', categoryId: cat(L('Car', 'Авто')) },
+    { text: 'city gym', type: 'expense', categoryId: cat(L('Health', 'Здоровье')) }
+  ].forEach((r, i) => data.rules.push(makeRule({ type: 'expense', ...r, order: i + 1 })));
   return data;
 }

@@ -2048,3 +2048,86 @@ body.is-welcome .search-btn { visibility: hidden; }
   .search-filters input[type="date"] { padding: 8px 6px; }
   .search-row { gap: 6px; }
 }
+
+/* Category rules and the bank statement import */
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.link-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 2px 0; color: var(--accent-indigo); font: inherit; font-size: 0.82rem; cursor: pointer; text-align: left; }
+.link-btn:hover { text-decoration: underline; }
+.link-btn i, .link-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.banner-success { background: rgba(16, 185, 129, 0.10); border: 1px solid rgba(16, 185, 129, 0.35); color: var(--text-primary); }
+.banner-success i, .banner-success svg { color: var(--success); }
+.rule-hint:empty { display: none; }
+.rules-table .rule-on { width: 28px; }
+.rules-table .row-title, .rules-table .row-meta { overflow-wrap: anywhere; }
+.rules-table .col-actions { white-space: nowrap; }
+.rule-try { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.rule-try label { font-size: 0.85rem; color: var(--text-secondary); }
+.rule-try-result { font-size: 0.85rem; min-height: 1.2em; overflow-wrap: anywhere; }
+
+.import-modal.modal-content.modal-wide { max-width: 980px; }
+.import-body { min-width: 0; }
+.import-file { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.import-file-name { overflow-wrap: anywhere; min-width: 0; }
+.import-info p { margin: 0 0 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.import-info p > span { flex: 1; min-width: 0; }
+.import-info i, .import-info svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent-indigo); }
+.import-columns summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.import-mapping { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; padding-top: 10px; }
+.import-mapping select, .import-date-order select { width: 100%; min-width: 0; }
+.import-preview-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+.import-list { display: flex; flex-direction: column; border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; }
+.import-preview-row, .import-row-main { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto auto; gap: 10px; align-items: baseline; }
+.import-preview-row { padding: 8px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.88rem; }
+.import-preview-row:last-child, .import-row:last-child { border-bottom: none; }
+.import-date { color: var(--text-secondary); white-space: nowrap; }
+.import-desc { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.import-desc .row-meta { font-size: 0.78rem; }
+.import-amount { text-align: right; white-space: nowrap; font-weight: 600; }
+.import-balance { text-align: right; white-space: nowrap; font-size: 0.8rem; }
+.import-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.import-total { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); min-width: 0; }
+.import-total-label { font-size: 0.78rem; color: var(--text-secondary); }
+.import-total strong { font-size: 1.1rem; }
+.import-total .money { font-size: 0.78rem; overflow-wrap: anywhere; }
+.import-total-match { border-color: rgba(16, 185, 129, 0.45); }
+.import-total-new { border-color: rgba(99, 102, 241, 0.45); }
+.import-review { max-height: none; }
+.import-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 6px 14px; padding: 10px 12px; border-bottom: 1px solid var(--border-color); align-items: center; }
+.import-row-main { grid-template-columns: 56px minmax(0, 1fr) auto; }
+.import-row-controls { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; min-width: 0; }
+.import-row-controls select { width: 100%; min-width: 0; font-size: 0.85rem; padding: 6px 8px; }
+.import-row-controls .badge { white-space: nowrap; }
+.import-rule-slot { grid-column: 1 / -1; }
+.import-rule-slot:empty { display: none; }
+.import-row-skip .import-row-main, .import-row-recorded .import-row-main { opacity: 0.6; }
+.import-why { color: var(--text-secondary); }
+.badge-import-match { color: var(--success); border-color: rgba(16, 185, 129, 0.4); }
+.badge-import-new { color: var(--accent-indigo); border-color: rgba(99, 102, 241, 0.4); }
+.badge-import-recorded, .badge-import-skip { color: var(--text-muted); }
+.import-balance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.import-balance-grid > div { padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); min-width: 0; }
+.import-balance-grid strong { font-size: 1.15rem; overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .import-row { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .import-totals, .import-balance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .import-preview-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .import-preview-row .import-date { grid-column: 1 / -1; font-size: 0.78rem; }
+  .import-preview-row .import-balance { grid-column: 1 / -1; text-align: left; }
+  .import-row-main { grid-template-columns: minmax(0, 1fr) auto; }
+  .import-row-main .import-date { grid-column: 1 / -1; font-size: 0.78rem; }
+  .import-row-controls { grid-template-columns: minmax(0, 1fr); }
+  .import-row-controls .badge { justify-self: start; }
+  .import-mapping { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rules-table th:nth-child(3), .rules-table td:nth-child(3), .rules-table th:nth-child(5), .rules-table td:nth-child(5) { display: none; }
+}
+@media (max-width: 360px) {
+  .import-mapping { grid-template-columns: minmax(0, 1fr); }
+}
+.import-modal .modal-actions { flex-wrap: wrap; }
+.import-modal .modal-actions .btn { flex: 1 1 auto; white-space: normal; }
+@media (min-width: 561px) {
+  .import-modal .modal-actions .btn { flex: 0 0 auto; }
+}
