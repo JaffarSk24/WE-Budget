@@ -169,7 +169,7 @@ export const en = {
   'quick-type-income': 'Income',
   'quick-note-placeholder-income': 'From where, optional',
   'quick-note-placeholder': 'What for, optional',
-  'quick-save-more': 'Save and add another',
+  'quick-save-more': 'Save and new',
   'limit-left': '{left} left of the {limit} monthly limit',
 
   // Allocation
