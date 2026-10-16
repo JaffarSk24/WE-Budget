@@ -11,17 +11,18 @@
 //   on a random local port, opened in the system browser.
 // - The budget lives in the Drive appDataFolder: a hidden folder only this
 //   app can read, which does not clutter the user's Drive. The file is
-//   gzipped JSON, a few dozen kilobytes even with years of history.
+//   gzipped JSON, a few dozen kilobytes even with years of history. With
+//   encryption on, the JSON is an envelope sealed in the page (src/sync/
+//   crypto.js) and the file is named we-budget-data.enc.gz.
 
-const { app, shell } = require('electron');
+const { app, shell, safeStorage } = require('electron');
 const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const { DRIVE_SCOPE, grantsDrive, isInsufficientScope, pendingSignIn } = require('./cloud-utils.cjs');
+const { DRIVE_SCOPE, grantsDrive, isInsufficientScope, pendingSignIn, PLAIN_NAME, ENCRYPTED_NAME, pickMain } = require('./cloud-utils.cjs');
 
-const REMOTE_NAME = 'we-budget-data.json.gz';
 const SCOPES = [
   DRIVE_SCOPE,
   'https://www.googleapis.com/auth/userinfo.email'
@@ -87,6 +88,7 @@ class Cloud {
     this.tokens = null;
     this.tokensPath = null;
     this.statePath = null;
+    this.keyPath = null;
     this.server = null;
   }
 
@@ -94,6 +96,7 @@ class Cloud {
     const userData = app.getPath('userData');
     this.tokensPath = path.join(userData, 'google-tokens.json');
     this.statePath = path.join(userData, 'cloud-state.json');
+    this.keyPath = path.join(userData, 'cloud-key.bin');
     // A client file in userData wins over the bundled one, so a build without
     // the bundled file can still be pointed at a client.
     const override = this.readJson(path.join(userData, 'google-credentials.json'));
@@ -153,6 +156,59 @@ class Cloud {
   // again or turns sync off.
   markSignInNeeded(reason) {
     this.setState({ signInNeeded: { reason, email: (this.tokens && this.tokens.email) || '', at: new Date().toISOString() } });
+  }
+
+  // ---------- the encryption key of this device ----------
+  //
+  // The page derives the key from the password; only the derived key bits
+  // come here, never the password. They are written sealed by the system
+  // keychain (safeStorage) and never in plain text: when the keychain is not
+  // usable (some Linux desktops fall back to a fixed key), nothing is
+  // written and the page asks for the password once per session.
+
+  keychainUsable() {
+    try {
+      if (!safeStorage.isEncryptionAvailable()) return false;
+      if (process.platform === 'linux' && typeof safeStorage.getSelectedStorageBackend === 'function') {
+        return !['basic_text', 'unknown'].includes(safeStorage.getSelectedStorageBackend());
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  getKey() {
+    try {
+      if (!this.keychainUsable() || !fs.existsSync(this.keyPath)) return { ok: true, value: null };
+      return { ok: true, value: safeStorage.decryptString(fs.readFileSync(this.keyPath)) };
+    } catch (e) {
+      console.error('[cloud] cannot read the sync key', e.message);
+      return { ok: true, value: null };
+    }
+  }
+
+  setKey(value) {
+    if (typeof value !== 'string' || !value || value.length > 10000) return { ok: false, stored: false };
+    if (!this.keychainUsable()) return { ok: true, stored: false };
+    try {
+      const tmp = this.keyPath + '.tmp';
+      fs.writeFileSync(tmp, safeStorage.encryptString(value), { mode: 0o600 });
+      fs.renameSync(tmp, this.keyPath);
+      return { ok: true, stored: true };
+    } catch (e) {
+      console.error('[cloud] cannot store the sync key', e.message);
+      return { ok: true, stored: false };
+    }
+  }
+
+  forgetKey() {
+    try {
+      if (fs.existsSync(this.keyPath)) fs.unlinkSync(this.keyPath);
+    } catch (e) {
+      console.error('[cloud] cannot remove the sync key', e.message);
+    }
+    return { ok: true };
   }
 
   // ---------- OAuth ----------
@@ -385,8 +441,8 @@ class Cloud {
   }
 
   async listFiles() {
-    const q = encodeURIComponent(`name = '${REMOTE_NAME}' and trashed = false`);
-    const res = await this.api(`${DRIVE}/files?spaces=appDataFolder&q=${q}&orderBy=modifiedTime desc&fields=files(id,version,modifiedTime)`);
+    const q = encodeURIComponent(`(name = '${PLAIN_NAME}' or name = '${ENCRYPTED_NAME}') and trashed = false`);
+    const res = await this.api(`${DRIVE}/files?spaces=appDataFolder&q=${q}&orderBy=modifiedTime desc&fields=files(id,name,version,modifiedTime)`);
     return (await res.json()).files || [];
   }
 
@@ -404,19 +460,10 @@ class Cloud {
   }
 
   meta() {
-    return this.guard(async () => {
-      const files = await this.listFiles();
-      if (!files.length) return { exists: false };
-      // Two devices creating the file at the same moment leave two copies;
-      // the most recently written one is the budget, the rest get removed.
-      return {
-        exists: true,
-        fileId: files[0].id,
-        version: String(files[0].version),
-        modifiedTime: files[0].modifiedTime,
-        duplicates: files.slice(1).map(f => f.id)
-      };
-    });
+    // Two devices creating the file at the same moment leave two copies;
+    // the most recently written one is the budget (an encrypted one first),
+    // the rest are merged in and removed by the engine.
+    return this.guard(async () => pickMain(await this.listFiles()));
   }
 
   download(fileId) {
@@ -430,15 +477,32 @@ class Cloud {
     });
   }
 
-  upload(content, fileId = null) {
+  // `encrypted`: the content is an encryption envelope, stored under the
+  // encrypted name. Writing over an existing file also sets its name, so
+  // turning encryption on or off renames the one file in the same request
+  // and there is never a moment with two budgets in the cloud.
+  upload(content, fileId = null, encrypted = false) {
     return this.guard(async () => {
       if (typeof content !== 'string' || !content) throw new Error('empty_upload');
       JSON.parse(content);
       const body = zlib.gzipSync(Buffer.from(content, 'utf8'));
+      const name = encrypted ? ENCRYPTED_NAME : PLAIN_NAME;
+      const multipart = (metadata) => {
+        const boundary = 'we-budget-' + crypto.randomBytes(8).toString('hex');
+        return {
+          boundary,
+          body: Buffer.concat([
+            Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/gzip\r\n\r\n`),
+            body,
+            Buffer.from(`\r\n--${boundary}--`)
+          ])
+        };
+      };
       if (fileId) {
         try {
-          const res = await this.api(`${UPLOAD}/files/${fileId}?uploadType=media&fields=id,version`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/gzip' }, body, timeout: 120000
+          const part = multipart({ name });
+          const res = await this.api(`${UPLOAD}/files/${fileId}?uploadType=multipart&fields=id,version`, {
+            method: 'PATCH', headers: { 'Content-Type': `multipart/related; boundary=${part.boundary}` }, body: part.body, timeout: 120000
           });
           const saved = await res.json();
           return { fileId: saved.id, version: String(saved.version) };
@@ -447,15 +511,9 @@ class Cloud {
           // The file was removed from the cloud: create it again below.
         }
       }
-      const boundary = 'we-budget-' + crypto.randomBytes(8).toString('hex');
-      const metadata = JSON.stringify({ name: REMOTE_NAME, parents: ['appDataFolder'], mimeType: 'application/gzip' });
-      const multipart = Buffer.concat([
-        Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/gzip\r\n\r\n`),
-        body,
-        Buffer.from(`\r\n--${boundary}--`)
-      ]);
+      const part = multipart({ name, parents: ['appDataFolder'], mimeType: 'application/gzip' });
       const res = await this.api(`${UPLOAD}/files?uploadType=multipart&fields=id,version`, {
-        method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body: multipart, timeout: 120000
+        method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${part.boundary}` }, body: part.body, timeout: 120000
       });
       const saved = await res.json();
       return { fileId: saved.id, version: String(saved.version) };

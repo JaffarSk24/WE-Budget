@@ -839,7 +839,7 @@ textarea:focus {
 }
 
 .toast-success { border-left: 3px solid #22c55e; }
-.toast-error   { border-left: 3px solid var(--danger, #f43f5e); }
+.toast-error   { border-left: 3px solid var(--danger); }
 .toast-info    { border-left: 3px solid var(--accent-indigo, #6366f1); }
 
 .toast-message { flex: 1; }
@@ -2156,3 +2156,20 @@ body.is-welcome .search-btn { visibility: hidden; }
   .planner-controls { grid-template-columns: 1fr; }
 }
 .debt-card .goal-name { flex-wrap: wrap; row-gap: 4px; }
+
+/* Encryption of the file in Google Drive: password dialogs */
+.enc-dialog .modal-body .form-group { margin-bottom: 12px; }
+.enc-warning {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px; margin-bottom: 14px; border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  font-size: 0.85rem; line-height: 1.45;
+}
+.enc-warning p { margin: 0 0 6px; }
+.enc-warning p:last-child { margin-bottom: 0; }
+.enc-warning i, .enc-warning svg { width: 18px; height: 18px; color: var(--warning); flex-shrink: 0; margin-top: 2px; }
+.enc-strength[data-score="0"], .enc-strength[data-score="1"] { color: var(--warning); }
+.enc-strength[data-score="3"] { color: var(--success); }
+.enc-error { color: var(--danger); font-size: 0.85rem; margin: 4px 0 0; }
+.enc-error[hidden] { display: none; }

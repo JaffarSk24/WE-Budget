@@ -177,6 +177,10 @@ Sync is built so that a computer with old data can never overwrite newer work fr
 
 Without a connection everything keeps working and goes up later. If Google stops honouring the sign-in (for example after access was revoked), a banner at the top asks to sign in again on every start until you do; meanwhile changes are kept on the computer. What the app stores, where, and how to remove it is described in the [privacy policy](https://jaffarsk24.github.io/WE-Budget/privacy.html).
 
+### Encryption
+
+Settings, Sync, Encrypt the file in Google Drive encrypts the copy in your Drive with a password you choose (AES-GCM 256, with the key derived from the password by PBKDF2-SHA256 at 600 000 iterations and a random salt). Google, or anyone who gets into your Drive, then sees only encrypted bytes. It does not protect the budget on your devices, which stays as it is, nor anyone who can use a device that remembers the password. Every device asks for the password once; the desktop app keeps the derived key (never the password) in the system keychain, the phone app in the browser's storage, or asks once per session where that is not possible, and Settings can make a device forget it. A device without the password pauses sync and never reads or writes the encrypted file until the password is entered. **A forgotten password cannot be recovered**: nobody can open the copy in Drive any more, and only the budgets on your devices remain. Versions 1.1.5 and older do not see the encrypted file at all; until they are updated they keep their own unencrypted copy in Drive, which newer versions merge in and remove.
+
 ## Updates
 
 On start the app checks this repository for a new release. If there is one, a banner offers to update: the app downloads the build for your system and processor, verifies its checksum, replaces itself and starts again. Before it closes it sends unsent changes to Google Drive. On Windows the installer then runs silently into the same folder.
@@ -238,7 +242,7 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `src/ledger.js` | Balances, money set aside, month totals, forecast, goals, recurring costs, runway, alerts |
 | `src/quicklink.js`, `src/insights.js` | Quick entry links, texts of the runway and alerts |
 | `src/schedule.js`, `src/allocation.js`, `src/reconcile.js` | Recurring payments, splitting income, checking against the bank |
-| `src/sync/` | Merging budgets and the sync cycle |
+| `src/sync/` | Merging budgets, the sync cycle and encryption of the cloud file |
 | `src/reminders.js`, `src/reminder-sync.js`, `src/notify.js` | Reminders in Google Calendar, notifications on the computer |
 | `src/web/`, `src/views/phone.js` | Google sign-in and Drive in the browser, the phone screens |
 | `src/views/analytics.js`, `src/views/goals.js`, `src/tray.js` | Analytics, goals, the menu bar |

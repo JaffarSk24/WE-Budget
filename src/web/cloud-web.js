@@ -20,7 +20,10 @@ export const WEB_CLIENT_ID = '891678002432-rbhgs5t30uem899fi6pu0jkb67bt9vtq.apps
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const EMAIL_SCOPE = 'https://www.googleapis.com/auth/userinfo.email';
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
-const REMOTE_NAME = 'we-budget-data.json.gz';
+// The encrypted budget has a name of its own, which versions 1.1.5 and
+// older never look for (see main/cloud-utils.cjs, same names and rule).
+export const PLAIN_NAME = 'we-budget-data.json.gz';
+export const ENCRYPTED_NAME = 'we-budget-data.enc.gz';
 const DRIVE = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const CALENDAR = 'https://www.googleapis.com/calendar/v3';
@@ -180,6 +183,22 @@ async function guard(fn) {
   }
 }
 
+// Which listed file (newest first) is the budget: an encrypted one wins,
+// plain files next to it are spare copies the engine merges and removes.
+export function pickMain(files) {
+  const list = files || [];
+  if (!list.length) return { exists: false };
+  const main = list.find(f => f.name === ENCRYPTED_NAME) || list[0];
+  return {
+    exists: true,
+    fileId: main.id,
+    version: String(main.version),
+    modifiedTime: main.modifiedTime,
+    encrypted: main.name === ENCRYPTED_NAME,
+    duplicates: list.filter(f => f !== main).map(f => f.id)
+  };
+}
+
 async function gzip(text) {
   const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
@@ -325,17 +344,9 @@ export function createWebCloud() {
 
     meta() {
       return guard(async () => {
-        const q = encodeURIComponent(`name = '${REMOTE_NAME}' and trashed = false`);
-        const res = await api(`${DRIVE}/files?spaces=appDataFolder&q=${q}&orderBy=modifiedTime desc&fields=files(id,version,modifiedTime)`);
-        const files = (await res.json()).files || [];
-        if (!files.length) return { exists: false };
-        return {
-          exists: true,
-          fileId: files[0].id,
-          version: String(files[0].version),
-          modifiedTime: files[0].modifiedTime,
-          duplicates: files.slice(1).map(f => f.id)
-        };
+        const q = encodeURIComponent(`(name = '${PLAIN_NAME}' or name = '${ENCRYPTED_NAME}') and trashed = false`);
+        const res = await api(`${DRIVE}/files?spaces=appDataFolder&q=${q}&orderBy=modifiedTime desc&fields=files(id,name,version,modifiedTime)`);
+        return pickMain((await res.json()).files || []);
       });
     },
 
@@ -349,15 +360,30 @@ export function createWebCloud() {
       });
     },
 
-    upload(content, fileId = null) {
+    // `encrypted`: the content is an encryption envelope. Writing over a
+    // file also sets its name, so switching encryption renames the one file.
+    upload(content, fileId = null, encrypted = false) {
       return guard(async () => {
         if (typeof content !== 'string' || !content) throw new Error('empty_upload');
         JSON.parse(content);
         const body = await gzip(content);
+        const name = encrypted ? ENCRYPTED_NAME : PLAIN_NAME;
+        const multipart = (metadata) => {
+          const boundary = 'we-budget-' + randomState();
+          return {
+            boundary,
+            body: new Blob([
+              `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/gzip\r\n\r\n`,
+              body,
+              `\r\n--${boundary}--`
+            ])
+          };
+        };
         if (fileId) {
           try {
-            const res = await api(`${UPLOAD}/files/${fileId}?uploadType=media&fields=id,version`, {
-              method: 'PATCH', headers: { 'Content-Type': 'application/gzip' }, body, timeout: 120000
+            const part = multipart({ name });
+            const res = await api(`${UPLOAD}/files/${fileId}?uploadType=multipart&fields=id,version`, {
+              method: 'PATCH', headers: { 'Content-Type': `multipart/related; boundary=${part.boundary}` }, body: part.body, timeout: 120000
             });
             const saved = await res.json();
             return { fileId: saved.id, version: String(saved.version) };
@@ -366,15 +392,9 @@ export function createWebCloud() {
             // The file was removed from the cloud: create it again below.
           }
         }
-        const boundary = 'we-budget-' + randomState();
-        const metadata = JSON.stringify({ name: REMOTE_NAME, parents: ['appDataFolder'], mimeType: 'application/gzip' });
-        const multipart = new Blob([
-          `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/gzip\r\n\r\n`,
-          body,
-          `\r\n--${boundary}--`
-        ]);
+        const part = multipart({ name, parents: ['appDataFolder'], mimeType: 'application/gzip' });
         const res = await api(`${UPLOAD}/files?uploadType=multipart&fields=id,version`, {
-          method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body: multipart, timeout: 120000
+          method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${part.boundary}` }, body: part.body, timeout: 120000
         });
         const saved = await res.json();
         return { fileId: saved.id, version: String(saved.version) };

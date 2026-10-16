@@ -18,6 +18,7 @@ import { reminderState, requestCalendarAccess, turnOffReminders, run as runRemin
 import { APP_URL } from '../reminders.js';
 import { quickLinkBase } from '../quicklink.js';
 import { rulesSection } from './rules.js';
+import { encryptionRows } from './encryption.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
@@ -80,6 +81,7 @@ export function syncSection() {
         onclick: () => (st.status === 'renew' ? renewAccess() : sync.sync('manual'))
       }, icon('refresh-cw'), t('sync-now')),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: signOut }, icon('log-out'), t('sync-logout'))));
+    rows.push(...encryptionRows({ settingRow, checkboxLabel }));
     rows.push(h('p', { class: 'setting-hint' }, t('sync-where')));
   }
   return section(t('sync-title'), 'cloud', ...rows);
