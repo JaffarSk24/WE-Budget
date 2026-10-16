@@ -3,7 +3,7 @@
 // split income that just arrived, undo for everything destructive.
 
 import { store } from './store.js';
-import { t } from './i18n.js';
+import { t, flow } from './i18n.js';
 import { showToast } from './toast.js';
 import { h, icon, money, accountLabel, lang } from './ui.js';
 import { openAllocationModal, openEntryModal, promptAmount, withUndo } from './modals.js';
@@ -106,7 +106,7 @@ export function entryListItem(entry, { showDate = true } = {}) {
     h('div', { class: 'list-entry-main' },
       h('span', { class: 'list-entry-title' }, entry.title || t('untitled')),
       h('span', { class: 'list-entry-meta', title: splitTooltip(entry) },
-        [entry.type === 'transfer' ? `${accountLabel(entry.accountId)} → ${accountLabel(entry.toAccountId)}` : accountLabel(entry.accountId),
+        [entry.type === 'transfer' ? flow(accountLabel(entry.accountId), accountLabel(entry.toAccountId)) : accountLabel(entry.accountId),
           categoryText(entry) || null,
           entry.status === 'reserved' ? t('status-reserved') : null].filter(Boolean).join(' · ')),
       tagChips(entry)),

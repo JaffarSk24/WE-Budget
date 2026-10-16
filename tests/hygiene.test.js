@@ -17,7 +17,7 @@ function files(dir) {
 
 describe('source hygiene', () => {
   const targets = [...files('src'), ...files('tests'), ...files('scripts'), ...files('main'), ...files('site'),
-    ...files('.github'), 'README.md', 'index.html', 'electron-main.cjs', 'preload.cjs', 'package.json',
+    ...files('.github'), 'README.md', 'TRANSLATING.md', 'index.html', 'electron-main.cjs', 'preload.cjs', 'package.json',
     'vite.config.js', 'eslint.config.js'];
 
   it.each(targets)('%s is clean', (path) => {

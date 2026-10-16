@@ -6,6 +6,7 @@
 
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
+import { decimalOf, localeOf } from '../i18n/languages.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, field, moneyInput, selectEl, accountOptions, categoryOptions, openModal, accountLabel, badge } from '../ui.js';
 import { debtOutlook, nextPaymentMonth, payoffPlan, planDebts } from '../debts.js';
 import { firstDayOfMonth, formatDate, formatMonth, isDayKey, monthOf, todayKey } from '../dates.js';
@@ -25,7 +26,7 @@ function parseRate(value) {
 }
 
 function rateText(rate) {
-  return `${(Number(rate) || 0).toLocaleString(lang() === 'ru' ? 'ru-RU' : 'en-US', { maximumFractionDigits: 2 })}%`;
+  return `${(Number(rate) || 0).toLocaleString(localeOf(lang()), { maximumFractionDigits: 2 })}%`;
 }
 
 // Recurring payments a debt can be linked to: of the matching type, not
@@ -54,7 +55,7 @@ export function openDebtModal(debt = null) {
   const lender = h('input', { type: 'text', value: src.lender || '' });
   const original = moneyInput({ value: src.original || null });
   const remaining = moneyInput({ value: null, placeholder: t('debt-remaining-placeholder') });
-  const rate = h('input', { type: 'text', inputmode: 'decimal', value: src.rate ? String(src.rate).replace('.', lang() === 'ru' ? ',' : '.') : '', placeholder: '0' });
+  const rate = h('input', { type: 'text', inputmode: 'decimal', value: src.rate ? String(src.rate).replace('.', decimalOf(lang())) : '', placeholder: '0' });
   const payment = moneyInput({ value: src.payment || null });
   const day = h('input', { type: 'number', min: '1', max: '31', step: '1', value: String(src.paymentDay || 1) });
   const account = selectEl(accountOptions({ emptyLabel: t('choose-account') }), src.accountId || '');

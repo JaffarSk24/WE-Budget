@@ -1,5 +1,9 @@
 // Money is stored as integer cents everywhere. Floats only appear at the
-// edges: parsing what the user typed and formatting for display.
+// edges: parsing what the user typed and formatting for display. `lang` is
+// a language code from i18n/languages.js, which knows its locale and the
+// decimal separator people type.
+
+import { localeOf, decimalOf, dirOf } from './i18n/languages.js';
 
 const CURRENCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', CZK: 'Kč', PLN: 'zł', UAH: '₴', RUB: '₽' };
 
@@ -9,7 +13,8 @@ export function parseMoney(input) {
     return Number.isFinite(input) ? Math.round(input * 100) : null;
   }
   if (typeof input !== 'string') return null;
-  let s = input.replace(/[\s\u00a0\u202f€$£₴₽]/g, '').replace(/(kč|zł)$/i, '');
+  // Bidi marks come along when an amount is copied out of a right to left page.
+  let s = input.replace(/[\s\u00a0\u202f\u200e\u200f\u2066-\u2069€$£₴₽]/g, '').replace(/(kč|zł)$/i, '');
   if (!s) return null;
 
   const negative = s.startsWith('-');
@@ -52,10 +57,12 @@ export function currencySymbol(code) {
 }
 
 // 245050 -> "2 450,50€" (ru) / "2,450.50€" (en). The symbol is attached
-// without a space on purpose.
+// without a space on purpose. In a right to left language the amount is
+// wrapped in a left to right isolate: "-38.90€" would otherwise show its
+// minus on the wrong side, inside a sentence as well as in a cell.
 export function formatMoney(cents, { currency = 'EUR', lang = 'ru', signed = false, decimals = true } = {}) {
   const value = Math.abs(cents || 0) / 100;
-  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  const locale = localeOf(lang);
   const digits = decimals ? 2 : 0;
   const number = new Intl.NumberFormat(locale, {
     minimumFractionDigits: digits,
@@ -64,14 +71,15 @@ export function formatMoney(cents, { currency = 'EUR', lang = 'ru', signed = fal
   let sign = '';
   if (cents < 0) sign = '-';
   else if (signed && cents > 0) sign = '+';
-  return `${sign}${number}${currencySymbol(currency)}`;
+  const text = `${sign}${number}${currencySymbol(currency)}`;
+  return dirOf(lang) === 'rtl' ? `\u2066${text}\u2069` : text;
 }
 
 // Value for an <input> field: plain number with the user's decimal separator.
 export function centsToInput(cents, lang = 'ru') {
   if (cents === null || cents === undefined) return '';
   const s = (cents / 100).toFixed(2);
-  return lang === 'ru' ? s.replace('.', ',') : s;
+  return s.replace('.', decimalOf(lang));
 }
 
 export function sumCents(values) {

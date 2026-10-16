@@ -5,7 +5,7 @@ import { store } from '../store.js';
 import { t } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, badge, accountLabel } from '../ui.js';
 import { accountSummaries, accountEffect, compareEntries } from '../ledger.js';
-import { formatDay, todayKey } from '../dates.js';
+import { formatDay, formatDayYear, todayKey } from '../dates.js';
 import { live } from '../model.js';
 import { categoryText } from '../split-editor.js';
 import { tagChips } from '../tag-ui.js';
@@ -52,7 +52,7 @@ function accountRow(a, s, mode, root) {
     h('td', { class: 'num money reserved' }, reserved ? money(reserved) : ''),
     h('td', { class: `num money ${free < 0 ? 'negative' : ''}` }, money(free)),
     h('td', { class: 'acc-check' }, mode === 'group' ? null : last
-      ? h('span', { title: t('last-check-title') }, formatDay(last.date, lang()) + '.' + last.date.slice(2, 4),
+      ? h('span', { title: t('last-check-title') }, formatDayYear(last.date, lang(), { shortYear: true }),
         last.actualBalance !== last.computedBalance ? h('span', { class: 'muted' }, ' ' + money(last.actualBalance - last.computedBalance, { signed: true })) : null)
       : h('span', { class: 'muted' }, t('never'))),
     h('td', { class: 'col-actions' },

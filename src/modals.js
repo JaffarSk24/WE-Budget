@@ -9,7 +9,7 @@ import {
   categoryOptions, icon, refreshIcons, confirmDialog, lang
 } from './ui.js';
 import { makeAccount, makeEntry, makeTemplate, nowIso, live } from './model.js';
-import { todayKey, isDayKey, formatDay, monthOf, addDays } from './dates.js';
+import { todayKey, isDayKey, formatDay, formatDayYear, monthOf, addDays } from './dates.js';
 import { accountSummaries, canSaveAhead, categorySpentInMonth, effectiveLimit, saveAheadGoal } from './ledger.js';
 import { openSaveAheadModal, stopSaveAhead } from './views/save-ahead.js';
 import { applyRules } from './rules.js';
@@ -645,7 +645,7 @@ export function openAccountModal(account = null, { parentId = null } = {}) {
       h('div', { class: 'form-row' }, field(t('account-parent'), parent, t('account-parent-hint')), field(t('account-bank'), bank)),
       h('div', { class: 'form-row' }, field(t('account-kind'), kind),
         field(t('account-opening'), opening, t(isNew ? 'account-opening-hint-new' : 'account-opening-hint', {
-          date: store.settings.trackingStart ? `${formatDay(store.settings.trackingStart, lang())}.${store.settings.trackingStart.slice(0, 4)}` : ''
+          date: store.settings.trackingStart ? formatDayYear(store.settings.trackingStart, lang()) : ''
         }))),
       field(t('field-note'), note),
       isNew ? null : archived.el),

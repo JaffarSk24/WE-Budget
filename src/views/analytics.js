@@ -8,7 +8,7 @@ import { store } from '../store.js';
 import { t } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, categoryName } from '../ui.js';
 import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, effectiveLimit, firstFlowMonth, limitCarry } from '../ledger.js';
-import { addMonthsToMonth, firstDayOfMonth, formatMonth, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
+import { addMonthsToMonth, firstDayOfMonth, formatMonth, formatMonthShort, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { live } from '../model.js';
 import { tagsAnalyticsCard } from './tags.js';
 import { moneyFlowCard } from './money-flow.js';
@@ -33,8 +33,7 @@ function monthLabel(month) {
 }
 
 function shortMonth(month) {
-  const [y, m] = month.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(lang() === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', year: '2-digit' });
+  return formatMonthShort(month, lang());
 }
 
 function catLabel(id) {

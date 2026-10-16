@@ -6,7 +6,7 @@
 // diagram says the same in text for screen readers.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, flow } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, categoryName } from '../ui.js';
 import { sankeyData } from '../sankey.js';
 import { addMonthsToMonth, firstDayOfMonth, formatMonth, lastDayOfMonth, monthOf } from '../dates.js';
@@ -167,7 +167,7 @@ function drawSankey(wrap, s) {
       : bandPath(L.xH + BAR, node.bandY, node.x, node.y, node.h);
     const rect = svg('rect', { class: `sankey-node ${isIn ? 'is-in' : 'is-out'} ${kind}`, x: node.x, y: node.y, width: BAR, height: node.h, rx: Math.min(3, node.h / 2) });
     const link = svg('path', { class: `sankey-link ${isIn ? 'is-in' : 'is-out'} ${kind}`, d: path });
-    const lines = [isIn ? `${name} → ${hubName}` : `${hubName} → ${name}`, `${money(node.amount)} · ${percent(node.amount, s.total)}`];
+    const lines = [isIn ? flow(name, hubName) : flow(hubName, name), `${money(node.amount)} · ${percent(node.amount, s.total)}`];
     if (node.key === 'saved' && s.toGoals) lines.push(t('flow-to-goals', { amount: money(s.toGoals) }));
     if (node.other) lines.push(t('flow-other-hint', { n: node.count }));
     [link, rect].forEach(el => {

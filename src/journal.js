@@ -10,7 +10,7 @@
 
 import { COLLECTIONS, newId, nowIso } from './model.js';
 import { canonical } from './sync/hash.js';
-import { t, tn, translations, currentLang } from './i18n.js';
+import { t, tn, translations, currentLang, flow } from './i18n.js';
 import { formatMoney } from './money.js';
 import { formatDate, isDayKey, dayKey } from './dates.js';
 import { store } from './store.js';
@@ -395,7 +395,7 @@ export function describeChange(item, data = store.data) {
     return `${capitalize(what)}: ${t(`journal-status-${status}`)}`;
   }
   const shown = (fields.length ? fields : item.fields || []).slice(0, 2).map(f =>
-    `${fieldLabel(f)} ${formatValue(f, item.before[f], data)} → ${formatValue(f, item.after[f], data)}`);
+    `${fieldLabel(f)} ${flow(formatValue(f, item.before[f], data), formatValue(f, item.after[f], data))}`);
   const more = Math.max(0, (fields.length || (item.fields || []).length) - shown.length);
   if (!shown.length) return `${capitalize(what)}: ${t('journal-changed')}`;
   return `${capitalize(what)}: ${shown.join(', ')}${more ? ' ' + t('journal-more-fields', { n: more }) : ''}`;

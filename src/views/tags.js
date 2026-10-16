@@ -7,7 +7,7 @@ import { t } from '../i18n.js';
 import { showToast } from '../toast.js';
 import { h, icon, money, moneyInput, selectEl, categoryName, lang } from '../ui.js';
 import { makeTag, TAG_COLORS } from '../model.js';
-import { isDayKey, formatDay, todayKey } from '../dates.js';
+import { isDayKey, formatDayYear, todayKey } from '../dates.js';
 import { sortedTags, tagSummary, tagUsage } from '../tags.js';
 import { nextTagColor, tagChip } from '../tag-ui.js';
 
@@ -92,7 +92,7 @@ export function tagsSection(section, rerender) {
 // ---------- analytics ----------
 
 function datesText(tag) {
-  const d = (day) => `${formatDay(day, lang())}.${day.slice(0, 4)}`;
+  const d = (day) => formatDayYear(day, lang());
   if (tag.startDate && tag.endDate) return t('tag-dates-range', { from: d(tag.startDate), to: d(tag.endDate) });
   if (tag.startDate) return t('tag-dates-from', { from: d(tag.startDate) });
   if (tag.endDate) return t('tag-dates-to', { to: d(tag.endDate) });

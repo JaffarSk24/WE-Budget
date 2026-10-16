@@ -2,6 +2,7 @@
 
 import { store } from '../store.js';
 import { t } from '../i18n.js';
+import { decimalOf, languageOptions } from '../i18n/languages.js';
 import { showToast } from '../toast.js';
 import {
   h, clear, icon, refreshIcons, lang, selectEl, accountOptions, moneyInput, confirmDialog,
@@ -65,12 +66,13 @@ function exportCsv() {
   live(store.data.entries)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
     .forEach(e => csvParts(e).forEach(p => rows.push([
-      e.date, e.title, t(`type-${e.type}`), (p.amount / 100).toFixed(2).replace('.', lang() === 'ru' ? ',' : '.'),
+      e.date, e.title, t(`type-${e.type}`), (p.amount / 100).toFixed(2).replace('.', decimalOf(lang())),
       accountLabel(e.accountId), e.toAccountId ? accountLabel(e.toAccountId) : '',
       p.categoryId ? categoryName(p.categoryId) : '', t(`status-${e.status}`), p.note, p.part,
       (e.tagIds || []).map(tagName).filter(Boolean).join(', ')
     ])));
-  const sep = lang() === 'ru' ? ';' : ',';
+  // Where the comma is the decimal separator, spreadsheets expect semicolons.
+  const sep = decimalOf(lang()) === ',' ? ';' : ',';
   download(`we-budget-${todayKey()}.csv`, '\ufeff' + rows.map(r => r.map(csvCell).join(sep)).join('\r\n'), 'text/csv;charset=utf-8');
 }
 
@@ -312,7 +314,7 @@ export function renderSettings(root) {
   root.appendChild(h('div', { class: 'view-header' },
     h('div', {}, h('h1', { class: 'view-title' }, t('nav-settings')), h('p', { class: 'view-subtitle' }, t('settings-subtitle')))));
 
-  const language = selectEl([{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }], s.language);
+  const language = selectEl(languageOptions(lang()), lang());
   language.addEventListener('change', () => store.updateSettings({ language: language.value }));
   const theme = selectEl([{ value: 'dark', label: t('theme-dark') }, { value: 'light', label: t('theme-light') }], s.theme);
   theme.addEventListener('change', () => store.updateSettings({ theme: theme.value }));

@@ -1,9 +1,9 @@
 // Recurring payments and incomes that build the plan months ahead.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, flow } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, badge, accountLabel, categoryName, selectEl } from '../ui.js';
-import { dayInMonth, formatDate, formatDay, todayKey } from '../dates.js';
+import { dayInMonth, formatDate, formatDay, formatDayYear, todayKey } from '../dates.js';
 import { openTemplateModal, segmented } from '../modals.js';
 import { canSaveAhead, recurringOverview, saveAheadGoal } from '../ledger.js';
 import { openSaveAheadModal, saveAheadSummary, stopSaveAhead } from './save-ahead.js';
@@ -21,7 +21,7 @@ export function describeSchedule(s) {
     case 'everyNMonths': return t('sched-every-n', { n: s.interval, day: dayText }) + (s.fillGaps ? ', ' + t('sched-fill-gaps') : '');
     case 'yearly': return t('sched-yearly', { date: formatDay(dayInMonth(`2001-${(s.startDate || '2001-01-01').slice(5, 7)}`, s.day), lang()) });
     case 'weekly': return t('sched-weekly', { days: (s.weekdays || []).map(i => t(WEEKDAY_KEYS[i])).join(', ') });
-    case 'once': return t('sched-once', { date: s.startDate ? formatDay(s.startDate, lang()) + '.' + s.startDate.slice(0, 4) : '' });
+    case 'once': return t('sched-once', { date: s.startDate ? formatDayYear(s.startDate, lang()) : '' });
     default: return '';
   }
 }
@@ -55,8 +55,8 @@ function templateRow(tpl, today) {
       h('div', { class: 'row-meta' }, [t(`type-${tpl.type}`), tpl.categoryId ? categoryName(tpl.categoryId) : null].filter(Boolean).join(' · ')),
       ahead.line),
     h('td', {}, describeSchedule(tpl.schedule),
-      tpl.schedule.endDate ? h('div', { class: 'row-meta' }, t('sched-until', { date: formatDay(tpl.schedule.endDate, lang()) + '.' + tpl.schedule.endDate.slice(0, 4) })) : null),
-    h('td', {}, tpl.type === 'transfer' ? `${accountLabel(tpl.accountId)} → ${accountLabel(tpl.toAccountId)}` : accountLabel(tpl.accountId)),
+      tpl.schedule.endDate ? h('div', { class: 'row-meta' }, t('sched-until', { date: formatDayYear(tpl.schedule.endDate, lang()) })) : null),
+    h('td', {}, tpl.type === 'transfer' ? flow(accountLabel(tpl.accountId), accountLabel(tpl.toAccountId)) : accountLabel(tpl.accountId)),
     h('td', { class: `num money ${sign}` }, (tpl.amountIsEstimate ? '≈ ' : '') + money(tpl.amount)),
     h('td', { class: 'col-actions' },
       h('div', { class: 'tpl-actions' },

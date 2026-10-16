@@ -3,7 +3,8 @@
 // Planning, recurring payments and accounts are edited on the computer.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, translatePage, whenLanguageLoaded, flow } from '../i18n.js';
+import { languageOptions } from '../i18n/languages.js';
 import { h, clear, icon, money, refreshIcons, lang, accountLabel } from '../ui.js';
 import { accountSummaries, budgetAlerts, entriesOn, grandTotals, overdueEntries, runway, upcomingEntries } from '../ledger.js';
 import { addDays, formatDay, formatDayLong, isDayKey, todayKey } from '../dates.js';
@@ -68,7 +69,7 @@ function phoneEntry(entry, { showDate }) {
   const sign = entry.type === 'income' ? 1 : entry.type === 'expense' ? -1 : 0;
   const unreserved = entry.type === 'expense' && entry.status === 'planned' && entry.amount !== 0 && !entry.isTransit;
   const where = entry.type === 'transfer'
-    ? `${accountLabel(entry.accountId)} → ${accountLabel(entry.toAccountId)}`
+    ? flow(accountLabel(entry.accountId), accountLabel(entry.toAccountId))
     : accountLabel(entry.accountId);
   return h('div', {
     class: `phone-entry status-row-${entry.status} ${overdue ? 'is-overdue' : ''} ${unreserved ? 'is-unreserved' : ''}`,
@@ -194,7 +195,7 @@ function featuresRow() {
 
 function moreTab() {
   const s = store.settings;
-  const language = selectEl([{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }], s.language);
+  const language = selectEl(languageOptions(lang()), lang());
   language.addEventListener('change', () => store.updateSettings({ language: language.value }));
   const theme = selectEl([{ value: 'dark', label: t('theme-dark') }, { value: 'light', label: t('theme-light') }], s.theme);
   theme.addEventListener('change', () => store.updateSettings({ theme: theme.value }));
@@ -232,6 +233,7 @@ function welcome() {
 
 function render() {
   if (!parts) return;
+  whenLanguageLoaded(render);
   const empty = !hasAnyData(store.data);
   clear(parts.chip);
   const chip = empty ? null : syncChip();
@@ -243,6 +245,11 @@ function render() {
   parts.search.hidden = empty;
   parts.tabs.hidden = empty;
   parts.tabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  // Labels made once at start follow a language change too.
+  parts.search.setAttribute('aria-label', t('search-open'));
+  parts.search.title = t('search-open');
+  parts.fab.setAttribute('aria-label', t('quick-add'));
+  translatePage();
   refreshIcons();
 }
 
@@ -260,7 +267,7 @@ export function initPhone(root) {
   const tabs = h('nav', { class: 'phone-tabs' }, TABS.map(x => h('button', {
     type: 'button', 'data-tab': x.id,
     onclick: () => { tab = x.id; focusDay = null; if (window.location.hash) history.replaceState(null, '', window.location.pathname); render(); window.scrollTo(0, 0); }
-  }, icon(x.icon), h('span', {}, t(x.label)))));
+  }, icon(x.icon), h('span', { 'data-i18n': x.label }, t(x.label)))));
   root.append(
     h('header', { class: 'phone-top' },
       h('div', { class: 'phone-brand' }, h('img', { src: './white-eagles-logo-white.webp', alt: '', width: 22, height: 22 }), h('span', {}, 'WE Budget')),

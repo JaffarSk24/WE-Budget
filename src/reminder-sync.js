@@ -8,7 +8,7 @@ import { t } from './i18n.js';
 import { sync } from './cloud.js';
 import { lang } from './ui.js';
 import { formatMoney } from './money.js';
-import { todayKey } from './dates.js';
+import { formatTime, todayKey } from './dates.js';
 import { CALENDAR_SCOPE, reminderPlan, reconcileCalendar, calendarTransport } from './reminders.js';
 
 const CREATED_KEY = 'we-budget-created-calendars';
@@ -188,7 +188,7 @@ export function initReminders() {
 
 export function reminderStatusText() {
   switch (reminderState.status) {
-    case 'ok': return t('reminder-ok', { time: new Date(reminderState.at).toLocaleTimeString(lang() === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' }) });
+    case 'ok': return t('reminder-ok', { time: formatTime(reminderState.at, lang()) });
     case 'working': return t('reminder-working');
     case 'needs-access': return t('reminder-needs-access');
     case 'signed-out': return t('reminder-signed-out');
