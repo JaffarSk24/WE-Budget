@@ -23,6 +23,7 @@ import { renderSettings } from './views/settings.js';
 import { renderAnalytics } from './views/analytics.js';
 import { renderGoals } from './views/goals.js';
 import { renderDebts } from './views/debts.js';
+import { renderHelp } from './views/help.js';
 import { renderWelcome } from './views/welcome.js';
 import { openQuickEntry, openEntryModal } from './modals.js';
 import { todayKey } from './dates.js';
@@ -49,10 +50,11 @@ const VIEWS = {
   analytics: renderAnalytics,
   goals: renderGoals,
   debts: renderDebts,
+  help: renderHelp,
   settings: renderSettings,
   welcome: renderWelcome
 };
-const NAV_ORDER = ['overview', 'month', 'accounts', 'templates', 'analytics', 'goals', 'debts', 'settings'];
+const NAV_ORDER = ['overview', 'month', 'accounts', 'templates', 'analytics', 'goals', 'debts', 'help', 'settings'];
 const LAST_VIEW_KEY = 'we-budget-last-view';
 
 let current = null;
@@ -143,7 +145,7 @@ function initKeys() {
       else openQuickEntry();
       return;
     }
-    if (mod && !e.shiftKey && /^[1-8]$/.test(e.key) && !needsWelcome()) {
+    if (mod && !e.shiftKey && /^[1-9]$/.test(e.key) && !needsWelcome()) {
       e.preventDefault();
       window.location.hash = '#' + NAV_ORDER[Number(e.key) - 1];
       return;

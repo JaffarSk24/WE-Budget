@@ -13,6 +13,8 @@ import { live } from '../model.js';
 import { alertRows, runwayHint, runwayText } from '../insights.js';
 import { forecastWithScenarios, scenarioImpact } from '../ledger.js';
 import { openWhatIfModal, scenarioImpactLine } from './whatif.js';
+import { helpHint } from './help.js';
+import { navigate } from '../router.js';
 
 let chart = null;
 
@@ -209,7 +211,8 @@ export function renderOverview(root) {
   root.appendChild(h('div', { class: 'view-header' },
     h('div', {},
       h('h1', { class: 'view-title' }, t('nav-overview')),
-      h('p', { class: 'view-subtitle' }, formatDayLong(today, lang()))),
+      h('p', { class: 'view-subtitle' }, formatDayLong(today, lang())),
+      helpHint(() => navigate('help'))),
     h('div', { class: 'header-actions' },
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openAllocationModal() }, icon('split'), t('alloc-open')),
       h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openQuickEntry() }, icon('plus'), t('quick-add')))));
