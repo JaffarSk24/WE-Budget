@@ -18,7 +18,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Overview.** Free money right now and its runway (how many days it lasts at the average spending of the last 90 days), the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
 - **Search** across the whole plan by name, note, category, account or amount (`12,50`, `12.50` or just `12`), ignoring case and accents, with filters by dates, type, account (envelopes included), category, status and quick entries, and the totals of what was found. Click a result to edit it.
-- **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
+- **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A limit can roll over: what is left this month adds to the next one, and optionally overspending takes off from it ("this month: 54€ with 14€ carried over"). Carrying starts in the month the option is switched on. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
 - **Bank statement import** (desktop): load a CSV statement on the Accounts screen and every bank row is matched to the plan. Planned and set-aside payments of the same amount within 5 days (10% for approximate amounts) are marked done with the bank's amount and date, rows already in the budget are skipped (importing the same file twice adds nothing), the rest become new entries. You see and can change every row before applying, and one click undoes the whole import. When the file has a balance column, the bank's balance is shown next to the app's with a shortcut to checking against the bank.
 - **Category rules**: "LIDL DEKUJE ZA NAKUP 1234" goes to Groceries as "Lidl". Rules fill the category in quick entry and in the statement import, can send a payment to an envelope and are managed in Settings, or created from the import with "Always for".
 - **Alerts**: an Attention card on the overview and the phone's Today tab when a category reaches 80% or 100% of its monthly limit, free money drops below a threshold or a large payment is due within 3 days; on the computer each also comes as a notification, at most once a day.
@@ -26,6 +26,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Saving ahead** for payments that do not come every month (car insurance once a year, water every two months). Tick "Save ahead" on the payment or press the piggy bank on its row in Recurring, pick a savings account or envelope, and the app creates a goal for the payment's next date with a monthly contribution. From then on the payment is paid from that envelope, where its money lies frozen for it. The row shows how much is saved ("saved 180€ of 420€, 60€ a month"). Once the payment is marked done, the goal moves on to the next date and the contribution is worked out again. Stopping it, or deleting the payment, archives the goal and hands the payment back to its old account.
 - **Recurring costs overview.** The Overview switch in Recurring lists the recurring expenses by what they cost a year, with the amount per month (a yearly payment counts a twelfth, every N months an Nth, weekly ones 52 times a year), the next charge and the price history from the payments marked done ("was 9.99€, now 12.99€, +30%"), with totals and a category filter.
 - **Goals**: an amount, the envelope you save on and a date; the app shows how far you are and how much to set aside per month. A goal can put its monthly contribution into the plan as a transfer to the envelope, tells you whether the plan makes the amount by the date and raises the contribution in one click when it does not.
+- **Debts and loans**: a car loan, a mortgage or money a friend owes you, with the remaining amount, a bar of how much is paid ("38% paid, 4 560€ of 12 000€"), the monthly payment, the interest rate, when it is paid off at the current payment and how much interest is still to come. Payments count when they are done: entries marked with the debt in the entry dialog and the entries of its recurring payment, each first covering the interest since the previous one. "Update balance" takes the remaining amount from the bank's statement as a new starting point; "Make it a recurring payment" puts the monthly payment into the plan. The payoff planner shows, for some extra money per month, the order to pay several loans off (highest rate first or smallest first), when each one ends and how many months and how much interest that saves. On the phone the Accounts tab lists the debts with the same bar.
 - **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick entry in its menu.
 - **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
 - **Sync** between computers and the phone through a hidden app folder on your Google Drive.
@@ -141,7 +142,7 @@ A typical routine:
 |---|---|
 | Cmd/Ctrl+N | Quick entry |
 | Shift+Cmd/Ctrl+N | New item |
-| Cmd/Ctrl+1 to 7 | Switch section |
+| Cmd/Ctrl+1 to 8 | Switch section |
 | Cmd/Ctrl+F | Search |
 | Up, Down | Move between rows of the month |
 | Space | Mark the row done, or undo |
@@ -241,6 +242,7 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `src/reminders.js`, `src/reminder-sync.js`, `src/notify.js` | Reminders in Google Calendar, notifications on the computer |
 | `src/web/`, `src/views/phone.js` | Google sign-in and Drive in the browser, the phone screens |
 | `src/views/analytics.js`, `src/views/goals.js`, `src/tray.js` | Analytics, goals, the menu bar |
+| `src/debts.js`, `src/views/debts.js` | Debts and loans: what is left, payoff schedule and planner, the Debts screen |
 | `src/views/templates.js`, `src/views/save-ahead.js` | Recurring payments, the costs overview, saving ahead |
 | `src/views/` | Screens |
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |

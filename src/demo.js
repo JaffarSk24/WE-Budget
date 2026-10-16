@@ -2,7 +2,7 @@
 // up: names, amounts and accounts are invented. Deterministic (seeded), so
 // two runs on the same day produce the same budget.
 
-import { emptyData, defaultCategories, makeAccount, makeEntry, makeGoal, makeRule, makeTemplate, nowIso } from './model.js';
+import { emptyData, defaultCategories, makeAccount, makeDebt, makeEntry, makeGoal, makeRule, makeTemplate, nowIso } from './model.js';
 import { addMonthsToMonth, firstDayOfMonth, monthOf, addDays, dayInMonth, lastDayOfMonth } from './dates.js';
 import { pendingGeneration, generationHorizon } from './schedule.js';
 
@@ -46,7 +46,7 @@ export function buildDemo(today, lang = 'en') {
   tpl({ title: L('Water', 'Вода'), amount: 6000, accountId: bills.id, categoryId: cat(L('Housing', 'Жильё')), schedule: { freq: 'everyNMonths', interval: 2, day: 12 } });
   tpl({ title: L('Phone', 'Телефон'), amount: 2500, accountId: bills.id, categoryId: cat(L('Phone and subscriptions', 'Связь и подписки')), schedule: { freq: 'monthly', day: 18 } });
   tpl({ title: L('Streaming', 'Онлайн-кинотеатр'), amount: 1299, accountId: bills.id, categoryId: cat(L('Phone and subscriptions', 'Связь и подписки')), schedule: { freq: 'monthly', day: 22 } });
-  tpl({ title: L('Car loan', 'Автокредит'), amount: 28000, accountId: bills.id, categoryId: cat(L('Loans', 'Кредиты')), schedule: { freq: 'monthly', day: 10 } });
+  const carLoan = tpl({ title: L('Car loan', 'Автокредит'), amount: 28000, accountId: bills.id, categoryId: cat(L('Loans', 'Кредиты')), schedule: { freq: 'monthly', day: 10 } });
   tpl({ title: L('Kindergarten', 'Детский сад'), amount: 18000, accountId: bills.id, categoryId: cat(L('Kids', 'Дети')), schedule: { freq: 'monthly', day: 6 } });
   tpl({ title: L('Groceries, first half', 'Продукты, первая половина'), amount: 25000, accountId: food.id, categoryId: cat(L('Groceries', 'Продукты')), schedule: { freq: 'monthly', day: 6 } });
   tpl({ title: L('Groceries, second half', 'Продукты, вторая половина'), amount: 25000, accountId: food.id, categoryId: cat(L('Groceries', 'Продукты')), schedule: { freq: 'monthly', day: 21 } });
@@ -150,5 +150,28 @@ export function buildDemo(today, lang = 'en') {
     { text: 'shell', title: 'Shell', categoryId: cat(L('Car', 'Авто')) },
     { text: 'city gym', type: 'expense', categoryId: cat(L('Health', 'Здоровье')) }
   ].forEach((r, i) => data.rules.push(makeRule({ type: 'expense', ...r, order: i + 1 })));
+
+  // The car loan: the bank's statement said 8 800 left when tracking began,
+  // the recurring payment pays it since. A friend pays back a small loan in
+  // parts.
+  const car = makeDebt({
+    name: L('Car loan', 'Автокредит'), lender: L('City Bank', 'Городской банк'), original: 1200000, balance: 880000,
+    balanceDate: start, rate: 5.9, payment: carLoan.amount, paymentDay: carLoan.schedule.day,
+    accountId: bills.id, categoryId: carLoan.categoryId, templateId: carLoan.id
+  });
+  carLoan.debtId = car.id;
+  const lentFrom = firstDayOfMonth(addMonthsToMonth(month, -2));
+  const lent = makeDebt({
+    name: L('Loan to Tomas', 'Займ Денису'), kind: 'owed', lender: L('Tomas', 'Денис'), original: 40000,
+    balanceDate: lentFrom, payment: 10000, paymentDay: 25, accountId: main.id, categoryId: cat(L('Other income', 'Прочие доходы'))
+  });
+  data.debts.push(car, lent);
+  const backOn = dayInMonth(addMonthsToMonth(month, -1), 25);
+  if (backOn <= today) {
+    data.entries.push(makeEntry({
+      date: backOn, title: L('Tomas paid back', 'Денис вернул часть'), type: 'income', amount: 10000,
+      accountId: main.id, categoryId: lent.categoryId, debtId: lent.id, status: 'done', doneAt: nowIso()
+    }));
+  }
   return data;
 }

@@ -225,3 +225,18 @@ describe('payoffPlan', () => {
     expect(list[0]).toMatchObject({ balance: 100000, rate: 5, payment: 10000 });
   });
 });
+
+describe('demo debts', () => {
+  it('has a car loan paid by its recurring payment and a small debt owed', async () => {
+    const { buildDemo } = await import('../src/demo.js');
+    const data = buildDemo('2026-10-16', 'en');
+    const car = data.debts.find(d => d.kind === 'owe');
+    const lent = data.debts.find(d => d.kind === 'owed');
+    expect(data.templates.find(x => x.id === car.templateId).debtId).toBe(car.id);
+    const s = debtState(data, car, '2026-10-16');
+    expect(s.payments).toBeGreaterThan(0);
+    expect(s.percent).toBeGreaterThan(s.payments > 0 ? 26 : 0);
+    expect(debtOutlook(data, car, '2026-10-16').schedule.never).toBe(false);
+    expect(debtState(data, lent, '2026-10-16').remaining).toBe(30000);
+  });
+});

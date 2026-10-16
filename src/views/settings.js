@@ -5,10 +5,11 @@ import { t } from '../i18n.js';
 import { showToast } from '../toast.js';
 import {
   h, clear, icon, refreshIcons, lang, selectEl, accountOptions, moneyInput, confirmDialog,
-  download, pickFile, accountLabel, categoryName
+  download, pickFile, accountLabel, categoryName, money
 } from '../ui.js';
 import { makeCategory, live, hasAnyData } from '../model.js';
-import { isDayKey, todayKey, formatTimestamp } from '../dates.js';
+import { isDayKey, todayKey, formatTimestamp, monthOf } from '../dates.js';
+import { categorySpentInMonth, effectiveLimit, limitCarry, limitChangePatch } from '../ledger.js';
 import { buildDemo } from '../demo.js';
 import { withUndo } from '../modals.js';
 import { sync, signIn, cancelSignIn, signOut, syncStatusText, renewAccess } from '../cloud.js';
@@ -212,6 +213,27 @@ export function quickLinkSection() {
     h('p', { class: 'setting-hint' }, t('qlink-safari')));
 }
 
+// The rollover option next to a set limit, and what this month's limit is
+// once something carried over.
+function rolloverControl(c) {
+  const month = monthOf(todayKey());
+  const select = selectEl([
+    { value: 'none', label: t('rollover-none') },
+    { value: 'unspent', label: t('rollover-unspent') },
+    { value: 'both', label: t('rollover-both') }
+  ], c.limitRollover || 'none', { class: 'inline-input rollover-select', title: t('rollover-title'), 'aria-label': t('rollover-title') });
+  select.addEventListener('change', () => {
+    store.update('categories', c.id, limitChangePatch(store.data, c, { limitRollover: select.value }, month));
+  });
+  const carried = limitCarry(store.data, c, month);
+  const note = carried ? h('div', { class: 'field-hint cat-limit-note' }, t(carried > 0 ? 'rollover-this-month-plus' : 'rollover-this-month-minus', {
+    limit: money(effectiveLimit(store.data, c.id, month)),
+    amount: money(Math.abs(carried)),
+    spent: money(categorySpentInMonth(store.data, c.id, month))
+  })) : null;
+  return [select, note];
+}
+
 function categoriesSection(root) {
   const cats = store.list('categories').sort((a, b) => (a.type === b.type ? 0 : a.type === 'expense' ? -1 : 1) || a.archived - b.archived || a.name.localeCompare(b.name, lang()));
   const rows = cats.map(c => {
@@ -223,14 +245,15 @@ function categoriesSection(root) {
       limit.addEventListener('change', () => {
         const v = limit.value.trim() ? limit.readCents() : null;
         if (limit.value.trim() && (v === null || v < 0)) { showToast(t('err-amount'), { type: 'error' }); return; }
-        store.update('categories', c.id, { monthlyLimit: v || null });
+        // With rollover on, a new limit keeps what carried over so far.
+        store.update('categories', c.id, limitChangePatch(store.data, c, { monthlyLimit: v || null }, monthOf(todayKey())));
       });
     }
     const used = live(store.data.entries).some(e => e.categoryId === c.id) || live(store.data.templates).some(x => x.categoryId === c.id);
     return h('tr', { class: c.archived ? 'is-archived' : '' },
       h('td', {}, name),
       h('td', {}, t(`type-${c.type}`)),
-      h('td', {}, limit || h('span', { class: 'muted' }, '')),
+      h('td', {}, limit ? h('div', { class: 'cat-limit-cell' }, limit, c.monthlyLimit > 0 ? rolloverControl(c) : null) : h('span', { class: 'muted' }, '')),
       h('td', { class: 'col-actions' },
         h('button', {
           type: 'button', class: 'icon-btn', title: c.archived ? t('cat-unarchive') : t('cat-archive'),

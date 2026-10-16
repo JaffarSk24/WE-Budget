@@ -10,7 +10,7 @@ import {
 } from './ui.js';
 import { makeAccount, makeEntry, makeTemplate, nowIso, live } from './model.js';
 import { todayKey, isDayKey, formatDay, monthOf, addDays } from './dates.js';
-import { accountSummaries, canSaveAhead, categorySpentInMonth, saveAheadGoal } from './ledger.js';
+import { accountSummaries, canSaveAhead, categorySpentInMonth, effectiveLimit, saveAheadGoal } from './ledger.js';
 import { openSaveAheadModal, stopSaveAhead } from './views/save-ahead.js';
 import { applyRules } from './rules.js';
 import { allocationCandidates, defaultAllocationEnd, planForSelection, suggestAllocation } from './allocation.js';
@@ -99,6 +99,10 @@ export function openEntryModal(entry = null, defaults = {}) {
   const accountField = field(t('field-account'), account);
   const toField = field(t('field-to-account'), toAccount);
   const categoryField = field(t('field-category'), category);
+  // Which loan or debt the payment goes to; shown only once there are debts.
+  const debts = live(store.data.debts).filter(d => !d.archived || d.id === src.debtId);
+  const debt = debts.length ? selectEl([{ value: '', label: t('entry-no-debt') }].concat(debts.map(d => ({ value: d.id, label: d.name }))), src.debtId || '') : null;
+  const debtField = debt ? field(t('entry-debt'), debt) : null;
 
   function syncType() {
     const opts = type === 'transfer' ? [] : categoryOptions(type, { emptyLabel: t('no-category') });
@@ -107,6 +111,7 @@ export function openEntryModal(entry = null, defaults = {}) {
     category.value = src.type === type ? (src.categoryId || '') : '';
     toField.style.display = type === 'transfer' ? '' : 'none';
     categoryField.style.display = type === 'transfer' ? 'none' : '';
+    if (debtField) debtField.style.display = type === 'transfer' ? 'none' : '';
     accountField.querySelector('label').textContent = type === 'transfer' ? t('field-from-account') : t('field-account');
     status.querySelector('option[value="reserved"]').disabled = type !== 'expense';
     if (type !== 'expense' && status.value === 'reserved') status.value = 'planned';
@@ -124,6 +129,7 @@ export function openEntryModal(entry = null, defaults = {}) {
     h('div', { class: 'form-row' }, field(t('field-date'), date), field(t('field-amount'), amount)),
     field(t('field-title'), title),
     h('div', { class: 'form-row' }, accountField, toField, categoryField),
+    debtField,
     field(t('field-status'), status),
     transit.el,
     field(t('field-note'), note),
@@ -162,6 +168,7 @@ export function openEntryModal(entry = null, defaults = {}) {
         isTransit: transit.input.checked,
         note: note.value.trim()
       };
+      if (debt) patch.debtId = type === 'transfer' ? null : (debt.value || null);
       if (patch.status === 'done' && (!entry || entry.status !== 'done')) patch.doneAt = nowIso();
       if (patch.status === 'reserved' && (!entry || entry.status !== 'reserved')) patch.reservedAt = nowIso();
       if (patch.status === 'planned') { patch.doneAt = null; patch.reservedAt = null; patch.allocationId = null; }
@@ -341,9 +348,12 @@ export function openQuickEntry({ type: startType = 'expense', amount: startAmoun
   function updateLimit() {
     const cat = type === 'expense' ? store.find('categories', category.value) : null;
     if (!cat || !cat.monthlyLimit) { limitHint.textContent = ''; return; }
-    const spent = categorySpentInMonth(store.data, cat.id, monthOf(date.value || todayKey()));
-    const left = cat.monthlyLimit - spent;
-    limitHint.textContent = t('limit-left', { left: money(left), limit: money(cat.monthlyLimit) });
+    const month = monthOf(date.value || todayKey());
+    const spent = categorySpentInMonth(store.data, cat.id, month);
+    // With rollover, this month's limit includes what carried over.
+    const limit = effectiveLimit(store.data, cat.id, month);
+    const left = limit - spent;
+    limitHint.textContent = t('limit-left', { left: money(left), limit: money(limit) });
     limitHint.classList.toggle('negative', left < 0);
   }
 

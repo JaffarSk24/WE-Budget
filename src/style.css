@@ -2131,3 +2131,28 @@ body.is-welcome .search-btn { visibility: hidden; }
 @media (min-width: 561px) {
   .import-modal .modal-actions .btn { flex: 0 0 auto; }
 }
+
+/* Debts and loans: cards share the goal card layout. */
+.debt-title { min-width: 0; }
+.debt-name-text { overflow-wrap: anywhere; }
+.debt-bar.is-owed .goal-bar-fill { background: var(--success); }
+.debt-foot { flex-wrap: wrap; gap: 4px 12px; }
+.debt-percent { font-weight: 600; }
+.debt-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 12px; margin: 0; }
+.debt-facts dt { font-size: 0.76rem; color: var(--text-muted); }
+.debt-facts dd { margin: 2px 0 0; font-size: 0.92rem; font-weight: 600; }
+.planner-card { margin-bottom: 16px; }
+.planner-controls { display: grid; grid-template-columns: minmax(160px, 220px) minmax(0, 1fr); gap: 12px 20px; align-items: start; margin: 10px 0 14px; }
+.planner-controls .segmented { align-self: flex-start; }
+.planner-table td, .planner-table th { white-space: nowrap; }
+.planner-summary { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.cat-limit-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.rollover-select { max-width: 220px; width: auto; }
+.cat-limit-note { flex-basis: 100%; margin: 0; }
+.phone-debt { padding: 4px 0 10px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px; }
+.phone-debt:last-child { border-bottom: none; padding-bottom: 0; }
+.phone-debt .phone-acc-row { border-bottom: none; padding-bottom: 2px; }
+@media (max-width: 760px), (pointer: coarse) {
+  .planner-controls { grid-template-columns: 1fr; }
+}
+.debt-card .goal-name { flex-wrap: wrap; row-gap: 4px; }

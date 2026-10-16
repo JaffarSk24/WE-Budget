@@ -16,6 +16,8 @@ import { alertRows, runwayHint, runwayText } from '../insights.js';
 import { buildDemo } from '../demo.js';
 import { selectEl } from '../ui.js';
 import { openSearch } from './search.js';
+import { debtBar } from './debts.js';
+import { debtState } from '../debts.js';
 
 const TABS = [
   { id: 'today', icon: 'calendar-check', label: 'today-title' },
@@ -126,7 +128,7 @@ function accountsTab() {
   if (!accounts.length) return [h('p', { class: 'muted' }, t('no-accounts-yet'))];
   const s = accountSummaries(store.data);
   const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name);
-  return accounts.filter(a => !a.parentId).sort(byOrder).map(top => {
+  const cards = accounts.filter(a => !a.parentId).sort(byOrder).map(top => {
     const sum = s.get(top.id) || {};
     const children = accounts.filter(a => a.parentId === top.id).sort(byOrder);
     const row = (name, balance, reserved, free, cls = '') => h('div', { class: `phone-acc-row ${cls}` },
@@ -142,6 +144,26 @@ function accountsTab() {
         return row(c.name, cs.ownBalance, (cs.ownReserved || 0) + (cs.ownFrozen || 0), cs.ownFree, 'is-child');
       }));
   });
+  return cards.concat(debtsCard());
+}
+
+// Loans and debts, read only: what is left and how much is paid.
+function debtsCard() {
+  const debts = live(store.data.debts).filter(d => !d.archived)
+    .sort((a, b) => ((a.kind === 'owed') - (b.kind === 'owed')) || a.name.localeCompare(b.name, lang()));
+  if (!debts.length) return [];
+  const today = todayKey();
+  return [h('section', { class: 'phone-card phone-debts' },
+    h('div', { class: 'phone-card-title' }, icon('landmark'), h('h2', {}, t('nav-debts'))),
+    ...debts.map(d => {
+      const s = debtState(store.data, d, today);
+      return h('div', { class: 'phone-debt' },
+        h('div', { class: 'phone-acc-row is-top' },
+          h('div', { class: 'phone-acc-name' }, d.name,
+            h('span', { class: 'phone-acc-meta' }, t(d.kind === 'owed' ? 'debt-left-owed' : 'debt-left'))),
+          h('div', { class: 'phone-acc-free money' }, money(s.remaining))),
+        debtBar(d, s));
+    }))];
 }
 
 function moreTab() {

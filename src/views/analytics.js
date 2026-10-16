@@ -7,7 +7,7 @@ import Chart from 'chart.js/auto';
 import { store } from '../store.js';
 import { t } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, categoryName } from '../ui.js';
-import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, firstFlowMonth } from '../ledger.js';
+import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, effectiveLimit, firstFlowMonth, limitCarry } from '../ledger.js';
 import { addMonthsToMonth, firstDayOfMonth, formatMonth, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { live } from '../model.js';
 
@@ -177,15 +177,18 @@ function limitsCard(month) {
     h('div', { class: 'card-title-row' }, icon('gauge'), h('h3', {}, t('an-limits', { month: monthLabel(month) }))),
     h('div', { class: 'an-limits' }, cats.map(c => {
       const spent = categorySpentInMonth(store.data, c.id, month);
-      const pct = Math.min(100, Math.round((spent / c.monthlyLimit) * 100));
-      const over = spent > c.monthlyLimit;
+      const limit = effectiveLimit(store.data, c.id, month);
+      const carried = limitCarry(store.data, c, month);
+      const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : (spent > 0 ? 100 : 0);
+      const over = spent > limit;
       return h('div', { class: `an-limit ${over ? 'is-over' : ''}` },
         h('div', { class: 'an-limit-head' },
           h('span', {}, c.name),
-          h('span', { class: 'money' }, `${money(spent)} / ${money(c.monthlyLimit)}`)),
+          h('span', { class: 'money' }, `${money(spent)} / ${money(limit)}`)),
         h('div', { class: 'goal-bar' }, h('div', { class: 'goal-bar-fill', style: `width: ${pct}%` })),
-        over ? h('div', { class: 'an-limit-note' }, icon('alert-triangle'), t('an-limit-over', { amount: money(spent - c.monthlyLimit) }))
-          : h('div', { class: 'an-limit-note muted' }, t('an-limit-left', { amount: money(c.monthlyLimit - spent) })));
+        over ? h('div', { class: 'an-limit-note' }, icon('alert-triangle'), t('an-limit-over', { amount: money(spent - limit) }))
+          : h('div', { class: 'an-limit-note muted' }, t('an-limit-left', { amount: money(limit - spent) })),
+        carried ? h('div', { class: 'an-limit-note muted' }, t(carried > 0 ? 'rollover-carried-in' : 'rollover-carried-off', { amount: money(Math.abs(carried)) })) : null);
     })));
 }
 
