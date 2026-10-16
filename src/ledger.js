@@ -376,6 +376,49 @@ export function categorySpentInMonth(data, categoryId, month) {
     .reduce((s, e) => s + (e.amount || 0), 0);
 }
 
+// What a category's limit carries into `month` (cents, may be negative with
+// 'both'). Counting starts at rolloverFrom with rolloverCarry and walks the
+// months up to the one before `month`, each month adding its limit and
+// taking off what was spent. The current limit applies to every month: a
+// changed limit restarts the count (see limitChangePatch), so history kept
+// under the old limit does not get recounted.
+export function limitCarry(data, category, month) {
+  const limit = category && category.monthlyLimit > 0 ? category.monthlyLimit : 0;
+  const mode = category && category.limitRollover;
+  if (!limit || (mode !== 'unspent' && mode !== 'both') || !category.rolloverFrom || month < category.rolloverFrom) return 0;
+  let carry = category.rolloverCarry || 0;
+  for (let m = category.rolloverFrom; m < month; m = addMonthsToMonth(m, 1)) {
+    const left = limit + carry - categorySpentInMonth(data, category.id, m);
+    // 'unspent' never takes anything off: an overspent month starts the
+    // next one from the plain limit.
+    carry = mode === 'both' ? left : Math.max(0, left);
+  }
+  return carry;
+}
+
+// The limit of a category for `month`: its monthly limit plus what carried
+// over, never below zero. Null when the category has no limit.
+export function effectiveLimit(data, categoryId, month) {
+  const category = live(data.categories).find(c => c.id === categoryId);
+  if (!category || !(category.monthlyLimit > 0)) return null;
+  return Math.max(0, category.monthlyLimit + limitCarry(data, category, month));
+}
+
+// Fields to save when the limit or the rollover option of a category changes
+// in `month`. Switching carrying on starts it this month from nothing; a new
+// limit keeps what was carried into this month under the old one.
+export function limitChangePatch(data, category, { monthlyLimit = category.monthlyLimit, limitRollover = category.limitRollover || 'none' }, month) {
+  const limit = monthlyLimit > 0 ? monthlyLimit : null;
+  if (!limit || limitRollover === 'none') return { monthlyLimit: limit, limitRollover: limit ? limitRollover : 'none', rolloverFrom: null, rolloverCarry: 0 };
+  const wasOn = (category.limitRollover === 'unspent' || category.limitRollover === 'both') && category.rolloverFrom && category.monthlyLimit > 0;
+  if (!wasOn) return { monthlyLimit: limit, limitRollover, rolloverFrom: month, rolloverCarry: 0 };
+  const carry = limitCarry(data, category, month);
+  return {
+    monthlyLimit: limit, limitRollover, rolloverFrom: month,
+    rolloverCarry: limitRollover === 'unspent' ? Math.max(0, carry) : carry
+  };
+}
+
 // Progress of a savings goal: what lies on its envelope (the whole group when
 // the account has envelopes), what is left, and how much to set aside per
 // month to make it by the deadline (the current month counts).
@@ -720,12 +763,14 @@ export function budgetAlerts(data, today) {
     .filter(c => c.type === 'expense' && !c.archived && c.monthlyLimit > 0)
     .forEach(c => {
       const spent = categorySpentInMonth(data, c.id, month);
-      const percent = Math.floor((spent / c.monthlyLimit) * 100);
+      // A limit carried down to zero is used up by any spending.
+      const limit = effectiveLimit(data, c.id, month);
+      const percent = limit > 0 ? Math.floor((spent / limit) * 100) : (spent > 0 ? 100 : 0);
       if (percent < 80) return;
       const kind = percent >= 100 ? 'limit-over' : 'limit-near';
       alerts.push({
         key: `${kind}:${c.id}:${month}`, kind, level: kind === 'limit-over' ? 'danger' : 'warning',
-        categoryId: c.id, name: c.name, spent, limit: c.monthlyLimit, percent
+        categoryId: c.id, name: c.name, spent, limit, percent
       });
     });
 

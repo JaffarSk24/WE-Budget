@@ -5,7 +5,7 @@
 
 export const SCHEMA_VERSION = 1;
 
-export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules'];
+export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts'];
 
 export const ENTRY_TYPES = ['expense', 'income', 'transfer'];
 export const ENTRY_STATUSES = ['planned', 'reserved', 'done', 'cancelled'];
@@ -14,6 +14,8 @@ export const SCHEDULE_FREQS = ['monthly', 'everyNMonths', 'yearly', 'weekly', 'o
 export const RULE_FIELDS = ['title', 'note', 'any'];
 export const RULE_MATCHES = ['contains', 'startsWith', 'exact'];
 export const RULE_TYPES = ['expense', 'income', 'any'];
+export const LIMIT_ROLLOVERS = ['none', 'unspent', 'both'];
+export const DEBT_KINDS = ['owe', 'owed'];
 
 export const DEFAULT_SETTINGS = {
   language: 'ru',
@@ -80,6 +82,13 @@ export function makeCategory(f = {}) {
     parentId: f.parentId || null,
     color: f.color || null,
     monthlyLimit: f.monthlyLimit ?? null,
+    // What happens to the limit at the end of a month: 'unspent' carries
+    // what was left into the next month, 'both' also takes overspending off
+    // it. Carrying counts from rolloverFrom (the month the option was
+    // switched on or the limit changed), starting with rolloverCarry.
+    limitRollover: LIMIT_ROLLOVERS.includes(f.limitRollover) ? f.limitRollover : 'none',
+    rolloverFrom: f.rolloverFrom || null,
+    rolloverCarry: f.rolloverCarry || 0,
     archived: !!f.archived
   });
 }
@@ -112,6 +121,8 @@ export function makeTemplate(f = {}) {
     active: f.active !== false,
     // Set when the template is a goal's monthly contribution.
     goalId: f.goalId || null,
+    // Set when the template pays off (or collects) a debt.
+    debtId: f.debtId || null,
     // Last day for which entries have already been generated.
     generatedThrough: f.generatedThrough || null,
     note: f.note || ''
@@ -143,6 +154,8 @@ export function makeEntry(f = {}) {
     // Set on entries created or settled by a bank statement import: a hash
     // of the bank row, so importing the same statement again finds it.
     importKey: f.importKey || null,
+    // The loan or debt this payment pays off (or the money that came back).
+    debtId: f.debtId || null,
     note: f.note || ''
   });
 }
@@ -171,6 +184,31 @@ export function makeGoal(f = {}) {
     // The account the payment was paid from before saving ahead moved it to
     // the goal's account; it goes back there when saving ahead stops.
     templateAccountId: f.templateAccountId || null
+  });
+}
+
+// A loan or debt. 'owe': money I pay off (a car loan, a debt to a friend);
+// 'owed': money someone owes me. `balance` on `balanceDate` is the last
+// known remaining amount (from the bank's statement); payments after that
+// day bring it down. Amounts in cents, rate in % a year.
+export function makeDebt(f = {}) {
+  const cents = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.max(0, Math.round(Number(v))) : 0);
+  const original = cents(f.original);
+  return base({
+    name: f.name || '',
+    kind: DEBT_KINDS.includes(f.kind) ? f.kind : 'owe',
+    lender: f.lender || '',
+    original,
+    balance: f.balance === undefined || f.balance === null ? original : cents(f.balance),
+    balanceDate: f.balanceDate || null,
+    rate: Math.max(0, Number(f.rate) || 0),
+    payment: cents(f.payment),
+    paymentDay: Math.min(31, Math.max(1, Number(f.paymentDay) || 1)),
+    accountId: f.accountId || null,
+    templateId: f.templateId || null,
+    categoryId: f.categoryId || null,
+    note: f.note || '',
+    archived: !!f.archived
   });
 }
 
@@ -210,6 +248,7 @@ export function emptyData() {
     checks: [],
     reminders: [],
     rules: [],
+    debts: [],
     settings: { ...DEFAULT_SETTINGS, importMappings: {}, updatedAt: nowIso() }
   };
 }
