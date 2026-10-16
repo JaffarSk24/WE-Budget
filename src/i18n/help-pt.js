@@ -56,8 +56,8 @@ Exclua a demonstração depois em Configurações, Dados, com Excluir tudo. O ap
 Dica: marque os pagamentos a cada dois ou três dias e o número Livre sempre diz a verdade.`,
 
   'help-language-theme-title': 'Idioma e tema',
-  'help-language-theme-short': 'Treze idiomas, escuro ou claro',
-  'help-language-theme-body': `O app fala treze idiomas: inglês, russo, eslovaco, tcheco, ucraniano, espanhol, francês, português, chinês, hindi, bengali, árabe e urdu. Árabe e urdu são escritos da direita para a esquerda, e a interface inteira se espelha para eles. Na primeira abertura o app usa o idioma do sistema, se o tiver, senão o inglês. O tema é escuro ou claro.
+  'help-language-theme-short': 'Quatorze idiomas, escuro ou claro',
+  'help-language-theme-body': `O app fala quatorze idiomas: russo, ucraniano, inglês, alemão, espanhol, eslovaco, tcheco, francês, português, chinês, hindi, bengali, árabe e urdu. Árabe e urdu são escritos da direita para a esquerda, e a interface inteira se espelha para eles. Na primeira abertura o app usa o idioma do sistema, se o tiver, senão o inglês. O tema é escuro ou claro.
 
 Troque em Configurações, Aparência: Idioma e Tema. No celular o mesmo fica na aba Mais.
 

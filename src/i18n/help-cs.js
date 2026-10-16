@@ -56,8 +56,8 @@ Ukázku později smažeš v Nastavení, Data, tlačítkem Smazat vše. Před sma
 Tip: odškrtávej platby každých pár dní a číslo Volné bude vždy pravdivé.`,
 
   'help-language-theme-title': 'Jazyk a motiv',
-  'help-language-theme-short': 'Sedm jazyků, tmavý nebo světlý',
-  'help-language-theme-body': `Aplikace mluví sedmi jazyky: rusky, ukrajinsky, anglicky, německy, španělsky, slovensky a česky. Při prvním spuštění aplikace převezme jazyk systému, pokud ho má, jinak angličtinu. Motiv je tmavý nebo světlý.
+  'help-language-theme-short': 'Čtrnáct jazyků, tmavý nebo světlý',
+  'help-language-theme-body': `Aplikace mluví čtrnácti jazyky: rusky, ukrajinsky, anglicky, německy, španělsky, slovensky, česky, francouzsky, portugalsky, čínsky, hindsky, bengálsky, arabsky a urdsky. Arabština a urdština se píšou zprava doleva a celé rozhraní se pro ně zrcadlově otočí. Při prvním spuštění aplikace převezme jazyk systému, pokud ho má, jinak angličtinu. Motiv je tmavý nebo světlý.
 
 Přepneš je v Nastavení, Vzhled: Jazyk a Motiv. V telefonu je totéž na kartě Více.
 

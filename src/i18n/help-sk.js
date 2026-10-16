@@ -56,8 +56,8 @@ Ukážku neskôr odstránite v Nastaveniach, v sekcii Dáta, tlačidlom Odstrán
 Tip: označujte platby každých pár dní a číslo Voľné bude vždy pravdivé.`,
 
   'help-language-theme-title': 'Jazyk a téma',
-  'help-language-theme-short': 'Trinásť jazykov, tmavá alebo svetlá téma',
-  'help-language-theme-body': `Aplikácia hovorí trinástimi jazykmi: angličtina, ruština, slovenčina, čeština, ukrajinčina, španielčina, francúzština, portugalčina, čínština, hindčina, bengálčina, arabčina a urdčina. Arabčina a urdčina sa píšu sprava doľava a celé rozhranie sa pre ne zrkadlovo otočí. Pri prvom spustení aplikácia prevezme jazyk systému, ak ho má, inak angličtinu. Téma je tmavá alebo svetlá.
+  'help-language-theme-short': 'Štrnásť jazykov, tmavá alebo svetlá téma',
+  'help-language-theme-body': `Aplikácia hovorí štrnástimi jazykmi: rusky, ukrajinsky, anglicky, nemecky, španielsky, slovensky, česky, francúzsky, portugalsky, čínsky, hindsky, bengálsky, arabsky a urdsky. Arabčina a urdčina sa píšu sprava doľava a celé rozhranie sa pre ne zrkadlovo otočí. Pri prvom spustení aplikácia prevezme jazyk systému, ak ho má, inak angličtinu. Téma je tmavá alebo svetlá.
 
 Prepnete ich v Nastaveniach, v sekcii Vzhľad: Jazyk a Téma. V telefóne je to isté na karte Viac.
 

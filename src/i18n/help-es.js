@@ -56,8 +56,8 @@ Elimina la demo más tarde en Configuración, Datos, con Eliminar todo. La app g
 Consejo: marca los pagos cada par de días y la cifra Libre siempre dirá la verdad.`,
 
   'help-language-theme-title': 'Idioma y tema',
-  'help-language-theme-short': 'Siete idiomas, oscuro o claro',
-  'help-language-theme-body': `La app habla siete idiomas: ruso, ucraniano, inglés, alemán, español, eslovaco y checo. En el primer inicio la app toma el idioma del sistema si lo tiene; si no, el inglés. El tema es oscuro o claro.
+  'help-language-theme-short': 'Catorce idiomas, oscuro o claro',
+  'help-language-theme-body': `La app habla catorce idiomas: ruso, ucraniano, inglés, alemán, español, eslovaco, checo, francés, portugués, chino, hindi, bengalí, árabe y urdu. El árabe y el urdu se escriben de derecha a izquierda, y toda la interfaz se refleja para ellos. En el primer inicio la app toma el idioma del sistema si lo tiene; si no, el inglés. El tema es oscuro o claro.
 
 Cámbialos en Configuración, Apariencia: Idioma y Tema. En el teléfono está lo mismo en la pestaña Más.
 

@@ -56,8 +56,8 @@ Supprimez la démo plus tard dans Paramètres, Données, avec Tout supprimer. L�
 Astuce : pointez les paiements tous les deux ou trois jours, et le chiffre Disponible dit toujours la vérité.`,
 
   'help-language-theme-title': 'Langue et thème',
-  'help-language-theme-short': 'Treize langues, thème sombre ou clair',
-  'help-language-theme-body': `L’app parle treize langues : anglais, russe, slovaque, tchèque, ukrainien, espagnol, français, portugais, chinois, hindi, bengali, arabe et ourdou. L’arabe et l’ourdou s’écrivent de droite à gauche, et toute l’interface s’inverse pour eux. Au premier démarrage, l’app prend la langue du système si elle la connaît, sinon l’anglais. Le thème est sombre ou clair.
+  'help-language-theme-short': 'Quatorze langues, thème sombre ou clair',
+  'help-language-theme-body': `L’app parle quatorze langues : russe, ukrainien, anglais, allemand, espagnol, slovaque, tchèque, français, portugais, chinois, hindi, bengali, arabe et ourdou. L’arabe et l’ourdou s’écrivent de droite à gauche, et toute l’interface s’inverse pour eux. Au premier démarrage, l’app prend la langue du système si elle la connaît, sinon l’anglais. Le thème est sombre ou clair.
 
 Changez-les dans Paramètres, Apparence : Langue et Thème. Sur le téléphone, c’est dans l’onglet Plus.
 
