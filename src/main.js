@@ -37,6 +37,7 @@ import { finishRedirectSignIn } from './web/cloud-web.js';
 import { isPhoneLayout, initPhone } from './views/phone.js';
 import { parseQuickLink, stripQuickParams } from './quicklink.js';
 import { openSearch, isSearchOpen } from './views/search.js';
+import { journal } from './journal-log.js';
 
 window.lucide = { createIcons: () => createIcons({ icons: usedIcons }) };
 
@@ -207,6 +208,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leave(); });
     window.addEventListener('pagehide', leave);
   }
+
+  // The change journal records from here on, the first generation included.
+  journal.attach(store);
+  journal.prune().catch(e => console.error('Change journal could not be pruned', e));
+  // Steps still waiting to be written are written before the page goes.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') journal.flush(); });
+  window.addEventListener('pagehide', () => journal.flush());
 
   if (!needsWelcome()) store.generate();
   if (phone) {

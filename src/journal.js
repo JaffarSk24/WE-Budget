@@ -420,11 +420,14 @@ export function fieldRows(item, data = store.data) {
   }));
 }
 
-// What a patch will do to the record now, described like a change.
-export function describePatch(patch, data = store.data) {
+// What a patch will do to the record now, as a change item (null: nothing).
+export function patchChange(patch, data = store.data) {
   const current = findRecord(data, patch.collection, patch.id);
   const change = recordChange(patch.collection, current, patch.record);
-  if (!change) return '';
-  const [item] = makeItems([change]);
-  return describeChange(item, data);
+  return change ? makeItems([change])[0] : null;
+}
+
+export function describePatch(patch, data = store.data) {
+  const item = patchChange(patch, data);
+  return item ? describeChange(item, data) : '';
 }

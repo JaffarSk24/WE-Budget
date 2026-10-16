@@ -11,7 +11,7 @@ import { statusButton, reserveButton } from '../actions.js';
 import { openEntryModal, openQuickEntry } from '../modals.js';
 import { live, hasAnyData } from '../model.js';
 import { sync, syncStatusText, signIn, renewAccess, initSyncBanner } from '../cloud.js';
-import { syncSection, remindersSection, quickLinkSection, section, settingRow } from './settings.js';
+import { syncSection, remindersSection, quickLinkSection, section, settingRow, journalRow } from './settings.js';
 import { alertRows, runwayHint, runwayText } from '../insights.js';
 import { buildDemo } from '../demo.js';
 import { selectEl } from '../ui.js';
@@ -181,6 +181,7 @@ function moreTab() {
     section(t('settings-look'), 'palette',
       settingRow(t('settings-language'), language),
       settingRow(t('settings-theme'), theme)),
+    section(t('settings-data'), 'database', journalRow()),
     h('p', { class: 'muted small phone-note' }, t('phone-desktop-note')),
     h('p', { class: 'muted small phone-note' },
       'WE Budget ', typeof __APP_VERSION__ !== 'undefined' ? 'v' + __APP_VERSION__ : '', ' · ',

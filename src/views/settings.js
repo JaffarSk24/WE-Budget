@@ -20,6 +20,7 @@ import { quickLinkBase } from '../quicklink.js';
 import { rulesSection } from './rules.js';
 import { tagsSection } from './tags.js';
 import { csvParts, hasSplits } from '../splits.js';
+import { openJournal } from './journal.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
@@ -33,6 +34,13 @@ export function settingRow(label, control, hint = null) {
   return h('div', { class: 'setting-row' },
     h('div', { class: 'setting-text' }, h('div', { class: 'setting-label' }, label), hint ? h('div', { class: 'setting-hint' }, hint) : null),
     h('div', { class: 'setting-control' }, control));
+}
+
+// Settings > Data on the computer, the More tab on the phone.
+export function journalRow() {
+  return settingRow(t('journal-title'), h('button', {
+    type: 'button', class: 'btn btn-secondary journal-open-btn', onclick: () => openJournal()
+  }, icon('history'), t('open')), t('journal-hint'));
 }
 
 export function csvCell(value) {
@@ -357,11 +365,12 @@ export function renderSettings(root) {
         const ok = await confirmDialog(t('restore-confirm', { name: file.name, n: parsed.entries.length }), { danger: true, okLabel: t('restore') });
         if (!ok) return;
         const snap = store.snapshot();
-        store.replaceAll(parsed);
+        store.replaceAll(parsed, { source: 'restore' });
         store.generate();
         showToast(t('toast-restored'), { type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap) });
       }
     }, icon('upload'), t('restore')), t('backup-restore-hint')),
+    journalRow(),
     settingRow(t('export-csv'), h('button', { type: 'button', class: 'btn btn-secondary', onclick: exportCsv }, icon('file-spreadsheet'), t('export')), t('export-csv-hint')),
     isElectron ? settingRow(t('backups-folder'), h('button', {
       type: 'button', class: 'btn btn-secondary', onclick: () => window.weStorage.backupsFolder()
