@@ -993,6 +993,7 @@ textarea:focus {
   flex-wrap: wrap;
 }
 .table-toolbar select { width: auto; min-width: 240px; }
+.table-toolbar select.tag-filter { min-width: 150px; max-width: 200px; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th {
@@ -2155,6 +2156,7 @@ body.is-welcome .search-btn { visibility: hidden; }
   --tag-pink: #be185d;
   --tag-gray: #475569;
 }
+/* --tag-c is set by the color class; without one a chip is gray. */
 .tag-blue { --tag-c: var(--tag-blue); }
 .tag-green { --tag-c: var(--tag-green); }
 .tag-amber { --tag-c: var(--tag-amber); }
@@ -2166,7 +2168,6 @@ body.is-welcome .search-btn { visibility: hidden; }
 
 .tag-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; }
 .tag-chip {
-  --tag-c: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2189,7 +2190,7 @@ button.tag-chip { cursor: pointer; }
 button.tag-chip:not(.is-on) { background: transparent; opacity: 0.75; }
 button.tag-chip:hover { opacity: 1; }
 .tag-chip.is-on { background: color-mix(in srgb, var(--tag-c) 22%, transparent); opacity: 1; }
-.tag-chip-add { border-style: dashed; color: var(--text-secondary); border-color: var(--border-color); }
+.tag-chip-add { --tag-c: var(--text-secondary); border-style: dashed; border-color: var(--border-color); }
 .tag-chip i, .tag-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
 .tag-chip[hidden], .tag-new[hidden], .split-panel[hidden], .split-toggle[hidden], .quick-more[hidden], .form-group[hidden] { display: none; }
 .tag-picker { display: flex; flex-direction: column; gap: 8px; min-width: 0; }

@@ -323,7 +323,7 @@ export function renderMonth(root) {
   const accountFilter = selectEl(accountOptions({ emptyLabel: t('all-accounts'), includeArchived: true }), state.accountId);
   accountFilter.addEventListener('change', () => { state.accountId = accountFilter.value; state.checked.clear(); renderMonth(root); });
   const hasTags = store.list('tags').length > 0;
-  const tagFilter = hasTags ? selectEl(tagFilterOptions(t('all-tags'), state.tagId), state.tagId, { 'aria-label': t('field-tag') }) : null;
+  const tagFilter = hasTags ? selectEl(tagFilterOptions(t('all-tags'), state.tagId), state.tagId, { 'aria-label': t('field-tag'), class: 'tag-filter' }) : null;
   if (tagFilter) tagFilter.addEventListener('change', () => { state.tagId = tagFilter.value; state.checked.clear(); renderMonth(root); });
   const cancelledToggle = h('input', { type: 'checkbox', checked: state.showCancelled });
   cancelledToggle.addEventListener('change', () => { state.showCancelled = cancelledToggle.checked; renderMonth(root); });

@@ -16,8 +16,10 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Checking against the bank.** Type what your bank shows and any difference becomes a visible adjustment, so balances and the forecast stay true without guesswork.
 - **Recurring payments.** Monthly, every few months (optionally shown in the other months with a zero amount), yearly, weekly or once. The plan for the next months builds itself; approximate amounts are confirmed when a payment is marked done.
 - **Overview.** Free money right now and its runway (how many days it lasts at the average spending of the last 90 days), the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
-- **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
-- **Search** across the whole plan by name, note, category, account or amount (`12,50`, `12.50` or just `12`), ignoring case and accents, with filters by dates, type, account (envelopes included), category, status and quick entries, and the totals of what was found. Click a result to edit it.
+- **Split payments.** One bank payment, several categories: a supermarket receipt of 60€ can be 40€ groceries, 12€ household and 8€ for the kids. Press "Split" in the payment's dialog, type the parts and the dialog shows what is left to split; it saves once the parts add up. Balances still see one payment, while category totals, limits, alerts and analytics count each part in its own category. Rows show "Groceries +2" with the parts in a tooltip, and when the amount changes (in the row, when marked done or from a bank statement) the parts follow in proportion.
+- **Tags and trip budgets.** Tag payments across categories ("Weekend in Vienna", "Renovation") in the payment, recurring payment and quick entry dialogs. A tag can have a color, a budget and dates; Analytics shows a card per tag with what is spent, what is still planned, the budget used and spending by category inside the tag. Month and search filter by tag, ticked rows get a tag added or removed at once, and tags are managed in Settings.
+- **Bulk actions.** Tick several rows to mark them done, set money aside, move dates, change accounts or add and remove a tag at once. The bar at the bottom adds the ticked payments up per account.
+- **Search** across the whole plan by name, note, category, account or amount (`12,50`, `12.50` or just `12`), ignoring case and accents, including the categories and notes of split parts and tag names, with filters by dates, type, account (envelopes included), category, tag, status and quick entries, and the totals of what was found. Click a result to edit it.
 - **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
 - **Bank statement import** (desktop): load a CSV statement on the Accounts screen and every bank row is matched to the plan. Planned and set-aside payments of the same amount within 5 days (10% for approximate amounts) are marked done with the bank's amount and date, rows already in the budget are skipped (importing the same file twice adds nothing), the rest become new entries. You see and can change every row before applying, and one click undoes the whole import. When the file has a balance column, the bank's balance is shown next to the app's with a shortcut to checking against the bank.
 - **Category rules**: "LIDL DEKUJE ZA NAKUP 1234" goes to Groceries as "Lidl". Rules fill the category in quick entry and in the statement import, can send a payment to an envelope and are managed in Settings, or created from the import with "Always for".
@@ -188,7 +190,7 @@ On start the app checks this repository for a new release. If there is one, a ba
 | Windows | `%APPDATA%\WE Budget\we-budget-data.json` |
 | Phone app | the browser's storage of jaffarsk24.github.io |
 
-The app keeps a copy of the file every day (the last 14) in the `backups` folder next to it, and a separate copy before the whole budget is ever replaced. Settings also has a manual backup and restore and an export of all items to CSV for Excel or Google Sheets.
+The app keeps a copy of the file every day (the last 14) in the `backups` folder next to it, and a separate copy before the whole budget is ever replaced. Settings also has a manual backup and restore and an export of all items to CSV for Excel or Google Sheets (a split payment comes out as one line per part, marked 1/3, 2/3, 3/3, so the categories add up).
 
 ## Importing a bank statement
 
@@ -246,6 +248,8 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |
 | `src/import/`, `src/statement.js` | Spreadsheet import, bank statement import and matching to the plan |
 | `src/rules.js`, `src/views/rules.js` | Category rules |
+| `src/splits.js`, `src/split-editor.js` | Split payments: parts per category, rescaling, the parts editor |
+| `src/tags.js`, `src/tag-ui.js`, `src/views/tags.js` | Tags and trip budgets: summaries, chips and picker, Settings and Analytics |
 | `tests/` | Unit tests |
 | `site/` | The website on GitHub Pages: the app page and the privacy policy |
 | `scripts/check-windows-install.ps1` | Install check on a clean Windows machine, run by CI |
