@@ -29,7 +29,7 @@ export const LANGUAGES = [
   { code: 'hi', name: 'हिन्दी', english: 'Hindi', dir: 'ltr', locale: 'hi-IN', decimal: '.', ready: false, load: () => import('./hi.js') },
   { code: 'bn', name: 'বাংলা', english: 'Bengali', dir: 'ltr', locale: 'bn-BD', decimal: '.', ready: false, load: () => import('./bn.js') },
   { code: 'ar', name: 'العربية', english: 'Arabic', dir: 'rtl', locale: 'ar-u-nu-latn', decimal: '.', ready: false, load: () => import('./ar.js') },
-  { code: 'ur', name: 'اردو', english: 'Urdu', dir: 'rtl', locale: 'ur-PK-u-nu-latn', decimal: '.', ready: false, load: () => import('./ur.js') }
+  { code: 'ur', name: 'اردو', english: 'Urdu', dir: 'rtl', locale: 'ur-PK-u-nu-latn', decimal: '.', ready: true, load: () => import('./ur.js') }
 ];
 
 export const DEFAULT_LANGUAGE = 'en';
