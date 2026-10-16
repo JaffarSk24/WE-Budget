@@ -31,6 +31,12 @@ export function section(title, iconName, ...children) {
     ...children);
 }
 
+// Sections carry an id, so the Features screen can scroll to one.
+function marked(el, id) {
+  el.dataset.section = id;
+  return el;
+}
+
 export function settingRow(label, control, hint = null) {
   return h('div', { class: 'setting-row' },
     h('div', { class: 'setting-text' }, h('div', { class: 'setting-label' }, label), hint ? h('div', { class: 'setting-hint' }, hint) : null),
@@ -325,9 +331,9 @@ export function renderSettings(root) {
     else tracking.value = s.trackingStart || '';
   });
 
-  root.appendChild(syncSection());
-  root.appendChild(remindersSection());
-  root.appendChild(quickLinkSection());
+  root.appendChild(marked(syncSection(), 'sync'));
+  root.appendChild(marked(remindersSection(), 'reminders'));
+  root.appendChild(marked(quickLinkSection(), 'quicklink'));
 
   let menuBar = null;
   if (window.weApp && typeof window.weApp.setTray === 'function') {
@@ -336,23 +342,23 @@ export function renderSettings(root) {
     box.addEventListener('change', () => store.updateSettings({ menuBarFree: box.checked }));
     menuBar = settingRow(t(windows ? 'tray-title-win' : 'tray-title'), checkboxLabel(box, t(windows ? 'tray-setting-win' : 'tray-setting')), t('tray-hint'));
   }
-  root.appendChild(section(t('settings-look'), 'palette',
+  root.appendChild(marked(section(t('settings-look'), 'palette',
     settingRow(t('settings-language'), language),
     settingRow(t('settings-theme'), theme),
-    menuBar));
+    menuBar), 'look'));
 
-  root.appendChild(section(t('settings-accounting'), 'calculator',
+  root.appendChild(marked(section(t('settings-accounting'), 'calculator',
     settingRow(t('settings-tracking'), tracking, t('settings-tracking-hint')),
     settingRow(t('settings-income-account'), incomeAccount, t('settings-income-account-hint')),
     settingRow(t('settings-horizon'), horizon, t('settings-horizon-hint')),
-    settingRow(t('settings-currency'), currency)));
+    settingRow(t('settings-currency'), currency)), 'accounting'));
 
-  root.appendChild(categoriesSection(root));
-  root.appendChild(tagsSection(section, () => renderSettings(root)));
-  root.appendChild(rulesSection(section));
+  root.appendChild(marked(categoriesSection(root), 'categories'));
+  root.appendChild(marked(tagsSection(section, () => renderSettings(root)), 'tags'));
+  root.appendChild(marked(rulesSection(section), 'rules'));
 
   const isElectron = !!window.weStorage;
-  root.appendChild(section(t('settings-data'), 'database',
+  root.appendChild(marked(section(t('settings-data'), 'database',
     settingRow(t('backup-download'), h('button', {
       type: 'button', class: 'btn btn-secondary',
       onclick: () => download(`we-budget-backup-${todayKey()}.json`, JSON.stringify(store.data, null, 1))
@@ -396,9 +402,9 @@ export function renderSettings(root) {
         store.replaceAll({ settings: { language: s.language, theme: s.theme } });
         showToast(t('toast-reset'), { type: 'success', actionLabel: t('undo'), onAction: () => store.restore(snap) });
       }
-    }, icon('trash-2'), t('reset-all-btn')), t('reset-all-hint'))));
+    }, icon('trash-2'), t('reset-all-btn')), t('reset-all-hint'))), 'data'));
 
-  root.appendChild(updatesSection());
+  root.appendChild(marked(updatesSection(), 'updates'));
 
   const stats = store.list('entries').length;
   root.appendChild(section(t('settings-about'), 'info',

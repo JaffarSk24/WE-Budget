@@ -1,3 +1,5 @@
+import { helpEn } from './help-en.js';
+
 export const en = {
   // Navigation
   'nav-overview': 'Overview',
@@ -1244,5 +1246,7 @@ export const en = {
   'journal-field-text': 'Text',
   'journal-field-lender': 'Lender',
   'journal-field-amountIsEstimate': 'Approximate amount',
-  'journal-field-tagIds': 'Tags'
+  'journal-field-tagIds': 'Tags',
+  // The Features screen: kept in its own file, it is long.
+  ...helpEn
 };

@@ -40,6 +40,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Phone app**: today's and overdue payments, marking them, search, quick entries of expenses and income, and what is free, added to the home screen of an iPhone or an Android phone. Made for iPhone screens from the SE to the Pro Max: no zooming into fields, room for the notch and the home indicator.
 - **Reminders** in Google Calendar at the time you choose, so they reach your phone even when every computer is off, and notifications on the computer while the app is open.
 - **Updates** from GitHub Releases, offered right in the app.
+- **Features**: a screen (on the phone, a row on the More tab) that lists everything the app can do with a short line each; click one for how to use it and a button to the place where it lives. Search it, or filter to what is new.
 - English and Russian, dark and light theme.
 
 ## Screenshots
@@ -149,7 +150,7 @@ A typical routine:
 |---|---|
 | Cmd/Ctrl+N | Quick entry |
 | Shift+Cmd/Ctrl+N | New item |
-| Cmd/Ctrl+1 to 8 | Switch section |
+| Cmd/Ctrl+1 to 9 | Switch section (Features is 8, Settings 9) |
 | Cmd/Ctrl+F | Search |
 | Up, Down | Move between rows of the month |
 | Space | Mark the row done, or undo |
@@ -266,6 +267,7 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `src/tags.js`, `src/tag-ui.js`, `src/views/tags.js` | Tags and trip budgets: summaries, chips and picker, Settings and Analytics |
 | `src/calendar.js`, `src/views/month-calendar.js` | The month as a calendar grid |
 | `src/views/whatif.js` | What-if drafts on the forecast |
+| `src/help.js`, `src/views/help.js`, `src/i18n/help-*.js` | The Features guide: the list of features, its search, the screen and its texts |
 | `src/journal.js`, `src/journal-log.js`, `src/views/journal.js` | Change journal: finding what changed, describing and taking it back; keeping it in IndexedDB; the journal screen |
 | `tests/` | Unit tests |
 | `site/` | The website on GitHub Pages: the app page and the privacy policy |

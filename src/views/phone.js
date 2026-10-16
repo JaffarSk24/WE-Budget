@@ -20,6 +20,7 @@ import { debtBar } from './debts.js';
 import { debtState } from '../debts.js';
 import { tagChips } from '../tag-ui.js';
 import { phoneNetWorth } from './networth.js';
+import { helpHint, openHelpModal, runPhoneAction } from './help.js';
 
 const TABS = [
   { id: 'today', icon: 'calendar-check', label: 'today-title' },
@@ -107,7 +108,8 @@ function todayTab() {
       h('div', { class: 'phone-free-label' }, t('kpi-free')),
       h('div', { class: `phone-free-value money ${totals.free < 0 ? 'negative' : ''}` }, money(totals.free)),
       h('div', { class: 'phone-free-sub' }, t('phone-free-sub', { reserved: money(totals.reserved + totals.frozen), balance: money(totals.balance) })),
-      phoneRunway(runway(store.data, today)))
+      phoneRunway(runway(store.data, today))),
+    helpHint(openFeatures)
   ];
   const alerts = budgetAlerts(store.data, today);
   if (alerts.length) {
@@ -169,6 +171,27 @@ function debtsCard() {
     }))];
 }
 
+// "Open" in a description: the feature's tab, then its dialog if it has one.
+function goToFeature(feature) {
+  tab = feature.phone;
+  focusDay = null;
+  if (window.location.hash) history.replaceState(null, '', window.location.pathname);
+  render();
+  window.scrollTo(0, 0);
+  runPhoneAction(feature);
+}
+
+function openFeatures() {
+  openHelpModal(goToFeature);
+}
+
+function featuresRow() {
+  return h('button', { type: 'button', class: 'phone-card help-more-row', onclick: openFeatures },
+    icon('book-open'),
+    h('span', { class: 'help-more-text' }, h('span', { class: 'help-more-title' }, t('nav-help')), h('span', { class: 'help-more-hint' }, t('help-phone-row-hint'))),
+    icon('chevron-right'));
+}
+
 function moreTab() {
   const s = store.settings;
   const language = selectEl([{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }], s.language);
@@ -176,6 +199,7 @@ function moreTab() {
   const theme = selectEl([{ value: 'dark', label: t('theme-dark') }, { value: 'light', label: t('theme-light') }], s.theme);
   theme.addEventListener('change', () => store.updateSettings({ theme: theme.value }));
   return [
+    featuresRow(),
     syncSection(),
     remindersSection(),
     quickLinkSection(),
