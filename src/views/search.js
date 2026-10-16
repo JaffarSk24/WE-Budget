@@ -3,7 +3,7 @@
 // only draws the field, the filters and the results.
 
 import { store } from '../store.js';
-import { t, tn } from '../i18n.js';
+import { t, tn, flow } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, openModal, selectEl, accountOptions, accountLabel, field } from '../ui.js';
 import { searchEntries, hasActiveFilters } from '../search.js';
 import { statusButton } from '../actions.js';
@@ -45,7 +45,7 @@ function resultRow(entry, onOpen) {
   const overdue = (entry.status === 'planned' || entry.status === 'reserved') && entry.date < today;
   const sign = entry.type === 'income' ? 1 : entry.type === 'expense' ? -1 : 0;
   const where = entry.type === 'transfer'
-    ? `${accountLabel(entry.accountId)} → ${accountLabel(entry.toAccountId)}`
+    ? flow(accountLabel(entry.accountId), accountLabel(entry.toAccountId))
     : accountLabel(entry.accountId);
   const meta = [categoryText(entry) || null, where].filter(Boolean).join(' · ');
   return h('div', {

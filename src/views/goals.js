@@ -4,7 +4,7 @@
 // to its envelope until the deadline, linked to the goal by goalId.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, flow } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, field, moneyInput, selectEl, accountOptions, openModal, accountLabel, badge } from '../ui.js';
 import { centsToInput } from '../money.js';
 import { goalContribution, goalOutlook, raisedContribution, suggestedContribution } from '../ledger.js';
@@ -222,7 +222,7 @@ function contributionBlock(goal, o, today) {
       icon('repeat'),
       h('div', { class: 'goal-contribution-text' },
         h('div', {}, t('goal-contribution', { amount: money(c.amount), when: describeSchedule(c.schedule) })),
-        h('div', { class: 'goal-meta' }, `${accountLabel(c.accountId)} → ${accountLabel(c.toAccountId)}`)),
+        h('div', { class: 'goal-meta' }, flow(accountLabel(c.accountId), accountLabel(c.toAccountId)))),
       h('div', { class: 'goal-actions' },
         h('button', { type: 'button', class: 'icon-btn', title: t('goal-contribution-edit'), onclick: () => openContributionModal(goal) }, icon('pencil')),
         h('button', { type: 'button', class: 'icon-btn', title: t('goal-contribution-remove'), onclick: () => removeContribution(c) }, icon('trash-2')))) : null,

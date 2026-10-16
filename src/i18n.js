@@ -84,6 +84,20 @@ export function tn(prefix, n, params = {}) {
   return t(key in dict ? key : `${prefix}-many`, { n, ...params });
 }
 
+// The arrow from one account (or value) to the next, pointing the way the
+// text reads.
+export function flowArrow() {
+  return dirOf(currentLang()) === 'rtl' ? '\u2190' : '\u2192';
+}
+
+// "Main account -> Bills": from one account (or value) to another. In a
+// right to left language each side is isolated, so a Latin name does not
+// turn the arrow around.
+export function flow(from, to) {
+  if (dirOf(currentLang()) !== 'rtl') return `${from} \u2192 ${to}`;
+  return `\u2068${from}\u2069 \u2190 \u2068${to}\u2069`;
+}
+
 export function translatePage(root = document) {
   root.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.getAttribute('data-i18n'));

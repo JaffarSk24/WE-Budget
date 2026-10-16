@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { ru } from '../src/i18n/ru.js';
 import { en } from '../src/i18n/en.js';
 import { store } from '../src/store.js';
-import { t, tn, pluralSuffix, translations, currentLang, ensureLanguage, isLanguageLoaded } from '../src/i18n.js';
+import { t, tn, flow, pluralSuffix, translations, currentLang, ensureLanguage, isLanguageLoaded } from '../src/i18n.js';
 import { LANGUAGES } from '../src/i18n/languages.js';
 
 function sources(dir) {
@@ -90,5 +90,12 @@ describe('plurals', () => {
     expect(await ensureLanguage('sk')).toBe(true);
     expect(translations.sk['nav-month']).toBeTruthy();
     expect(await ensureLanguage('xx')).toBe(false);
+  });
+
+  it('points the arrow between two accounts the way the text reads', () => {
+    store.settings.language = 'en';
+    expect(flow('Main', 'Bills')).toBe('Main \u2192 Bills');
+    store.settings.language = 'ar';
+    expect(flow('Main', 'Bills')).toBe('\u2068Main\u2069 \u2190 \u2068Bills\u2069');
   });
 });

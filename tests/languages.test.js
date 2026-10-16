@@ -6,7 +6,7 @@ import {
 } from '../src/i18n/languages.js';
 import { en } from '../src/i18n/en.js';
 import { formatMoney, centsToInput, parseMoney } from '../src/money.js';
-import { formatDate, formatDay, formatDayYear, formatMonth, formatTime } from '../src/dates.js';
+import { formatDate, formatDay, formatDayYear, formatMonth, formatMonthShort, formatTime } from '../src/dates.js';
 import { normalizeData } from '../src/model.js';
 
 const dicts = {};
@@ -203,5 +203,13 @@ describe('formatting in every language', () => {
     expect(formatDayYear('2026-10-05', 'ru')).toBe('05.10.2026');
     expect(formatDayYear('2026-10-05', 'ru', { shortYear: true })).toBe('05.10.26');
     expect(formatDayYear('2026-10-05', 'en')).toBe('05/10/2026');
+  });
+});
+
+describe('short month labels', () => {
+  it('keeps three letter English months and the Russian form', () => {
+    expect(formatMonthShort('2026-09', 'en')).toBe('Sep 26');
+    expect(formatMonthShort('2026-10', 'en')).toBe('Oct 26');
+    expect(formatMonthShort('2026-10', 'ru')).toMatch(/^окт/);
   });
 });

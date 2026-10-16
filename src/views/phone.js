@@ -3,7 +3,7 @@
 // Planning, recurring payments and accounts are edited on the computer.
 
 import { store } from '../store.js';
-import { t, translatePage, whenLanguageLoaded } from '../i18n.js';
+import { t, translatePage, whenLanguageLoaded, flow } from '../i18n.js';
 import { languageOptions } from '../i18n/languages.js';
 import { h, clear, icon, money, refreshIcons, lang, accountLabel } from '../ui.js';
 import { accountSummaries, budgetAlerts, entriesOn, grandTotals, overdueEntries, runway, upcomingEntries } from '../ledger.js';
@@ -68,7 +68,7 @@ function phoneEntry(entry, { showDate }) {
   const sign = entry.type === 'income' ? 1 : entry.type === 'expense' ? -1 : 0;
   const unreserved = entry.type === 'expense' && entry.status === 'planned' && entry.amount !== 0 && !entry.isTransit;
   const where = entry.type === 'transfer'
-    ? `${accountLabel(entry.accountId)} → ${accountLabel(entry.toAccountId)}`
+    ? flow(accountLabel(entry.accountId), accountLabel(entry.toAccountId))
     : accountLabel(entry.accountId);
   return h('div', {
     class: `phone-entry status-row-${entry.status} ${overdue ? 'is-overdue' : ''} ${unreserved ? 'is-unreserved' : ''}`,

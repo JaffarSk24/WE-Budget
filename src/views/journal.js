@@ -3,7 +3,7 @@
 // and from the More tab on the phone.
 
 import { store } from '../store.js';
-import { t, tn } from '../i18n.js';
+import { t, tn, flowArrow } from '../i18n.js';
 import { showToast } from '../toast.js';
 import { h, clear, icon, refreshIcons, lang, openModal, selectEl, badge } from '../ui.js';
 import { formatDayLong, formatTime } from '../dates.js';
@@ -34,7 +34,7 @@ function fieldList(item) {
   const rows = fieldRows(item);
   return rows.length ? h('dl', { class: 'journal-fields' }, rows.map(r => [
     h('dt', {}, r.label),
-    h('dd', {}, h('span', { class: 'journal-from' }, r.from), ' → ', h('span', { class: 'journal-to' }, r.to))
+    h('dd', {}, h('span', { class: 'journal-from' }, r.from), ` ${flowArrow()} `, h('span', { class: 'journal-to' }, r.to))
   ])) : null;
 }
 

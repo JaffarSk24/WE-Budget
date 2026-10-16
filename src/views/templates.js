@@ -1,7 +1,7 @@
 // Recurring payments and incomes that build the plan months ahead.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, flow } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, badge, accountLabel, categoryName, selectEl } from '../ui.js';
 import { dayInMonth, formatDate, formatDay, formatDayYear, todayKey } from '../dates.js';
 import { openTemplateModal, segmented } from '../modals.js';
@@ -56,7 +56,7 @@ function templateRow(tpl, today) {
       ahead.line),
     h('td', {}, describeSchedule(tpl.schedule),
       tpl.schedule.endDate ? h('div', { class: 'row-meta' }, t('sched-until', { date: formatDayYear(tpl.schedule.endDate, lang()) })) : null),
-    h('td', {}, tpl.type === 'transfer' ? `${accountLabel(tpl.accountId)} → ${accountLabel(tpl.toAccountId)}` : accountLabel(tpl.accountId)),
+    h('td', {}, tpl.type === 'transfer' ? flow(accountLabel(tpl.accountId), accountLabel(tpl.toAccountId)) : accountLabel(tpl.accountId)),
     h('td', { class: `num money ${sign}` }, (tpl.amountIsEstimate ? '≈ ' : '') + money(tpl.amount)),
     h('td', { class: 'col-actions' },
       h('div', { class: 'tpl-actions' },

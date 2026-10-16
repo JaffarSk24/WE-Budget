@@ -5,7 +5,7 @@
 // (src/balances.js), never here.
 
 import { store } from './store.js';
-import { t } from './i18n.js';
+import { t, flowArrow } from './i18n.js';
 import { showToast } from './toast.js';
 import { h, clear, icon, money, openModal, selectEl, categoryOptions, refreshIcons, badge, lang } from './ui.js';
 import { live, nowIso } from './model.js';
@@ -337,7 +337,7 @@ export function openStatementImport({ accountId = null } = {}) {
           h('span', { class: 'import-date' }, formatDay(row.date, lang())),
           h('span', { class: 'import-desc' },
             h('span', { class: 'import-desc-text' }, row.description || t('untitled')),
-            title ? h('span', { class: 'row-meta' }, '→ ', title) : null,
+            title ? h('span', { class: 'row-meta' }, `${flowArrow()} `, title) : null,
             p.note ? h('span', { class: 'row-meta' }, p.note) : null,
             reasons.length ? h('span', { class: 'row-meta import-why' }, reasons.join(' · ')) : null),
           h('span', { class: `import-amount money ${row.amount > 0 ? 'positive' : ''}` }, money(row.amount, { signed: row.amount > 0 }))),

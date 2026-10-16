@@ -40,7 +40,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Phone app**: today's and overdue payments, marking them, search, quick entries of expenses and income, and what is free, added to the home screen of an iPhone or an Android phone. Made for iPhone screens from the SE to the Pro Max: no zooming into fields, room for the notch and the home indicator.
 - **Reminders** in Google Calendar at the time you choose, so they reach your phone even when every computer is off, and notifications on the computer while the app is open.
 - **Updates** from GitHub Releases, offered right in the app.
-- English and Russian, dark and light theme.
+- **Languages**: English and Russian today; Slovak, Czech, Ukrainian, Spanish, French, Portuguese (Brazil), Chinese (Simplified), Hindi, Bengali, Arabic and Urdu are being translated, Arabic and Urdu right to left. On the first start the app takes the language of the system or browser when it has it, otherwise English; Settings changes it at any time. Dark and light theme.
 
 ## Screenshots
 
@@ -272,6 +272,10 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `scripts/check-windows-install.ps1` | Install check on a clean Windows machine, run by CI |
 
 Built with Electron, plain JavaScript modules, Vite, Chart.js and Lucide icons.
+
+## Translations
+
+How to add or finish a language: [TRANSLATING.md](TRANSLATING.md).
 
 ## License
 

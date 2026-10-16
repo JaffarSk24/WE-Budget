@@ -112,7 +112,10 @@ export function formatDayYear(key, lang = 'ru', { shortYear = false } = {}) {
 
 // "Oct 26" / "окт. 26 г.": a short month label for chart axes.
 export function formatMonthShort(month, lang = 'ru') {
-  return parseDayKey(firstDayOfMonth(month)).toLocaleDateString(locale(lang), { month: 'short', year: '2-digit' });
+  const s = parseDayKey(firstDayOfMonth(month)).toLocaleDateString(locale(lang), { month: 'short', year: '2-digit' });
+  // British English abbreviates September as "Sept"; the axes have always
+  // used three letters for every month.
+  return lang === 'en' ? s.replace(/^Sept\b/, 'Sep') : s;
 }
 
 // "Tue" / "вт": the short weekday of a day.

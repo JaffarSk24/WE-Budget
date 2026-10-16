@@ -2,7 +2,7 @@
 // for this text' shortcut of the statement import.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, flowArrow } from '../i18n.js';
 import { showToast } from '../toast.js';
 import {
   h, icon, money, moneyInput, openModal, field, selectEl, accountOptions, categoryOptions,
@@ -165,7 +165,7 @@ export function rulesSection(section) {
     return h('tr', { class: r.active === false ? 'is-archived' : '' },
       h('td', { class: 'rule-on' }, on),
       h('td', {},
-        h('div', { class: 'row-title' }, `"${r.text}"`, r.title ? h('span', { class: 'muted' }, ` → ${r.title}`) : null),
+        h('div', { class: 'row-title' }, `"${r.text}"`, r.title ? h('span', { class: 'muted' }, ` ${flowArrow()} ${r.title}`) : null),
         h('div', { class: 'row-meta' }, ruleSummary(r))),
       h('td', {}, r.type === 'any' ? t('rule-type-any') : t(`type-${r.type}`)),
       h('td', {}, categoryName(r.categoryId) || h('span', { class: 'muted' }, t('no-category'))),
