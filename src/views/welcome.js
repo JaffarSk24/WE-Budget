@@ -81,7 +81,7 @@ export function renderWelcome(root) {
         try {
           const parsed = JSON.parse(file.text);
           if (!parsed || !Array.isArray(parsed.entries) || !parsed.settings) throw new Error('shape');
-          store.replaceAll(parsed);
+          store.replaceAll(parsed, { source: 'restore' });
           store.generate();
           navigate('month');
         } catch (e) {

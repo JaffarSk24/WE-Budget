@@ -109,3 +109,9 @@ export function formatTimestamp(iso, lang = 'ru') {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 }
+
+// "14:05": the local time of a timestamp.
+export function formatTime(iso, lang = 'ru') {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString(locale(lang), { hour: '2-digit', minute: '2-digit' });
+}
