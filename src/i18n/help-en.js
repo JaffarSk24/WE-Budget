@@ -56,8 +56,8 @@ Delete the demo later in Settings, Data, with Delete everything. The app keeps a
 Tip: tick payments off every couple of days and the Free number always tells the truth.`,
 
   'help-language-theme-title': 'Language and theme',
-  'help-language-theme-short': 'Seven languages, dark or light',
-  'help-language-theme-body': `The app speaks seven languages: Russian, Ukrainian, English, German, Spanish, Slovak and Czech. On the first start the app takes the language of the system when it has it, otherwise English. The theme is dark or light.
+  'help-language-theme-short': 'Fourteen languages, dark or light',
+  'help-language-theme-body': `The app speaks fourteen languages: Russian, Ukrainian, English, German, Spanish, Slovak, Czech, French, Portuguese, Chinese, Hindi, Bengali, Arabic and Urdu. Arabic and Urdu are written right to left, and the whole interface mirrors for them. On the first start the app takes the language of the system when it has it, otherwise English. The theme is dark or light.
 
 Switch them in Settings, Appearance: Language and Theme. On the phone the same is on the More tab.
 

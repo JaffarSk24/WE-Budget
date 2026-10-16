@@ -56,8 +56,8 @@ Die Demo löschst du später in Einstellungen, Daten, mit Alles löschen. Vor de
 Tipp: Hake Zahlungen alle paar Tage ab, dann stimmt die Zahl Verfügbar immer.`,
 
   'help-language-theme-title': 'Sprache und Design',
-  'help-language-theme-short': 'Sieben Sprachen, dunkel oder hell',
-  'help-language-theme-body': `Die App spricht sieben Sprachen: Russisch, Ukrainisch, Englisch, Deutsch, Spanisch, Slowakisch und Tschechisch. Beim ersten Start übernimmt sie die Sprache des Systems, wenn sie diese hat, sonst Englisch. Das Design ist dunkel oder hell.
+  'help-language-theme-short': 'Vierzehn Sprachen, dunkel oder hell',
+  'help-language-theme-body': `Die App spricht vierzehn Sprachen: Russisch, Ukrainisch, Englisch, Deutsch, Spanisch, Slowakisch, Tschechisch, Französisch, Portugiesisch, Chinesisch, Hindi, Bengalisch, Arabisch und Urdu. Arabisch und Urdu werden von rechts nach links geschrieben, dafür spiegelt sich die ganze Oberfläche. Beim ersten Start übernimmt die App die Sprache des Systems, wenn sie diese hat, sonst Englisch. Das Design ist dunkel oder hell.
 
 Umschalten kannst du in Einstellungen, Darstellung: Sprache und Design. Auf dem Handy findest du das im Tab Mehr.
 
