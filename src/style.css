@@ -2276,6 +2276,10 @@ button.tag-chip:hover { opacity: 1; }
 
 @media (max-width: 760px), (pointer: coarse) {
   .tag-chip { padding: 6px 12px; font-size: 0.9rem; }
+  /* A finger needs about 40px: the chips and the text-like toggles get
+     that height without looking bigger. */
+  button.tag-chip { min-height: 40px; }
+  .quick-more-toggle, .split-toggle { min-height: 40px; display: inline-flex; align-items: center; }
   .tag-chip.is-small { padding: 1px 8px; font-size: 0.72rem; }
   .split-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
   .split-row select { grid-column: 1 / -1; }
