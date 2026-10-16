@@ -23,7 +23,7 @@ export const LANGUAGES = [
   { code: 'de', name: 'Deutsch', english: 'German', dir: 'ltr', locale: 'de-DE', decimal: ',', ready: false, load: () => import('./de.js') },
   { code: 'es', name: 'Español', english: 'Spanish', dir: 'ltr', locale: 'es-ES', decimal: ',', ready: true, load: () => import('./es.js') },
   { code: 'sk', name: 'Slovenčina', english: 'Slovak', dir: 'ltr', locale: 'sk-SK', decimal: ',', ready: false, load: () => import('./sk.js') },
-  { code: 'cs', name: 'Čeština', english: 'Czech', dir: 'ltr', locale: 'cs-CZ', decimal: ',', ready: false, load: () => import('./cs.js') }
+  { code: 'cs', name: 'Čeština', english: 'Czech', dir: 'ltr', locale: 'cs-CZ', decimal: ',', ready: true, load: () => import('./cs.js') }
 ];
 
 export const DEFAULT_LANGUAGE = 'en';
