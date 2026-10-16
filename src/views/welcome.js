@@ -2,6 +2,7 @@
 
 import { store } from '../store.js';
 import { t } from '../i18n.js';
+import { languageOptions } from '../i18n/languages.js';
 import { showToast } from '../toast.js';
 import { h, clear, icon, refreshIcons, lang, moneyInput, selectEl, pickFile } from '../ui.js';
 import { todayKey, isDayKey } from '../dates.js';
@@ -21,7 +22,7 @@ function accountLine(removable, onRemove) {
 
 export function renderWelcome(root) {
   clear(root);
-  const language = selectEl([{ value: 'ru', label: 'Русский' }, { value: 'en', label: 'English' }], lang());
+  const language = selectEl(languageOptions(lang()), lang());
   language.addEventListener('change', () => store.updateSettings({ language: language.value }));
 
   const lines = h('div', { class: 'welcome-accounts' });

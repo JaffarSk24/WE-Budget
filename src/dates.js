@@ -4,6 +4,8 @@
 // toISOString(): between 22:00 and midnight in Central Europe that is already
 // the next day in UTC.
 
+import { localeOf } from './i18n/languages.js';
+
 const pad = (n) => String(n).padStart(2, '0');
 
 export function dayKey(date = new Date()) {
@@ -79,9 +81,8 @@ export function weekdayIndex(key) {
   return (parseDayKey(key).getDay() + 6) % 7;
 }
 
-function locale(lang) {
-  return lang === 'ru' ? 'ru-RU' : 'en-GB';
-}
+// `lang` is a language code from i18n/languages.js; its Intl locale formats.
+const locale = localeOf;
 
 export function formatDay(key, lang = 'ru') {
   return parseDayKey(key).toLocaleDateString(locale(lang), { day: '2-digit', month: '2-digit' });
@@ -101,6 +102,22 @@ export function formatDate(key, lang = 'ru') {
 export function formatMonth(month, lang = 'ru') {
   const s = parseDayKey(firstDayOfMonth(month)).toLocaleDateString(locale(lang), { month: 'long', year: 'numeric' });
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/\s*г\.$/, '');
+}
+
+// "16.10.2026" / "16/10/2026": a day with its year in short numeric form;
+// `shortYear` writes "16.10.26".
+export function formatDayYear(key, lang = 'ru', { shortYear = false } = {}) {
+  return parseDayKey(key).toLocaleDateString(locale(lang), { day: '2-digit', month: '2-digit', year: shortYear ? '2-digit' : 'numeric' });
+}
+
+// "Oct 26" / "окт. 26 г.": a short month label for chart axes.
+export function formatMonthShort(month, lang = 'ru') {
+  return parseDayKey(firstDayOfMonth(month)).toLocaleDateString(locale(lang), { month: 'short', year: '2-digit' });
+}
+
+// "Tue" / "вт": the short weekday of a day.
+export function formatWeekdayShort(key, lang = 'ru') {
+  return parseDayKey(key).toLocaleDateString(locale(lang), { weekday: 'short' });
 }
 
 export function formatTimestamp(iso, lang = 'ru') {

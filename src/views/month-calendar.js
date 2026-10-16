@@ -9,7 +9,7 @@ import { calendarWeeks } from '../calendar.js';
 import { budgetFlow, compareEntries, frozenAccounts, isOpen } from '../ledger.js';
 import { entryListItem } from '../actions.js';
 import { openEntryModal, withUndo } from '../modals.js';
-import { addDays, firstDayOfMonth, formatDate, formatDayLong, lastDayOfMonth, monthOf, parseDayKey, weekdayIndex } from '../dates.js';
+import { addDays, firstDayOfMonth, formatDate, formatDayLong, formatWeekdayShort, lastDayOfMonth, monthOf, weekdayIndex } from '../dates.js';
 import { live } from '../model.js';
 
 export const MAX_DAY_ENTRIES = 3;
@@ -26,8 +26,7 @@ let draggingId = null;
 
 function weekdayNames() {
   // 5 October 2026 is a Monday.
-  const locale = lang() === 'ru' ? 'ru-RU' : 'en-GB';
-  return Array.from({ length: 7 }, (_, i) => parseDayKey(addDays('2026-10-05', i)).toLocaleDateString(locale, { weekday: 'short' }));
+  return Array.from({ length: 7 }, (_, i) => formatWeekdayShort(addDays('2026-10-05', i), lang()));
 }
 
 // Income and expense differ by sign as well as by colour; a transfer gets

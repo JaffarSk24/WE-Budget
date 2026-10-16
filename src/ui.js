@@ -3,7 +3,8 @@
 
 import { store } from './store.js';
 import { formatMoney, parseMoney, centsToInput } from './money.js';
-import { t } from './i18n.js';
+import { t, currentLang } from './i18n.js';
+import { decimalOf } from './i18n/languages.js';
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -41,8 +42,9 @@ export function refreshIcons() {
   if (window.lucide) window.lucide.createIcons();
 }
 
+// The interface language: the saved one, or on a first run the browser's.
 export function lang() {
-  return store.settings.language || 'ru';
+  return currentLang();
 }
 
 export function money(cents, opts = {}) {
@@ -56,7 +58,8 @@ export function moneyEl(cents, { signed = false, cls = '', colored = false } = {
   return h('span', { class: c.trim() }, money(cents, { signed }));
 }
 
-export function moneyInput({ value = null, placeholder = '0,00', id = null, autofocus = false } = {}) {
+export function moneyInput({ value = null, placeholder = null, id = null, autofocus = false } = {}) {
+  if (placeholder === null) placeholder = `0${decimalOf(lang())}00`;
   const input = h('input', {
     type: 'text', inputmode: 'decimal', class: 'money-input', id,
     placeholder, value: value === null ? '' : centsToInput(value, lang()), autocomplete: 'off'

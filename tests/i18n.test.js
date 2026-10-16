@@ -1,8 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ru } from '../src/i18n/ru.js';
 import { en } from '../src/i18n/en.js';
+import { store } from '../src/store.js';
+import { t, tn, pluralSuffix, translations, currentLang, ensureLanguage, isLanguageLoaded } from '../src/i18n.js';
+import { LANGUAGES } from '../src/i18n/languages.js';
 
 function sources(dir) {
   return readdirSync(dir).flatMap(name => {
@@ -31,5 +34,61 @@ describe('translations', () => {
       expect(value, key).not.toMatch(/[\u2013\u2014]/);
       expect(value, key).not.toMatch(/\s[%€]/);
     }));
+  });
+});
+
+describe('plurals', () => {
+  let saved;
+  beforeAll(() => { saved = store.settings.language; });
+  afterAll(() => { store.settings.language = saved; delete translations.ar; });
+
+  it('maps CLDR categories to key suffixes', () => {
+    expect([1, 2, 5, 11, 21, 22, 1.5].map(n => pluralSuffix('ru', n))).toEqual(['one', 'few', 'many', 'many', 'one', 'few', 'many']);
+    expect([0, 1, 2, 1.5].map(n => pluralSuffix('en', n))).toEqual(['many', 'one', 'many', 'many']);
+    expect([0, 1, 2, 3, 11, 100].map(n => pluralSuffix('ar', n))).toEqual(['zero', 'one', 'two', 'few', 'many', 'many']);
+    expect([1, 2].map(n => pluralSuffix('zh', n))).toEqual(['many', 'many']);
+  });
+
+  it('keeps Russian and English plural texts as before', () => {
+    store.settings.language = 'ru';
+    expect(tn('cal-entries', 1)).toBe(ru['cal-entries-one'].replace('{n}', '1'));
+    expect(tn('cal-entries', 3)).toBe(ru['cal-entries-few'].replace('{n}', '3'));
+    expect(tn('cal-entries', 12)).toBe(ru['cal-entries-many'].replace('{n}', '12'));
+    store.settings.language = 'en';
+    expect(tn('cal-entries', 1)).toBe(en['cal-entries-one'].replace('{n}', '1'));
+    expect(tn('cal-entries', 3)).toBe(en['cal-entries-many'].replace('{n}', '3'));
+  });
+
+  it('falls back to the -many form when a language has no key for a form', () => {
+    // The Arabic file is English until it is translated: no -two keys.
+    store.settings.language = 'ar';
+    translations.ar = en;
+    expect(tn('cal-entries', 2)).toBe(en['cal-entries-many'].replace('{n}', '2'));
+    expect(t('nav-month')).toBe(en['nav-month']);
+  });
+
+  it('shows English, then the key, for texts a language lacks', () => {
+    store.settings.language = 'ru';
+    translations.ru = { ...ru, 'nav-month': undefined };
+    try {
+      expect(t('nav-month')).toBe(en['nav-month']);
+      expect(t('no-such-key')).toBe('no-such-key');
+    } finally {
+      translations.ru = ru;
+    }
+  });
+
+  it('a registered language is the current one even before it is ready', () => {
+    store.settings.language = 'ur';
+    expect(currentLang()).toBe('ur');
+    store.settings.language = 'xx';
+    expect(LANGUAGES.map(l => l.code)).toContain(currentLang());
+  });
+
+  it('loads a language file on first use', async () => {
+    expect(isLanguageLoaded('sk')).toBe(false);
+    expect(await ensureLanguage('sk')).toBe(true);
+    expect(translations.sk['nav-month']).toBeTruthy();
+    expect(await ensureLanguage('xx')).toBe(false);
   });
 });

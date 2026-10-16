@@ -9,7 +9,7 @@ import { t } from './i18n.js';
 import { showToast } from './toast.js';
 import { h, clear, icon, money, openModal, selectEl, categoryOptions, refreshIcons, badge, lang } from './ui.js';
 import { live, nowIso } from './model.js';
-import { formatDay, formatDate, todayKey } from './dates.js';
+import { formatDay, formatDayYear, formatDate, todayKey } from './dates.js';
 import { accountSummaries } from './ledger.js';
 import {
   decodeStatement, readStatement, mappingComplete, mappingFromNames, mappingToNames, withImportKeys,
@@ -158,7 +158,7 @@ export function openStatementImport({ accountId = null } = {}) {
       } else {
         preview.append(h('div', { class: 'import-preview-title' }, t('import-preview')),
           h('div', { class: 'import-list' }, read.rows.slice(0, PREVIEW_ROWS).map(row => h('div', { class: 'import-preview-row' },
-            h('span', { class: 'import-date' }, `${formatDay(row.date, lang())}.${row.date.slice(0, 4)}`),
+            h('span', { class: 'import-date' }, formatDayYear(row.date, lang())),
             h('span', { class: 'import-desc' }, row.description || h('span', { class: 'muted' }, t('untitled')),
               row.counterparty || row.note ? h('span', { class: 'row-meta' }, [row.counterparty, row.note].filter(Boolean).join(' · ')) : null),
             h('span', { class: `import-amount money ${row.amount > 0 ? 'positive' : ''}` }, money(row.amount, { signed: row.amount > 0 })),

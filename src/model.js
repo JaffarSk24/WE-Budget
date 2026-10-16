@@ -23,7 +23,9 @@ export const TAG_COLORS = ['blue', 'green', 'amber', 'red', 'purple', 'teal', 'p
 export const ASSET_KINDS = ['property', 'vehicle', 'investment', 'savings', 'other'];
 
 export const DEFAULT_SETTINGS = {
-  language: 'ru',
+  // null until a language is chosen: the interface then follows the
+  // browser (i18n.js). Saved budgets always carry one.
+  language: null,
   theme: 'dark',
   currency: 'EUR',
   // Account balances are computed from this day on. Entries before it are
@@ -341,6 +343,9 @@ export function normalizeData(raw) {
     data.datasetAt = raw.datasetAt || data.datasetAt;
   }
   data.settings = { ...DEFAULT_SETTINGS, ...(raw.settings || {}) };
+  // Budgets saved before the language could follow the browser had Russian
+  // as the default; a document with settings but no language keeps it.
+  if (raw.settings && typeof raw.settings === 'object' && raw.settings.language === undefined) data.settings.language = 'ru';
   const mappings = data.settings.importMappings;
   data.settings.importMappings = mappings && typeof mappings === 'object' && !Array.isArray(mappings) ? { ...mappings } : {};
   if (!data.settings.updatedAt) data.settings.updatedAt = nowIso();

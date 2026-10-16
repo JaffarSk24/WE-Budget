@@ -13,7 +13,7 @@ import '@fontsource/outfit/800.css';
 import { createIcons } from 'lucide';
 import { usedIcons } from './icons.js';
 import { store } from './store.js';
-import { t, translatePage } from './i18n.js';
+import { t, translatePage, ensureLanguage, currentLang, whenLanguageLoaded } from './i18n.js';
 import { initModalKeys, topModal, h } from './ui.js';
 import { renderOverview } from './views/overview.js';
 import { renderMonth, handleMonthKey } from './views/month.js';
@@ -90,6 +90,9 @@ function show(name) {
 
 function render() {
   if (!current) return;
+  // A language chosen just now (or by another device) may still be loading;
+  // the page is drawn again once it is there.
+  whenLanguageLoaded(render);
   const root = document.getElementById(`view-${current}`);
   if (root) VIEWS[current](root);
   translatePage();
@@ -159,7 +162,13 @@ function registerServiceWorker() {
   navigator.serviceWorker.register('./sw.js').catch(e => console.error('service worker', e));
 }
 
+// The saved language is loaded before anything is drawn, so the first
+// screen does not flash in English.
 document.addEventListener('DOMContentLoaded', () => {
+  ensureLanguage(currentLang()).finally(start);
+});
+
+function start() {
   applyTheme();
   // Google's answer in the sign-in window: the app does not start here.
   if (isAuthWindow) {
@@ -249,4 +258,4 @@ document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
   setInterval(checkDay, 60 * 1000);
   window.addEventListener('focus', checkDay);
-});
+}

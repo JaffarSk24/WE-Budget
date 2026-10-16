@@ -8,7 +8,7 @@ import { t, tn } from '../i18n.js';
 import { h, clear, icon, money, moneyEl, moneyInput, accountLabel, selectEl, accountOptions, refreshIcons, topModal, lang, badge } from '../ui.js';
 import { showToast } from '../toast.js';
 import { accountRunning, budgetFlow, frozenAccounts, monthRows, monthSummary, overdueEntries } from '../ledger.js';
-import { addMonthsToMonth, formatDay, formatMonth, monthOf, todayKey, firstDayOfMonth, lastDayOfMonth, parseDayKey } from '../dates.js';
+import { addMonthsToMonth, formatDay, formatMonth, formatWeekdayShort, monthOf, todayKey, firstDayOfMonth, lastDayOfMonth } from '../dates.js';
 import { statusButton, reserveButton, toggleDone, toggleReserve, cancelEntry, deleteEntry, entryListItem } from '../actions.js';
 import { openEntryModal, openAllocationModal, openBulkDateModal, openBulkAccountModal, withUndo } from '../modals.js';
 import { live } from '../model.js';
@@ -67,7 +67,7 @@ function stat(label, valueEl, sub = null, cls = '') {
 }
 
 function weekdayShort(day) {
-  return parseDayKey(day).toLocaleDateString(lang() === 'ru' ? 'ru-RU' : 'en-GB', { weekday: 'short' });
+  return formatWeekdayShort(day, lang());
 }
 
 function rerender() {

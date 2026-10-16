@@ -7,7 +7,7 @@ import { store } from '../store.js';
 import { t } from '../i18n.js';
 import { h, icon, money, lang, field, moneyInput, selectEl, openModal, badge, emptyState } from '../ui.js';
 import { latestAssetValue, netWorthAt, netWorthHistory } from '../networth.js';
-import { formatDate, isDayKey, todayKey } from '../dates.js';
+import { formatDate, formatMonthShort, isDayKey, todayKey } from '../dates.js';
 import { ASSET_KINDS, live, makeAsset } from '../model.js';
 import { showToast } from '../toast.js';
 import { withUndo } from '../modals.js';
@@ -17,8 +17,7 @@ function cssVar(name) {
 }
 
 function shortMonth(month) {
-  const [y, m] = month.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(lang() === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', year: '2-digit' });
+  return formatMonthShort(month, lang());
 }
 
 const GROUP_ICONS = { accounts: 'wallet', assets: 'gem', owedToMe: 'arrow-down', debts: 'landmark' };
