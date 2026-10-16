@@ -19,7 +19,7 @@ beforeAll(async () => {
 
 describe('language registry', () => {
   it('lists the languages in picker order with unique codes', () => {
-    expect(LANGUAGES.map(l => l.code)).toEqual(['ru', 'uk', 'en', 'de', 'es', 'sk', 'cs']);
+    expect(LANGUAGES.map(l => l.code)).toEqual(['ru', 'uk', 'en', 'de', 'es', 'sk', 'cs', 'fr', 'pt', 'zh', 'hi', 'bn', 'ar', 'ur']);
     expect(new Set(LANGUAGES.map(l => l.code)).size).toBe(LANGUAGES.length);
   });
 
@@ -37,8 +37,13 @@ describe('language registry', () => {
     });
   });
 
-  it('writes every current language left to right', () => {
-    expect(LANGUAGES.filter(l => l.dir === 'rtl').map(l => l.code)).toEqual([]);
+  it('writes right to left only for Arabic and Urdu', () => {
+    expect(LANGUAGES.filter(l => l.dir === 'rtl').map(l => l.code)).toEqual(['ar', 'ur']);
+  });
+
+  it('isolates amounts left to right in Arabic and Urdu', () => {
+    expect(formatMoney(-3890, { lang: 'ar' })).toBe('\u2066-38.90€\u2069');
+    expect(formatMoney(3890, { lang: 'ur', signed: true })).toBe('\u2066+38.90€\u2069');
   });
 
 

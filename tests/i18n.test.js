@@ -47,6 +47,8 @@ describe('plurals', () => {
     expect([0, 1, 2, 1.5].map(n => pluralSuffix('en', n))).toEqual(['many', 'one', 'many', 'many']);
     expect([1, 2, 5, 1.5].map(n => pluralSuffix('cs', n))).toEqual(['one', 'few', 'many', 'many']);
     expect([1, 2, 5].map(n => pluralSuffix('de', n))).toEqual(['one', 'many', 'many']);
+    expect([0, 1, 2, 3, 11, 100].map(n => pluralSuffix('ar', n))).toEqual(['zero', 'one', 'two', 'few', 'many', 'many']);
+    expect([1, 2].map(n => pluralSuffix('zh', n))).toEqual(['many', 'many']);
   });
 
   it('keeps Russian and English plural texts as before', () => {
@@ -95,5 +97,7 @@ describe('plurals', () => {
   it('points the arrow between two accounts the way the text reads', () => {
     store.settings.language = 'en';
     expect(flow('Main', 'Bills')).toBe('Main \u2192 Bills');
+    store.settings.language = 'ar';
+    expect(flow('Main', 'Bills')).toBe('\u2068Main\u2069 \u2190 \u2068Bills\u2069');
   });
 });
