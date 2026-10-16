@@ -170,7 +170,7 @@ export const cs = {
   'quick-type-income': 'Příjem',
   'quick-note-placeholder-income': 'Odkud, nepovinné',
   'quick-note-placeholder': 'Za co, nepovinné',
-  'quick-save-more': 'Uložit a přidat další',
+  'quick-save-more': 'Uložit a další',
   'limit-left': 'Zbývá {left} z měsíčního limitu {limit}',
 
   // Allocation

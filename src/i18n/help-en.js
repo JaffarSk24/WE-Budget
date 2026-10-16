@@ -146,7 +146,7 @@ Tip: a quick way to see how much one subscription or one shop cost over a year.`
   'help-quick-entry-short': 'A small expense or unplanned income in a couple of seconds',
   'help-quick-entry-body': `Quick entry is for what was not planned: coffee, groceries, an unexpected refund. Use the Quick entry button in the sidebar, Cmd/Ctrl+N, or the round plus on the phone.
 
-Choose Expense or Income, type the amount, the category and, if you like, what it was for. Save and add another keeps the dialog open for the next one; More: tags adds a tag.
+Choose Expense or Income, type the amount, the category and, if you like, what it was for. Save and new keeps the dialog open for the next one; More: tags adds a tag.
 
 When the category has a monthly limit, the dialog shows how much of it is left. Category rules fill in the category from the text.`,
 

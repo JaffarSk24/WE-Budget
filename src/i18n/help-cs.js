@@ -146,7 +146,7 @@ Tip: rychlý způsob, jak zjistit, kolik za rok stálo jedno předplatné nebo j
   'help-quick-entry-short': 'Drobný výdaj nebo nečekaný příjem za pár vteřin',
   'help-quick-entry-body': `Rychlý zápis je pro to, co nebylo v plánu: kávu, nákup, nečekanou vratku. Použij tlačítko Rychlý zápis v postranním panelu, Cmd/Ctrl+N nebo kulaté plus v telefonu.
 
-Vyber Výdaj nebo Příjem, zadej částku, kategorii a případně za co. Uložit a přidat další nechá dialog otevřený pro další zápis; Více: štítky přidá štítek.
+Vyber Výdaj nebo Příjem, zadej částku, kategorii a případně za co. Uložit a další nechá dialog otevřený pro další zápis; Více: štítky přidá štítek.
 
 Když má kategorie měsíční limit, dialog ukáže, kolik z něj zbývá. Pravidla kategorií doplní kategorii podle textu.`,
 
