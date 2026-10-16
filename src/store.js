@@ -40,6 +40,10 @@ export class Store {
     this.adapter = adapter;
     this.today = today;
     this.listeners = [];
+    // The change journal (journal-log.js), when one is attached, and the
+    // source of the changes being made right now (see withSource).
+    this.journal = null;
+    this.source = null;
     this.loadError = null;
     this.needsSave = false;
     this.data = this.load();
@@ -86,12 +90,32 @@ export class Store {
     });
   }
 
-  // Every change goes through here: mutate, persist, notify.
-  commit(mutator) {
+  // Every change goes through here: mutate, persist, notify. `source` tells
+  // the change journal where the change came from ('import', 'restore',
+  // ...); a person's own click is 'local'.
+  commit(mutator, { source = null } = {}) {
     const result = mutator(this.data);
+    this.changed(source);
     this.save();
     this.emit();
     return result;
+  }
+
+  // Only a note to the journal: it compares the records once the current
+  // action is over, so a click costs no copying here.
+  changed(source = null) {
+    if (this.journal) this.journal.touch(source || this.source || 'local');
+  }
+
+  // Runs `fn` with every change in it marked as coming from `source`.
+  withSource(source, fn) {
+    const outer = this.source;
+    this.source = source;
+    try {
+      return fn();
+    } finally {
+      this.source = outer;
+    }
   }
 
   // ---------- reading ----------
@@ -182,7 +206,22 @@ export class Store {
         });
       });
       data.settings = { ...snap.settings, updatedAt: now };
-    });
+    }, { source: 'restore' });
+  }
+
+  // Writes whole records as they are given (a change taken back from the
+  // journal): each replaces the record with its id, or is added.
+  applyPatches(patches, { source = 'restore' } = {}) {
+    if (!patches.length) return 0;
+    return this.commit(data => {
+      patches.forEach(({ collection, id, record }) => {
+        if (!Array.isArray(data[collection])) data[collection] = [];
+        const idx = data[collection].findIndex(r => r.id === id);
+        if (idx === -1) data[collection].push(record);
+        else data[collection][idx] = record;
+      });
+      return patches.length;
+    }, { source });
   }
 
   // ---------- first run ----------
@@ -206,7 +245,7 @@ export class Store {
   // newest version of each record, and records it does not have become
   // tombstones. Sync then carries the replacement to the other devices
   // record by record, instead of one copy replacing the other.
-  replaceAll(raw) {
+  replaceAll(raw, { source = 'import' } = {}) {
     const next = normalizeData(raw);
     const now = nowIso();
     COLLECTIONS.forEach(name => {
@@ -224,6 +263,7 @@ export class Store {
     }
     this.loadError = null;
     this.data = next;
+    this.changed(source);
     this.save();
     this.emit();
     return next;
@@ -234,6 +274,7 @@ export class Store {
     const next = normalizeData(raw);
     this.loadError = null;
     this.data = next;
+    this.changed('sync');
     this.save();
     this.emit();
     return next;
@@ -241,8 +282,13 @@ export class Store {
 
   // ---------- templates and generation ----------
 
-  // Creates entries for every template up to the planning horizon.
+  // Creates entries for every template up to the planning horizon. Nobody
+  // clicked for these: the journal marks them as automatic.
   generate(today = this.today()) {
+    return this.withSource('auto', () => this.generateNow(today));
+  }
+
+  generateNow(today) {
     const horizon = generationHorizon(today, this.data.settings.forecastMonths || 3);
     const { entries, marks } = pendingGeneration(this.data, today, horizon);
     const changed = marks.some(m => {

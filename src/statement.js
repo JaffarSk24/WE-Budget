@@ -387,7 +387,7 @@ export function openStatementImport({ accountId = null } = {}) {
       });
       data.settings.importMappings = { ...(data.settings.importMappings || {}), [accountId]: saved };
       data.settings.updatedAt = now;
-    });
+    }, { source: 'import' });
     // Planned payments marked done can move saving-ahead goals on.
     store.followSaveAhead();
     showToast(t('toast-imported', { matched: counts.match, added: counts.new }), {
