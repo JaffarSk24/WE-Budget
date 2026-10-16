@@ -19,6 +19,7 @@ import { openSearch } from './search.js';
 import { debtBar } from './debts.js';
 import { debtState } from '../debts.js';
 import { tagChips } from '../tag-ui.js';
+import { phoneNetWorth } from './networth.js';
 
 const TABS = [
   { id: 'today', icon: 'calendar-check', label: 'today-title' },
@@ -146,7 +147,7 @@ function accountsTab() {
         return row(c.name, cs.ownBalance, (cs.ownReserved || 0) + (cs.ownFrozen || 0), cs.ownFree, 'is-child');
       }));
   });
-  return cards.concat(debtsCard());
+  return cards.concat(debtsCard(), phoneNetWorth());
 }
 
 // Loans and debts, read only: what is left and how much is paid.

@@ -2,7 +2,7 @@
 // up: names, amounts and accounts are invented. Deterministic (seeded), so
 // two runs on the same day produce the same budget.
 
-import { emptyData, defaultCategories, makeAccount, makeDebt, makeEntry, makeGoal, makeRule, makeScenario, makeTag, makeTemplate, nowIso } from './model.js';
+import { emptyData, defaultCategories, makeAccount, makeAsset, makeDebt, makeEntry, makeGoal, makeRule, makeScenario, makeTag, makeTemplate, nowIso } from './model.js';
 import { addMonthsToMonth, firstDayOfMonth, monthOf, addDays, dayInMonth, lastDayOfMonth } from './dates.js';
 import { pendingGeneration, generationHorizon } from './schedule.js';
 import { categorySpentInMonth } from './ledger.js';
@@ -211,5 +211,20 @@ export function buildDemo(today, lang = 'en') {
       accountId: main.id, categoryId: lent.categoryId, debtId: lent.id, status: 'done', doneAt: nowIso()
     }));
   }
+  // Property and investments for net worth: the car the loan paid for,
+  // losing a little value, and a small index fund that grows.
+  data.assets.push(makeAsset({
+    name: L('Family car', 'Семейная машина'), kind: 'vehicle', values: [
+      { date: start, amount: 1450000 },
+      { date: firstDayOfMonth(addMonthsToMonth(month, -2)), amount: 1390000 }
+    ]
+  }));
+  data.assets.push(makeAsset({
+    name: L('Index fund', 'Индексный фонд'), kind: 'investment', note: L('Brokerage account', 'Брокерский счёт'), values: [
+      { date: start, amount: 320000 },
+      { date: firstDayOfMonth(addMonthsToMonth(month, -3)), amount: 336000 },
+      { date: firstDayOfMonth(addMonthsToMonth(month, -1)), amount: 351500 }
+    ]
+  }));
   return data;
 }

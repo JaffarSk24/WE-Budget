@@ -5,7 +5,7 @@
 
 export const SCHEMA_VERSION = 1;
 
-export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts', 'tags', 'scenarios'];
+export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts', 'tags', 'scenarios', 'assets'];
 export const SCENARIO_REPEATS = ['once', 'monthly'];
 
 export const ENTRY_TYPES = ['expense', 'income', 'transfer'];
@@ -20,6 +20,7 @@ export const DEBT_KINDS = ['owe', 'owed'];
 // Tag colors are names, not hex values: style.css gives each one a shade
 // that reads on the dark and on the light theme.
 export const TAG_COLORS = ['blue', 'green', 'amber', 'red', 'purple', 'teal', 'pink', 'gray'];
+export const ASSET_KINDS = ['property', 'vehicle', 'investment', 'savings', 'other'];
 
 export const DEFAULT_SETTINGS = {
   language: 'ru',
@@ -240,6 +241,27 @@ export function makeDebt(f = {}) {
   });
 }
 
+// Something the household owns outside its budget accounts: a flat, a car,
+// an investment account, savings kept elsewhere. Its worth changes now and
+// then, so it keeps a history of values; the value on a day is the latest
+// one on or before it. archivedAt is the day it was sold or given up: it
+// still counts before that day, so past net worth does not change.
+export function makeAsset(f = {}) {
+  const values = Array.isArray(f.values)
+    ? f.values.filter(v => v && typeof v.date === 'string' && Number.isFinite(Number(v.amount)))
+      .map(v => ({ date: v.date, amount: Math.round(Number(v.amount)) }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+    : [];
+  return base({
+    name: f.name || '',
+    kind: ASSET_KINDS.includes(f.kind) ? f.kind : 'other',
+    note: f.note || '',
+    archived: !!f.archived,
+    archivedAt: f.archivedAt || null,
+    values
+  });
+}
+
 // A category rule: when a payment's text matches, it gets this category (and
 // optionally an account and a clean title). Rules are tried in `order`, the
 // first active match wins.
@@ -299,6 +321,7 @@ export function emptyData() {
     debts: [],
     tags: [],
     scenarios: [],
+    assets: [],
     settings: { ...DEFAULT_SETTINGS, importMappings: {}, updatedAt: nowIso() }
   };
 }
@@ -331,6 +354,7 @@ export function normalizeData(raw) {
     t.schedule = makeSchedule(t.schedule);
     if (!Array.isArray(t.tagIds)) t.tagIds = [];
   });
+  data.assets.forEach(a => { if (!Array.isArray(a.values)) a.values = []; });
   data.schemaVersion = SCHEMA_VERSION;
   return data;
 }

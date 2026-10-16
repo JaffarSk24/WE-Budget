@@ -2459,3 +2459,79 @@ button.tag-chip:hover { opacity: 1; }
 @media (max-width: 760px) {
   .month-view-switch { display: none; }
 }
+
+/* ---------- Money flow (Sankey) ----------
+   Income side in the first series colour, the expense side in neutral
+   greys; the hovered band is highlighted and the rest fade. Status colours
+   stay for statuses. */
+.flow-head { flex-wrap: wrap; row-gap: 8px; }
+.flow-head .segmented { margin-left: auto; }
+.flow-body > .field-hint { margin: 0 0 8px; }
+.sankey-wrap { position: relative; width: 100%; min-height: 220px; overflow: hidden; }
+.sankey { display: block; max-width: 100%; height: auto; }
+.sankey-node.is-in, .sankey-node.is-hub { fill: var(--series-1); }
+.sankey-node.is-out { fill: var(--text-muted); }
+.sankey-node.is-saved { fill: var(--series-1); opacity: 0.6; }
+.sankey-node.is-savings { fill: var(--text-muted); }
+.sankey-link { transition: opacity 0.12s ease, fill 0.12s ease; cursor: default; }
+.sankey-link.is-in { fill: var(--series-1); opacity: 0.32; }
+.sankey-link.is-out { fill: var(--text-muted); opacity: 0.26; }
+.sankey-link.is-saved { fill: var(--series-1); opacity: 0.2; }
+.sankey-link.is-savings { fill: var(--text-muted); opacity: 0.2; }
+.sankey.has-active .sankey-link { opacity: 0.1; }
+.sankey.has-active .sankey-link.is-active { opacity: 0.6; }
+.sankey.has-active .sankey-link.is-out.is-active { fill: var(--text-secondary); }
+.sankey-node.is-active { opacity: 1; }
+.sankey-label { fill: var(--text-primary); font-size: 13px; font-weight: 600; }
+.sankey-amount { fill: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sankey-tip {
+  position: absolute; z-index: 5; pointer-events: none; opacity: 0;
+  max-width: 260px; padding: 8px 10px; border-radius: var(--radius-sm, 6px);
+  background: var(--bg-secondary); border: 1px solid var(--border-color); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  font-size: 0.82rem; transition: opacity 0.1s ease;
+}
+.sankey-tip.is-visible { opacity: 1; }
+.sankey-tip-title { font-weight: 600; }
+.sankey-tip-sub { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.flow-list { display: none; }
+.flow-table { margin-top: 10px; }
+.flow-table summary { cursor: pointer; color: var(--text-secondary); font-size: 0.85rem; padding: 4px 0; }
+.flow-col-title { font-weight: 600; color: var(--text-secondary); font-size: 0.8rem; padding-bottom: 6px; border-bottom: 1px solid var(--border-color); }
+.flow-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+.flow-row:last-child { border-bottom: none; }
+.flow-name { min-width: 0; overflow-wrap: anywhere; }
+.flow-amount { text-align: right; white-space: nowrap; }
+.flow-share { grid-column: 2; text-align: right; font-size: 0.78rem; }
+.flow-row.is-saved .flow-name { color: var(--series-1); font-weight: 600; }
+@media (max-width: 760px) {
+  .sankey-wrap { display: none; }
+  .flow-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .flow-head .segmented { margin-left: 0; flex-basis: 100%; }
+}
+@media (max-width: 400px) {
+  .flow-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- Net worth ---------- */
+.nw-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px 32px; align-items: start; margin: 4px 0 8px; }
+.nw-total-value { font-size: 1.9rem; font-weight: 700; }
+.nw-change { font-size: 0.85rem; margin-top: 4px; }
+.nw-breakdown { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; }
+.nw-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-color); min-width: 0; }
+.nw-group dt { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 0.88rem; min-width: 0; }
+.nw-group dt i, .nw-group dt svg { width: 15px; height: 15px; flex-shrink: 0; }
+.nw-group dd { margin: 0; white-space: nowrap; font-weight: 600; }
+.nw-chart { height: 240px; }
+.assets-head { padding-bottom: 8px; }
+.assets-head .btn { margin-left: auto; }
+.assets-table .asset-date { white-space: nowrap; font-size: 0.85rem; }
+.asset-row.is-archived td { opacity: 0.6; }
+.asset-history h4 { margin: 4px 0 6px; font-size: 0.85rem; color: var(--text-secondary); }
+.asset-history ul { list-style: none; margin: 0; padding: 0; max-height: 180px; overflow-y: auto; }
+.asset-history li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border-color); font-size: 0.88rem; }
+@media (max-width: 1280px) {
+  .nw-top { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .nw-breakdown { grid-template-columns: minmax(0, 1fr); }
+}

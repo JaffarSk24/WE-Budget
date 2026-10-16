@@ -12,6 +12,7 @@ import { tagChips } from '../tag-ui.js';
 import { openAccountModal, openAllocationModal, openEntryModal } from '../modals.js';
 import { openBalancesModal } from '../balances.js';
 import { openStatementImport } from '../statement.js';
+import { assetsCard } from './networth.js';
 
 let selectedId = null;
 
@@ -108,6 +109,7 @@ export function renderAccounts(root) {
 
   if (!accounts.length) {
     root.appendChild(h('div', { class: 'card' }, emptyState(t('no-accounts-yet'), 'wallet')));
+    root.appendChild(assetsCard());
     refreshIcons();
     return;
   }
@@ -132,6 +134,8 @@ export function renderAccounts(root) {
         h('th', {}, t('col-last-check')), h('th', { class: 'col-actions' }))),
       h('tbody', {}, rows))),
     h('p', { class: 'field-hint pad' }, t('accounts-hint'))));
+
+  root.appendChild(assetsCard());
 
   const selected = selectedId ? store.find('accounts', selectedId) : null;
   if (selected) {
