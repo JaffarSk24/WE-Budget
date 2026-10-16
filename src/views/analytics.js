@@ -10,6 +10,8 @@ import { h, clear, icon, money, refreshIcons, lang, emptyState, categoryName } f
 import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, effectiveLimit, firstFlowMonth, limitCarry } from '../ledger.js';
 import { addMonthsToMonth, firstDayOfMonth, formatMonth, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { live } from '../model.js';
+import { moneyFlowCard } from './money-flow.js';
+import { netWorthCard } from './networth.js';
 
 const PERIODS = ['3', '6', '12', 'all'];
 const TOP_CATEGORIES = 8;
@@ -205,7 +207,12 @@ export function renderAnalytics(root) {
 
   if (!first) {
     root.appendChild(h('div', { class: 'card' }, emptyState(t('an-empty'), 'chart-column')));
+    // Property and debts make a net worth even before any money moved.
+    const worth = netWorthCard(today, period === 'all' ? 12 : Number(period));
+    root.appendChild(worth.card);
     refreshIcons();
+    const worthChart = worth.draw();
+    if (worthChart) charts.push(worthChart);
     return;
   }
 
@@ -230,6 +237,8 @@ export function renderAnalytics(root) {
     h('div', { class: 'card-title-row' }, icon('chart-column'), h('h3', {}, t('an-months-title'))),
     h('div', { class: 'an-chart' }, monthsCanvas)));
 
+  root.appendChild(moneyFlowCard(today, from, to));
+
   const expenses = categoryBreakdown(store.data, from, to, 'expense');
   const top = expenses.slice(0, TOP_CATEGORIES);
   const rest = expenses.slice(TOP_CATEGORIES).reduce((s, r) => s + r.amount, 0);
@@ -252,6 +261,11 @@ export function renderAnalytics(root) {
         h('td', { class: 'num money' }, money(r.amount)),
         h('td', { class: 'num muted' }, income ? `${Math.round((r.amount / income) * 100)}%` : '')))))) : h('p', { class: 'muted small' }, t('an-none'))));
 
+  // 'All' reaches back to the first month with money, never before the
+  // tracking start (balances are not known before it).
+  const worth = netWorthCard(today, rows.length);
+  root.appendChild(worth.card);
+
   root.appendChild(h('div', { class: 'card' },
     h('div', { class: 'card-title-row' }, icon('scale'), h('h3', {}, t('an-plan-title'))),
     h('p', { class: 'field-hint' }, t('an-plan-hint')),
@@ -264,4 +278,6 @@ export function renderAnalytics(root) {
   // Charts need their canvas in the page to measure it.
   drawMonths(monthsCanvas, rows);
   if (expenses.length) drawCategories(catCanvas, barItems);
+  const worthChart = worth.draw();
+  if (worthChart) charts.push(worthChart);
 }

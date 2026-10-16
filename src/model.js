@@ -5,7 +5,7 @@
 
 export const SCHEMA_VERSION = 1;
 
-export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts'];
+export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts', 'assets'];
 
 export const ENTRY_TYPES = ['expense', 'income', 'transfer'];
 export const ENTRY_STATUSES = ['planned', 'reserved', 'done', 'cancelled'];
@@ -16,6 +16,7 @@ export const RULE_MATCHES = ['contains', 'startsWith', 'exact'];
 export const RULE_TYPES = ['expense', 'income', 'any'];
 export const LIMIT_ROLLOVERS = ['none', 'unspent', 'both'];
 export const DEBT_KINDS = ['owe', 'owed'];
+export const ASSET_KINDS = ['property', 'vehicle', 'investment', 'savings', 'other'];
 
 export const DEFAULT_SETTINGS = {
   language: 'ru',
@@ -212,6 +213,27 @@ export function makeDebt(f = {}) {
   });
 }
 
+// Something the household owns outside its budget accounts: a flat, a car,
+// an investment account, savings kept elsewhere. Its worth changes now and
+// then, so it keeps a history of values; the value on a day is the latest
+// one on or before it. archivedAt is the day it was sold or given up: it
+// still counts before that day, so past net worth does not change.
+export function makeAsset(f = {}) {
+  const values = Array.isArray(f.values)
+    ? f.values.filter(v => v && typeof v.date === 'string' && Number.isFinite(Number(v.amount)))
+      .map(v => ({ date: v.date, amount: Math.round(Number(v.amount)) }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+    : [];
+  return base({
+    name: f.name || '',
+    kind: ASSET_KINDS.includes(f.kind) ? f.kind : 'other',
+    note: f.note || '',
+    archived: !!f.archived,
+    archivedAt: f.archivedAt || null,
+    values
+  });
+}
+
 // A category rule: when a payment's text matches, it gets this category (and
 // optionally an account and a clean title). Rules are tried in `order`, the
 // first active match wins.
@@ -249,6 +271,7 @@ export function emptyData() {
     reminders: [],
     rules: [],
     debts: [],
+    assets: [],
     settings: { ...DEFAULT_SETTINGS, importMappings: {}, updatedAt: nowIso() }
   };
 }
@@ -276,6 +299,7 @@ export function normalizeData(raw) {
     if (!ENTRY_STATUSES.includes(e.status)) e.status = 'planned';
   });
   data.templates.forEach(t => { t.schedule = makeSchedule(t.schedule); });
+  data.assets.forEach(a => { if (!Array.isArray(a.values)) a.values = []; });
   data.schemaVersion = SCHEMA_VERSION;
   return data;
 }
