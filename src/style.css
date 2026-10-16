@@ -1145,6 +1145,39 @@ tfoot td { font-weight: 700; border-bottom: none; padding-top: 12px; padding-bot
 .kpi .stat-desc { font-size: 0.78rem; color: var(--text-muted); }
 .stat-card.reserved::before { background: var(--reserved); }
 .stat-card.alert::before { background: var(--danger); }
+/* Runway: how long the free money lasts, under the free money. */
+.stat-runway { display: flex; align-items: flex-start; gap: 6px; margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.35; }
+.stat-runway i, .stat-runway svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; color: var(--text-muted); }
+.runway-negative { color: var(--danger); }
+.stat-runway.runway-negative i, .stat-runway.runway-negative svg { color: var(--danger); }
+
+/* Attention: alerts, only when there are any. */
+.alerts-card { border-left: 3px solid var(--warning); }
+.alerts-card .card-title-row > i, .alerts-card .card-title-row > svg { color: var(--warning); }
+.alert-rows { display: flex; flex-direction: column; gap: 6px; }
+.alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--overlay-02);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.alert-row.is-link { cursor: pointer; }
+.alert-row.is-link:hover { background: var(--overlay-04); }
+.alert-row > span { min-width: 0; }
+.alert-row i, .alert-row svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+.alert-row.alert-warning i, .alert-row.alert-warning svg { color: var(--warning); }
+.alert-row.alert-danger i, .alert-row.alert-danger svg { color: var(--danger); }
+.alert-row.alert-info i, .alert-row.alert-info svg { color: var(--accent-indigo); }
 
 .overview-lists {
   display: grid;
@@ -1292,6 +1325,24 @@ tfoot td { font-weight: 700; border-bottom: none; padding-top: 12px; padding-bot
 .setting-hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; max-width: 560px; line-height: 1.45; }
 .setting-control select, .setting-control input { min-width: 220px; }
 .setting-control input[type="checkbox"] { min-width: 0; }
+/* Quick entry from iPhone: the link to copy and how to build one. */
+.qlink-copy { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+.qlink-copy input { flex: 1 1 260px; min-width: 0; }
+.qlink-copy .btn { flex: 0 0 auto; }
+.qlink-pattern {
+  display: block;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--overlay-02);
+  border: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+}
+.settings-section > .setting-hint + .setting-hint { margin-top: 8px; }
 .cat-scroll { max-height: 420px; overflow-y: auto; margin: 10px 0; }
 .cat-table td { padding: 5px 8px; }
 .inline-input { padding: 6px 10px !important; width: 100%; }
@@ -1622,6 +1673,12 @@ body.is-phone #app-container { display: none; }
 .phone-free-value { font-family: 'Outfit', sans-serif; font-size: 2.3rem; font-weight: 800; line-height: 1.15; color: var(--success); }
 .phone-free-value.negative { color: var(--danger); }
 .phone-free-sub { font-size: 0.8rem; color: var(--text-muted); }
+.phone-free-runway { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 0.86rem; color: var(--text-secondary); line-height: 1.35; }
+.phone-free-runway.runway-negative { color: var(--danger); }
+.phone-free-runway-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.phone-alerts { border-left: 3px solid var(--warning); }
+body.is-phone .alert-row { padding: 10px; min-height: 44px; }
+body.is-phone .qlink-copy .btn { width: 100%; justify-content: center; }
 .phone-acc-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border-color); }
 .phone-acc-row:last-child { border-bottom: none; }
 .phone-acc-row.is-top { font-weight: 700; }
@@ -1693,7 +1750,7 @@ body.is-phone .settings-section { padding: 14px; }
 body.is-phone .setting-row { flex-direction: column; align-items: stretch; gap: 8px; }
 body.is-phone .setting-control { justify-content: flex-start; text-align: left; width: 100%; }
 body.is-phone .setting-control .checkbox-row { justify-content: flex-start; }
-body.is-phone .setting-control select, body.is-phone .setting-control input[type="time"] { max-width: 220px; }
+body.is-phone .setting-control select, body.is-phone .setting-control input[type="time"], body.is-phone .setting-control .money-input { max-width: 220px; }
 body.is-phone .promo-footer { display: none; }
 .auth-window-note { padding: 40px 24px; text-align: center; font-size: 1.05rem; color: var(--text-secondary); }
 

@@ -34,6 +34,7 @@ import { initNotifications } from './notify.js';
 import { initTray } from './tray.js';
 import { finishRedirectSignIn } from './web/cloud-web.js';
 import { isPhoneLayout, initPhone } from './views/phone.js';
+import { parseQuickLink, stripQuickParams } from './quicklink.js';
 
 window.lucide = { createIcons: () => createIcons({ icons: usedIcons }) };
 
@@ -88,6 +89,19 @@ function render() {
   const root = document.getElementById(`view-${current}`);
   if (root) VIEWS[current](root);
   translatePage();
+}
+
+// A link from an iPhone Shortcut (?quick=expense&amount=12.50&note=Lidl)
+// opens the quick entry dialog filled in. Called once the first sync on
+// start has taken what the cloud has, so names match the current budget;
+// opening the dialog changes nothing by itself. The parameters leave the
+// address, so a reload does not open the dialog again.
+function openQuickLink() {
+  const initial = parseQuickLink(window.location.search, store.data);
+  if (!initial) return;
+  try { history.replaceState(history.state, '', stripQuickParams(window.location.href)); } catch (e) { /* the dialog still opens */ }
+  // Without accounts yet this shows why nothing can be entered.
+  openQuickEntry(initial);
 }
 
 function showLoadError() {
@@ -203,7 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
   finishing
     .then(signedIn => sync.init({ reason: signedIn ? 'login' : 'startup' }))
     .catch(e => console.error('sync init failed', e))
-    .finally(() => initReminders());
+    .finally(() => {
+      initReminders();
+      openQuickLink();
+    });
   initNotifications();
   if (!phone) initTray();
   registerServiceWorker();

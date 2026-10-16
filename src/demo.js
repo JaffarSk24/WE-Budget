@@ -93,6 +93,17 @@ export function buildDemo(today, lang = 'en') {
     }));
   }
 
+  // Eating out has a monthly limit and is close to it this month, so the
+  // alerts have something to show; entertainment has room left.
+  const limited = (catName, share) => {
+    const c = data.categories.find(x => x.name === catName);
+    const spent = data.entries.filter(e => e.categoryId === c.id && e.status === 'done' && monthOf(e.date) === month)
+      .reduce((sum, e) => sum + e.amount, 0);
+    c.monthlyLimit = spent > 0 ? Math.ceil(spent / share / 100) * 100 : 5000;
+  };
+  limited(L('Eating out', 'Кафе и рестораны'), 0.85);
+  limited(L('Entertainment', 'Развлечения'), 0.4);
+
   // Every payday the money for bills and groceries moves to its envelope and
   // the month's bills count as covered, exactly the routine the app is for.
   for (let m = monthOf(start); m <= month; m = addMonthsToMonth(m, 1)) {

@@ -4,20 +4,35 @@ import Chart from 'chart.js/auto';
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
 import { h, clear, icon, money, moneyEl, refreshIcons, lang, emptyState, badge } from '../ui.js';
-import { accountSummaries, entriesOn, forecast, grandTotals, monthPlanFact, overdueEntries, upcomingEntries } from '../ledger.js';
+import { accountSummaries, budgetAlerts, entriesOn, forecast, grandTotals, monthPlanFact, overdueEntries, runway, upcomingEntries } from '../ledger.js';
 import { addDays, formatDate, formatDay, formatDayLong, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { generationHorizon } from '../schedule.js';
 import { entryListItem } from '../actions.js';
 import { openAllocationModal, openQuickEntry } from '../modals.js';
 import { live } from '../model.js';
+import { alertRows, runwayHint, runwayText } from '../insights.js';
 
 let chart = null;
 
-function kpi(label, value, sub, cls = '') {
+function kpi(label, value, sub, cls = '', extra = null) {
   return h('div', { class: `stat-card kpi ${cls}` },
     h('div', { class: 'stat-header' }, h('span', {}, label)),
     h('div', { class: 'stat-value' }, value),
-    sub ? h('div', { class: 'stat-desc' }, sub) : null);
+    sub ? h('div', { class: 'stat-desc' }, sub) : null,
+    extra);
+}
+
+// How long the free money lasts at the usual spending, under the free money.
+function runwayLine(r) {
+  return h('div', { class: `stat-runway runway-${r.status}`, title: runwayHint(r) }, icon('gauge'), h('span', {}, runwayText(r)));
+}
+
+// Only when something needs a look: limits, low free money, large payments.
+function alertsCard(alerts, today) {
+  if (!alerts.length) return null;
+  return h('div', { class: 'card alerts-card' },
+    h('div', { class: 'card-title-row' }, icon('bell'), h('h3', {}, t('alerts-title')), h('span', { class: 'count-pill' }, alerts.length)),
+    h('div', { class: 'alert-rows' }, alertRows(alerts, today)));
 }
 
 // One line of this month's plan: how much of the planned income came in, or
@@ -177,7 +192,7 @@ export function renderOverview(root) {
       h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openQuickEntry() }, icon('plus'), t('quick-add')))));
 
   root.appendChild(h('div', { class: 'dashboard-grid kpi-grid' },
-    kpi(t('kpi-free'), moneyEl(totals.free, { colored: true }), t('kpi-free-desc'), totals.free < 0 ? 'alert' : 'primary'),
+    kpi(t('kpi-free'), moneyEl(totals.free, { colored: true }), t('kpi-free-desc'), totals.free < 0 ? 'alert' : 'primary', runwayLine(runway(store.data, today))),
     kpi(t('kpi-reserved'), moneyEl(totals.reserved + totals.frozen),
       totals.frozen ? t('kpi-reserved-goals', { reserved: money(totals.reserved), frozen: money(totals.frozen) }) : t('kpi-reserved-desc'), 'reserved'),
     kpi(t('kpi-balance'), moneyEl(totals.balance), t('kpi-balance-desc')),
@@ -195,6 +210,9 @@ export function renderOverview(root) {
         shortage: money(-dip.value)
       }))));
   }
+
+  const attention = alertsCard(budgetAlerts(store.data, today), today);
+  if (attention) root.appendChild(attention);
 
   root.appendChild(h('div', { class: 'overview-lists' },
     listCard(tn('overdue-title', overdue.length), 'alert-triangle', overdue, t('overdue-none'), overdue.length ? 'attention' : ''),

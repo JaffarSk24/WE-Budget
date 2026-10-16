@@ -2,7 +2,8 @@
 // the reminder time, the payments of today (and overdue ones) that are still
 // not marked; in the morning, if switched on, what today holds. The
 // reminder in Google Calendar works without the app; this one is the
-// backup on the computer.
+// backup on the computer. Alerts (limits, low free money, large payments)
+// are shown from the morning on, each at most once a day.
 
 import { store } from './store.js';
 import { t } from './i18n.js';
@@ -10,6 +11,8 @@ import { lang } from './ui.js';
 import { formatMoney } from './money.js';
 import { todayKey } from './dates.js';
 import { live } from './model.js';
+import { budgetAlerts } from './ledger.js';
+import { alertText } from './insights.js';
 
 const MORNING = '08:00';
 const LATE_LIMIT_MIN = 60; // a computer asleep at the time gets no late notification after this
@@ -81,6 +84,16 @@ export function checkNotifications(now = new Date()) {
       show(t('notify-morning-title', { n: todays.length }), describe(todays), () => { window.location.hash = '#overview'; });
     }
   }
+  if (s.alertsEnabled !== false && minute >= minutesOf(MORNING)) {
+    const fresh = budgetAlerts(store.data, today).filter(a => fired[`alert:${a.key}`] !== today);
+    fresh.forEach(a => { fired[`alert:${a.key}`] = today; });
+    if (fresh.length === 1) show(t('notify-alert-title'), alertText(fresh[0], today), () => { window.location.hash = '#overview'; });
+    else if (fresh.length > 1) {
+      show(t('notify-alerts-title', { n: fresh.length }), fresh.slice(0, 3).map(a => alertText(a, today)).join('; '), () => { window.location.hash = '#overview'; });
+    }
+  }
+  // Alerts of earlier days are forgotten, so the record stays small.
+  Object.keys(fired).forEach(k => { if (k.startsWith('alert:') && fired[k] !== today) delete fired[k]; });
   writeFired(fired);
 }
 

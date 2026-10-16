@@ -5,13 +5,14 @@
 import { store } from '../store.js';
 import { t } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, accountLabel } from '../ui.js';
-import { accountSummaries, entriesOn, grandTotals, overdueEntries, upcomingEntries } from '../ledger.js';
+import { accountSummaries, budgetAlerts, entriesOn, grandTotals, overdueEntries, runway, upcomingEntries } from '../ledger.js';
 import { addDays, formatDay, formatDayLong, isDayKey, todayKey } from '../dates.js';
 import { statusButton, reserveButton } from '../actions.js';
 import { openEntryModal, openQuickEntry } from '../modals.js';
 import { live, hasAnyData } from '../model.js';
 import { sync, syncStatusText, signIn, renewAccess, initSyncBanner } from '../cloud.js';
-import { syncSection, remindersSection, section, settingRow } from './settings.js';
+import { syncSection, remindersSection, quickLinkSection, section, settingRow } from './settings.js';
+import { alertRows, runwayHint, runwayText } from '../insights.js';
 import { buildDemo } from '../demo.js';
 import { selectEl } from '../ui.js';
 
@@ -86,6 +87,12 @@ function list(title, entries, emptyText, cls = '') {
       : h('p', { class: 'muted small' }, emptyText));
 }
 
+function phoneRunway(r) {
+  return h('div', { class: `phone-free-runway runway-${r.status}` },
+    h('div', {}, runwayText(r)),
+    r.status === 'ok' ? h('div', { class: 'phone-free-runway-hint' }, runwayHint(r)) : null);
+}
+
 function todayTab() {
   const today = todayKey();
   const totals = grandTotals(store.data);
@@ -93,8 +100,15 @@ function todayTab() {
     h('section', { class: 'phone-card phone-free' },
       h('div', { class: 'phone-free-label' }, t('kpi-free')),
       h('div', { class: `phone-free-value money ${totals.free < 0 ? 'negative' : ''}` }, money(totals.free)),
-      h('div', { class: 'phone-free-sub' }, t('phone-free-sub', { reserved: money(totals.reserved + totals.frozen), balance: money(totals.balance) })))
+      h('div', { class: 'phone-free-sub' }, t('phone-free-sub', { reserved: money(totals.reserved + totals.frozen), balance: money(totals.balance) })),
+      phoneRunway(runway(store.data, today)))
   ];
+  const alerts = budgetAlerts(store.data, today);
+  if (alerts.length) {
+    parts.push(h('section', { class: 'phone-card phone-alerts' },
+      h('div', { class: 'phone-card-title' }, h('h2', {}, t('alerts-title')), h('span', { class: 'count-pill' }, alerts.length)),
+      h('div', { class: 'alert-rows' }, alertRows(alerts, today))));
+  }
   if (focusDay && focusDay !== today) {
     parts.push(list(t('phone-day-title', { date: formatDayLong(focusDay, lang()) }), entriesOn(store.data, focusDay), t('today-none'), 'is-focus'));
   }
@@ -138,6 +152,7 @@ function moreTab() {
   return [
     syncSection(),
     remindersSection(),
+    quickLinkSection(),
     section(t('settings-look'), 'palette',
       settingRow(t('settings-language'), language),
       settingRow(t('settings-theme'), theme)),

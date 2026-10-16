@@ -14,6 +14,8 @@ import { withUndo } from '../modals.js';
 import { sync, signIn, cancelSignIn, signOut, syncStatusText, renewAccess } from '../cloud.js';
 import { checkForUpdates, updateState, updatesAvailable } from '../updates.js';
 import { reminderState, requestCalendarAccess, turnOffReminders, run as runReminders, reminderStatusText } from '../reminder-sync.js';
+import { APP_URL } from '../reminders.js';
+import { quickLinkBase } from '../quicklink.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
@@ -142,7 +144,71 @@ export function remindersSection() {
       settingRow(t('reminder-desktop'), checkboxLabel(desktop, t('reminder-desktop-on')), t('reminder-desktop-hint')),
       settingRow(t('reminder-morning'), checkboxLabel(morning, t('reminder-morning-on'))));
   }
+  rows.push(...alertRowsSettings());
   return section(t('reminder-title'), 'calendar', ...rows);
+}
+
+// An amount setting where an empty field switches the warning off.
+function thresholdInput(key) {
+  const input = moneyInput({ value: store.settings[key] ?? null, placeholder: t('alerts-off-placeholder') });
+  input.addEventListener('change', () => {
+    if (!input.value.trim()) { store.updateSettings({ [key]: null }); return; }
+    const v = input.readCents();
+    if (v === null || v < 0) { showToast(t('err-amount'), { type: 'error' }); return; }
+    store.updateSettings({ [key]: v });
+  });
+  return input;
+}
+
+// Warnings: category limits, low free money and large payments soon.
+function alertRowsSettings() {
+  const s = store.settings;
+  const on = h('input', { type: 'checkbox', checked: s.alertsEnabled !== false });
+  on.addEventListener('change', () => store.updateSettings({ alertsEnabled: on.checked }));
+  const rows = [settingRow(t('alerts-setting'), checkboxLabel(on, t('alerts-on')), t(window.weApp ? 'alerts-hint-desktop' : 'alerts-hint'))];
+  if (s.alertsEnabled !== false) {
+    rows.push(
+      settingRow(t('alerts-free-below'), thresholdInput('alertFreeBelow'), t('alerts-free-below-hint')),
+      settingRow(t('alerts-large'), thresholdInput('alertLargePayment'), t('alerts-large-hint')));
+  }
+  return rows;
+}
+
+// The address of the web app, which the links open: this page when it is
+// the web app, the published one from the desktop app.
+function webAppUrl() {
+  const loc = typeof window !== 'undefined' ? window.location : null;
+  if (!window.weApp && loc && /^https?:$/.test(loc.protocol)) return loc.origin + loc.pathname;
+  return APP_URL;
+}
+
+async function copyText(text, input) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    // Older browsers and pages without clipboard access: the old way.
+    input.select();
+    try { document.execCommand('copy'); } catch (err) { showToast(t('qlink-copy-failed'), { type: 'error' }); return; }
+  }
+  showToast(t('qlink-copied'), { type: 'success' });
+}
+
+// How to enter a payment from an iPhone Shortcut, Siri or a Wallet
+// automation: the web app opens the quick entry dialog from a link.
+export function quickLinkSection() {
+  const base = quickLinkBase(webAppUrl());
+  const link = h('input', { type: 'text', readonly: true, value: base, class: 'qlink-input', 'aria-label': t('qlink-title') });
+  link.addEventListener('focus', () => link.select());
+  const pattern = `${base}&amount=${t('qlink-var-amount')}&note=${t('qlink-var-merchant')}`;
+  return section(t('qlink-title'), 'smartphone',
+    h('p', { class: 'setting-hint' }, t('qlink-intro')),
+    h('div', { class: 'qlink-copy' }, link,
+      h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => copyText(base, link) }, icon('copy'), t('qlink-copy'))),
+    h('p', { class: 'setting-hint' }, t('qlink-shortcut')),
+    h('p', { class: 'setting-hint' }, t('qlink-wallet')),
+    h('code', { class: 'qlink-pattern' }, pattern),
+    h('p', { class: 'setting-hint' }, t('qlink-params')),
+    h('p', { class: 'setting-hint' }, t('qlink-safari')));
 }
 
 function categoriesSection(root) {
@@ -220,6 +286,7 @@ export function renderSettings(root) {
 
   root.appendChild(syncSection());
   root.appendChild(remindersSection());
+  root.appendChild(quickLinkSection());
 
   let menuBar = null;
   if (window.weApp && typeof window.weApp.setTray === 'function') {

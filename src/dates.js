@@ -39,6 +39,13 @@ export function addDays(key, n) {
   return dayKey(d);
 }
 
+// Whole days from one day key to another (negative when `to` is earlier).
+// Counted in UTC so a daylight saving change does not lose an hour.
+export function daysBetween(from, to) {
+  const utc = (key) => { const [y, m, d] = key.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((utc(to) - utc(from)) / 86400000);
+}
+
 // Month arithmetic on "YYYY-MM".
 export function addMonthsToMonth(month, n) {
   const [y, m] = month.split('-').map(Number);

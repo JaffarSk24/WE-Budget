@@ -27,6 +27,13 @@ export const DEFAULT_SETTINGS = {
   // The app's own calendar in Google Calendar, shared by all devices.
   reminderCalendarId: null,
   morningDigest: false,
+  // Warnings on the overview and the phone's Today tab (and a notification
+  // on the computer): category limits at 80% and 100%, free money below
+  // alertFreeBelow, payments above alertLargePayment in the next 3 days.
+  // Amounts in cents; null switches that warning off.
+  alertsEnabled: true,
+  alertFreeBelow: 10000,
+  alertLargePayment: 50000,
   // Free money in the menu bar of the Mac (the notification area on Windows).
   menuBarFree: true,
   onboarded: false

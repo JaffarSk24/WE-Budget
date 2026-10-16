@@ -9,7 +9,7 @@
 //    touch account balances.
 
 import { live, makeSchedule } from './model.js';
-import { addDays, addMonthsToMonth, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
+import { addDays, addMonthsToMonth, daysBetween, firstDayOfMonth, lastDayOfMonth, monthOf } from './dates.js';
 import { occurrences, pendingGeneration } from './schedule.js';
 
 const OPEN_STATUSES = ['planned', 'reserved'];
@@ -518,4 +518,91 @@ export function firstFlowMonth(data) {
     if (realFlow(e) && (!first || e.date < first)) first = e.date;
   });
   return first ? monthOf(first) : null;
+}
+
+// ---------- runway and alerts ----------
+
+export const RUNWAY_WINDOW_DAYS = 90;
+
+// How many days the free money lasts at the usual spending: the average
+// daily expense of the last 90 days as the budget sees it (budgetFlow, so
+// transit, adjustments and moves between own accounts do not count; money
+// put aside for a goal does). Only what took place counts: planned payments
+// are the plan, not spending. A shorter history is averaged over its own
+// length, from the first day anything took place.
+//
+// status: 'ok' with `days`, 'negative' when free money is below zero,
+// 'no-history' when nothing took place yet, 'no-spending' when nothing was
+// spent in the window (the runway would be infinite).
+export function runway(data, today, { windowDays = RUNWAY_WINDOW_DAYS } = {}) {
+  const { free } = grandTotals(data, today);
+  const frozen = frozenAccounts(data);
+  const windowStart = addDays(today, -(windowDays - 1));
+  let first = null;
+  let spent = 0;
+  live(data.entries).forEach(e => {
+    if (e.status !== 'done' || e.date > today) return;
+    const flow = budgetFlow(e, frozen);
+    if (!flow) return;
+    if (!first || e.date < first) first = e.date;
+    if (flow.type === 'expense' && e.date >= windowStart) spent += flow.amount;
+  });
+  const out = { free, spent, daily: 0, historyDays: 0, days: null, status: 'ok' };
+  if (first) {
+    const from = first > windowStart ? first : windowStart;
+    out.historyDays = daysBetween(from, today) + 1;
+    out.daily = Math.round(spent / out.historyDays);
+  }
+  if (free < 0) out.status = 'negative';
+  else if (!first) out.status = 'no-history';
+  else if (spent <= 0) out.status = 'no-spending';
+  else out.days = Math.floor((free * out.historyDays) / spent);
+  return out;
+}
+
+export const LARGE_PAYMENT_DAYS = 3;
+
+// What needs a look now, from the alert settings: categories at 80% and at
+// 100% of their monthly limit, free money below the threshold, and large
+// payments due in the next three days. Each alert carries a `key` that stays
+// the same for the same situation on the same day (a notification is shown
+// once per key and day). Empty when alerts are switched off.
+export function budgetAlerts(data, today) {
+  const s = data.settings || {};
+  // A budget without accounts has nothing to warn about yet.
+  if (s.alertsEnabled === false || !live(data.accounts).length) return [];
+  const alerts = [];
+  const month = monthOf(today);
+
+  live(data.categories)
+    .filter(c => c.type === 'expense' && !c.archived && c.monthlyLimit > 0)
+    .forEach(c => {
+      const spent = categorySpentInMonth(data, c.id, month);
+      const percent = Math.floor((spent / c.monthlyLimit) * 100);
+      if (percent < 80) return;
+      const kind = percent >= 100 ? 'limit-over' : 'limit-near';
+      alerts.push({
+        key: `${kind}:${c.id}:${month}`, kind, level: kind === 'limit-over' ? 'danger' : 'warning',
+        categoryId: c.id, name: c.name, spent, limit: c.monthlyLimit, percent
+      });
+    });
+
+  const threshold = s.alertFreeBelow;
+  if (threshold !== null && threshold !== undefined && Number.isFinite(threshold)) {
+    const { free } = grandTotals(data, today);
+    if (free < threshold) {
+      alerts.push({ key: 'free-low', kind: 'free-low', level: free < 0 ? 'danger' : 'warning', free, threshold });
+    }
+  }
+
+  const large = s.alertLargePayment;
+  if (large !== null && large !== undefined && Number.isFinite(large) && large > 0) {
+    upcomingEntries(data, today, addDays(today, LARGE_PAYMENT_DAYS))
+      .filter(e => e.type === 'expense' && !e.isTransit && (e.amount || 0) > large && isTracked(data, e))
+      .forEach(e => alerts.push({
+        key: `large:${e.id}:${e.date}`, kind: 'large-payment', level: 'info',
+        entryId: e.id, name: e.title, amount: e.amount, date: e.date, reserved: e.status === 'reserved'
+      }));
+  }
+  return alerts;
 }

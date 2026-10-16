@@ -15,9 +15,10 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Splitting income.** When income arrives, the app proposes how much to move to each envelope to cover the payments until the next income, and marks those payments as set aside.
 - **Checking against the bank.** Type what your bank shows and any difference becomes a visible adjustment, so balances and the forecast stay true without guesswork.
 - **Recurring payments.** Monthly, every few months (optionally shown in the other months with a zero amount), yearly, weekly or once. The plan for the next months builds itself; approximate amounts are confirmed when a payment is marked done.
-- **Overview.** Free money right now, the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
+- **Overview.** Free money right now and its runway (how many days it lasts at the average spending of the last 90 days), the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
-- **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category.
+- **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
+- **Alerts**: an Attention card on the overview and the phone's Today tab when a category reaches 80% or 100% of its monthly limit, free money drops below a threshold or a large payment is due within 3 days; on the computer each also comes as a notification, at most once a day.
 - **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
 - **Goals**: an amount, the envelope you save on and a date; the app shows how far you are and how much to set aside per month. A goal can put its monthly contribution into the plan as a transfer to the envelope, tells you whether the plan makes the amount by the date and raises the contribution in one click when it does not.
 - **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick entry in its menu.
@@ -78,6 +79,22 @@ The phone app is the same app in a browser, made for a phone: today's and overdu
 2. Tap Share, then Add to Home Screen (Chrome: the menu, then Add to Home screen).
 3. Open WE Budget from the home screen and sign in with the same Google account as on the computer. The budget comes down from your Google Drive.
 
+#### Quick entry from iPhone
+
+The web app opens the quick entry dialog filled in when its address carries parameters:
+
+```
+https://jaffarsk24.github.io/WE-Budget/app/?quick=expense&amount=12.50&note=Lidl
+https://jaffarsk24.github.io/WE-Budget/app/?quick=income&amount=200
+```
+
+`quick` is `expense` or `income`; `amount` takes a dot or a comma; `note` is free text; `category` and `account` are names as in the app, matched without regard to case and left out when nothing matches. The dialog opens once the budget has loaded, nothing is saved until you tap Save, and the parameters leave the address so a reload does not open it again. The installed app also has Expense and Income shortcuts on a long press of its icon (Android).
+
+- **A button or Siri**: in the Shortcuts app, make a shortcut with the Open URL action and the link. Name it Expense and say "Hey Siri, expense".
+- **After every card payment**: in Shortcuts, Automation, create a Transaction automation for your Wallet cards, Run Immediately, with Open URL and the link `...?quick=expense&amount=[Amount]&note=[Merchant]`, where Amount and Merchant are the variables of the transaction.
+
+Settings (and More on the phone) have a section with these steps and a button that copies the link. The link opens in Safari, which keeps its own copy of the budget: sign in to Google there too, so the entry reaches the shared budget through sync.
+
 A web app gets access to Google Drive for an hour at a time. When the hour is over, the sync button at the top says so, and one tap opens Google's window, which closes by itself, and sync goes on. The budget itself stays on the phone and works offline.
 
 ## Getting started
@@ -136,6 +153,8 @@ Shift-click on a checkbox ticks a range. Every destructive action can be undone 
 In Settings, Reminders, choose the time (23:00 by default) and switch on reminders through Google Calendar. The app creates a calendar of its own, "WE Budget", in your Google account and puts an event with a reminder on every day that still has payments not marked yet; it updates the events as you mark payments, from any computer or the phone. Google sends the reminder, so it reaches your phone even when every computer is off; add the Google account to the iPhone Calendar or install Google Calendar to get it there. The app cannot see your other calendars, and switching the reminders off deletes its calendar.
 
 While the desktop app is open, it can also show a notification at that time, and a morning summary of the day's payments at 8:00.
+
+The same section switches alerts on and off and sets their two amounts: the free money threshold (100€ by default) and what counts as a large payment (above 500€ by default); an empty field turns that alert off. Category limits are set in Settings, Categories.
 
 ## Sync between computers
 
@@ -197,7 +216,8 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | Path | What is there |
 |---|---|
 | `src/model.js`, `src/store.js` | Data model and the store that changes and saves it |
-| `src/ledger.js` | Balances, money set aside, month totals, forecast |
+| `src/ledger.js` | Balances, money set aside, month totals, forecast, runway, alerts |
+| `src/quicklink.js`, `src/insights.js` | Quick entry links, texts of the runway and alerts |
 | `src/schedule.js`, `src/allocation.js`, `src/reconcile.js` | Recurring payments, splitting income, checking against the bank |
 | `src/sync/` | Merging budgets and the sync cycle |
 | `src/reminders.js`, `src/reminder-sync.js`, `src/notify.js` | Reminders in Google Calendar, notifications on the computer |

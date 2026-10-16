@@ -277,7 +277,10 @@ export function promptAmount(entry) {
 
 // A payment or an income that was not in the plan, written down in a few
 // taps: it is done at once and never counted as planned.
-export function openQuickEntry({ type: startType = 'expense' } = {}) {
+// `amount` (cents), `note`, `categoryId` and `accountId` fill the dialog in,
+// for a link from an iPhone Shortcut; without them it starts from the last
+// category and account used.
+export function openQuickEntry({ type: startType = 'expense', amount: startAmount = null, note: startNote = '', categoryId: startCategory = null, accountId: startAccount = null } = {}) {
   if (!store.list('accounts').length) {
     showToast(t('err-no-accounts'), { type: 'error' });
     return;
@@ -287,17 +290,19 @@ export function openQuickEntry({ type: startType = 'expense' } = {}) {
   const accountKey = () => (type === 'income' ? LAST_QUICK_INCOME_ACCOUNT : LAST_QUICK_ACCOUNT);
   const accountFor = () => recall(accountKey()) || store.settings.defaultIncomeAccountId || '';
 
-  const amount = moneyInput({ autofocus: true });
+  const amount = moneyInput({ autofocus: true, value: startAmount > 0 ? startAmount : null });
   amount.classList.add('quick-amount');
   const category = selectEl([], '');
-  const account = selectEl(accountOptions(), accountFor());
+  const account = selectEl(accountOptions(), (startAccount && store.find('accounts', startAccount) ? startAccount : null) || accountFor());
   const date = dateInput(todayKey());
-  const note = h('input', { type: 'text', enterkeyhint: 'done', autocomplete: 'off' });
+  const note = h('input', { type: 'text', enterkeyhint: 'done', autocomplete: 'off', value: startNote || '' });
+  // The category from a link wins only for the type it was given with.
+  let linkCategory = startCategory ? { type, id: startCategory } : null;
   const limitHint = h('div', { class: 'field-hint' });
 
   function fillCategories() {
     clear(category);
-    const wanted = recall(categoryKey()) || '';
+    const wanted = (linkCategory && linkCategory.type === type ? linkCategory.id : null) || recall(categoryKey()) || '';
     categoryOptions(type, { emptyLabel: t('no-category') }).forEach(o => {
       category.appendChild(h('option', { value: o.value, selected: o.value === wanted }, o.label));
     });
@@ -344,6 +349,7 @@ export function openQuickEntry({ type: startType = 'expense' } = {}) {
       type: 'success', actionLabel: t('undo'), onAction: () => store.remove('entries', added.id)
     });
     if (again) {
+      linkCategory = null;
       amount.value = '';
       note.value = '';
       amount.focus();
