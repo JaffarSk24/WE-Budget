@@ -20,7 +20,7 @@ export const LANGUAGES = [
   { code: 'ru', name: 'Русский', english: 'Russian', dir: 'ltr', locale: 'ru-RU', decimal: ',', ready: true },
   { code: 'uk', name: 'Українська', english: 'Ukrainian', dir: 'ltr', locale: 'uk-UA', decimal: ',', ready: false, load: () => import('./uk.js') },
   { code: 'en', name: 'English', english: 'English', dir: 'ltr', locale: 'en-GB', decimal: '.', ready: true },
-  { code: 'de', name: 'Deutsch', english: 'German', dir: 'ltr', locale: 'de-DE', decimal: ',', ready: false, load: () => import('./de.js') },
+  { code: 'de', name: 'Deutsch', english: 'German', dir: 'ltr', locale: 'de-DE', decimal: ',', ready: true, load: () => import('./de.js') },
   { code: 'es', name: 'Español', english: 'Spanish', dir: 'ltr', locale: 'es-ES', decimal: ',', ready: false, load: () => import('./es.js') },
   { code: 'sk', name: 'Slovenčina', english: 'Slovak', dir: 'ltr', locale: 'sk-SK', decimal: ',', ready: false, load: () => import('./sk.js') },
   { code: 'cs', name: 'Čeština', english: 'Czech', dir: 'ltr', locale: 'cs-CZ', decimal: ',', ready: false, load: () => import('./cs.js') }
