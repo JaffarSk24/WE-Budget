@@ -11,6 +11,8 @@ import { entryListItem } from '../actions.js';
 import { openAllocationModal, openQuickEntry } from '../modals.js';
 import { live } from '../model.js';
 import { alertRows, runwayHint, runwayText } from '../insights.js';
+import { forecastWithScenarios, scenarioImpact } from '../ledger.js';
+import { openWhatIfModal, scenarioImpactLine } from './whatif.js';
 
 let chart = null;
 
@@ -109,9 +111,12 @@ function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function drawForecast(canvas, f) {
+// `drafts`: the forecast with the active what-if drafts, drawn as a second,
+// dashed line next to the real one.
+function drawForecast(canvas, f, drafts = null) {
   if (chart) { chart.destroy(); chart = null; }
   const line = cssVar('--accent-indigo');
+  const draftLine = cssVar('--series-2');
   const danger = cssVar('--danger');
   const grid = cssVar('--border-color');
   const text = cssVar('--text-secondary');
@@ -132,7 +137,19 @@ function drawForecast(canvas, f) {
         stepped: 'before',
         segment: { borderColor: ctx => (ctx.p1.parsed.y < 0 ? danger : line) },
         fill: { target: 'origin', above: 'transparent', below: danger + '22' }
-      }]
+      }].concat(drafts ? [{
+        label: t('whatif-legend-drafts'),
+        data: drafts.points.map(p => p.value / 100),
+        borderColor: draftLine,
+        borderWidth: 2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: draftLine,
+        tension: 0,
+        stepped: 'before',
+        fill: false
+      }] : [])
     },
     options: {
       responsive: true,
@@ -145,7 +162,9 @@ function drawForecast(canvas, f) {
           displayColors: false,
           callbacks: {
             title: items => formatDayLong(items[0].label, l),
-            label: item => money(Math.round(item.parsed.y * 100))
+            label: item => (drafts
+              ? `${item.datasetIndex === 1 ? t('whatif-legend-drafts') : t('whatif-legend-real')}: ${money(Math.round(item.parsed.y * 100))}`
+              : money(Math.round(item.parsed.y * 100)))
           }
         }
       },
@@ -182,6 +201,10 @@ export function renderOverview(root) {
   const overdue = overdueEntries(store.data, today);
   const todays = entriesOn(store.data, today, { openOnly: true });
   const week = upcomingEntries(store.data, addDays(today, 1), addDays(today, 7));
+  // What-if drafts only change the chart and the line under it.
+  const impact = scenarioImpact(store.data, today, horizon);
+  const withDrafts = impact.active ? forecastWithScenarios(store.data, today, horizon) : null;
+  const draftCount = store.list('scenarios').length;
 
   root.appendChild(h('div', { class: 'view-header' },
     h('div', {},
@@ -224,13 +247,16 @@ export function renderOverview(root) {
     h('div', { class: 'overview-stack' },
       h('div', { class: 'card chart-card' },
         h('div', { class: 'card-title-row' }, icon('trending-up'), h('h3', {}, t('forecast-title')),
-          h('span', { class: 'muted small push-right' }, t('forecast-sub', { amount: money(f.end), date: formatDay(horizon, lang()) }))),
-        h('div', { class: 'chart-container' }, canvas)),
+          h('span', { class: 'muted small push-right' }, t('forecast-sub', { amount: money(f.end), date: formatDay(horizon, lang()) })),
+          h('button', { type: 'button', class: `btn btn-secondary btn-sm whatif-open ${impact.active ? 'is-on' : ''}`, onclick: () => openWhatIfModal(), title: t('whatif-hint') },
+            icon('sparkles'), t('whatif-open'), draftCount ? h('span', { class: 'count-pill' }, draftCount) : null)),
+        h('div', { class: 'chart-container' }, canvas),
+        scenarioImpactLine(impact)),
       planCard(month)),
     h('div', { class: 'card' },
       h('div', { class: 'card-title-row' }, icon('wallet'), h('h3', {}, t('envelopes-title'))),
       envelopeTable())));
 
   refreshIcons();
-  if (f.points.length > 1) requestAnimationFrame(() => drawForecast(canvas, f));
+  if (f.points.length > 1) requestAnimationFrame(() => drawForecast(canvas, f, withDrafts));
 }

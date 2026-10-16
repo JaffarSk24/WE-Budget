@@ -12,6 +12,23 @@ import { addMonthsToMonth, formatDay, formatMonth, monthOf, todayKey, firstDayOf
 import { statusButton, reserveButton, toggleDone, toggleReserve, cancelEntry, deleteEntry, entryListItem } from '../actions.js';
 import { openEntryModal, openAllocationModal, openBulkDateModal, openBulkAccountModal, withUndo } from '../modals.js';
 import { live } from '../model.js';
+import { calendarGrid, calendarKeyAction, calendarRange, filteredEntries, openDayPanel } from './month-calendar.js';
+
+const VIEW_KEY = 'we-budget-month-view';
+
+function storedView() {
+  try { return localStorage.getItem(VIEW_KEY) === 'calendar' ? 'calendar' : 'list'; } catch (e) { return 'list'; }
+}
+
+// The calendar needs room: on the phone layout (and narrow windows) the
+// month is always the list and the switch is hidden.
+function narrowLayout() {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 760px)').matches;
+}
+
+function calendarOn() {
+  return state.view === 'calendar' && !narrowLayout();
+}
 
 const state = {
   month: null,
@@ -21,7 +38,13 @@ const state = {
   showDone: false,
   selectedId: null,
   checked: new Set(),
-  anchor: null
+  anchor: null,
+  // 'list' or 'calendar', remembered between starts.
+  view: storedView(),
+  // The calendar's day under the keyboard; focusPending moves real focus
+  // there after a redraw that a key caused.
+  focusDay: null,
+  focusPending: false
 };
 
 let container = null;
@@ -285,6 +308,7 @@ export function renderMonth(root) {
       h('h1', { class: 'view-title' }, formatMonth(month, lang())),
       h('p', { class: 'view-subtitle' }, t('month-subtitle'))),
     h('div', { class: 'month-nav' },
+      viewSwitch(),
       h('button', { type: 'button', class: 'btn btn-secondary btn-icon-only', title: t('prev-month'), 'aria-label': t('prev-month'), onclick: () => go(-1) }, icon('chevron-left')),
       h('button', { type: 'button', class: 'btn btn-secondary', disabled: isCurrent, onclick: () => { setMonth(monthOf(today)); renderMonth(root); } }, t('this-month')),
       h('button', { type: 'button', class: 'btn btn-secondary btn-icon-only', title: t('next-month'), 'aria-label': t('next-month'), onclick: () => go(1) }, icon('chevron-right')))
@@ -360,16 +384,97 @@ export function renderMonth(root) {
         type: 'button', class: 'btn btn-primary',
         onclick: () => openEntryModal(null, { date: isCurrent ? today : firstDayOfMonth(month), accountId: state.accountId || null })
       }, icon('plus'), t('entry-add'))),
-    h('div', { class: 'table-scroll' }, table)
+    calendarOn() ? calendarBody(month, today) : h('div', { class: 'table-scroll' }, table)
   ));
 
   const isMac = (window.wePlatform && window.wePlatform.os === 'darwin') || /Mac/.test(navigator.platform || '');
-  root.appendChild(h('p', { class: 'kbd-hint' }, t('month-keys', { mod: isMac ? '⌘' : 'Ctrl+' })));
-  const bar = selectionBar();
+  root.appendChild(h('p', { class: 'kbd-hint' }, calendarOn() ? t('cal-keys') : t('month-keys', { mod: isMac ? '⌘' : 'Ctrl+' })));
+  const bar = calendarOn() ? null : selectionBar();
   if (bar) root.appendChild(bar);
   refreshIcons();
   if (main) main.scrollTop = scrollY;
   if (window.scrollY !== pageY) window.scrollTo(0, pageY);
+  if (state.focusPending) {
+    state.focusPending = false;
+    const cell = root.querySelector(`.cal-day[data-day="${state.focusDay}"]`);
+    if (cell) cell.focus({ preventScroll: false });
+  }
+}
+
+// ---------- calendar ----------
+
+function viewSwitch() {
+  const item = (value, iconName, label) => h('button', {
+    type: 'button', class: `segmented-item ${state.view === value ? 'active' : ''}`, role: 'radio',
+    'aria-checked': state.view === value ? 'true' : 'false',
+    onclick: () => setView(value)
+  }, icon(iconName), h('span', {}, label));
+  return h('div', { class: 'segmented month-view-switch', role: 'radiogroup', 'aria-label': t('cal-view') },
+    item('list', 'list', t('cal-view-list')),
+    item('calendar', 'calendar-days', t('cal-view-calendar')));
+}
+
+function setView(view) {
+  if (state.view === view) return;
+  state.view = view;
+  state.checked.clear();
+  try { localStorage.setItem(VIEW_KEY, view); } catch (e) { /* remembered for this session only */ }
+  rerender();
+}
+
+// The toolbar's filters, shared by the table and the calendar.
+function passesFilters(e) {
+  if (state.accountId && e.accountId !== state.accountId && e.toAccountId !== state.accountId) return false;
+  return state.showCancelled || e.status !== 'cancelled';
+}
+
+function calendarFocus(month, today) {
+  if (state.focusDay && monthOf(state.focusDay) === month) return state.focusDay;
+  return monthOf(today) === month ? today : firstDayOfMonth(month);
+}
+
+function openCalendarDay(day) {
+  openDayPanel(day, (d) => filteredEntries(d, d, passesFilters), { accountId: state.accountId || null });
+}
+
+function calendarBody(month, today) {
+  const { from, to } = calendarRange(month);
+  state.focusDay = calendarFocus(month, today);
+  return h('div', { class: 'cal-wrap' }, calendarGrid({
+    month,
+    entries: filteredEntries(from, to, passesFilters),
+    today,
+    focusDay: state.focusDay,
+    onOpenDay: openCalendarDay,
+    onFocusDay: (day) => {
+      state.focusDay = day;
+      if (!container) return;
+      container.querySelectorAll('.cal-day').forEach(c => {
+        const on = c.dataset.day === day;
+        c.classList.toggle('is-focused', on);
+        c.setAttribute('tabindex', on ? '0' : '-1');
+        c.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+  }));
+}
+
+function handleCalendarKey(e) {
+  const tag = (e.target && e.target.tagName) || '';
+  // Enter and Space on an entry or a button belong to that button.
+  if ((e.key === 'Enter' || e.key === ' ') && tag === 'BUTTON') return false;
+  if (e.key === 'n' || e.key === 'N' || e.key === 'т' || e.key === 'Т') {
+    openEntryModal(null, { date: state.focusDay || firstDayOfMonth(state.month), accountId: state.accountId || null });
+    return true;
+  }
+  const action = calendarKeyAction(e.key, state.focusDay || calendarFocus(state.month, todayKey()));
+  if (!action) return false;
+  if (action.open) { openCalendarDay(action.open); return true; }
+  state.focusDay = action.move;
+  state.focusPending = true;
+  if (monthOf(action.move) !== state.month) setMonth(monthOf(action.move));
+  rerender();
+  return true;
 }
 
 function go(delta) {
@@ -443,11 +548,12 @@ export function handleMonthKey(e) {
   if (!container || !container.classList.contains('active') || topModal()) return false;
   const tag = (e.target && e.target.tagName) || '';
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) return false;
-  if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A' || e.key === 'ф' || e.key === 'Ф')) {
+  if (!calendarOn() && (e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A' || e.key === 'ф' || e.key === 'Ф')) {
     setAll(true);
     return true;
   }
   if (e.metaKey || e.ctrlKey || e.altKey) return false;
+  if (calendarOn()) return handleCalendarKey(e);
   const entry = selectedEntry();
   switch (e.key) {
     case 'Escape': if (state.checked.size) { setAll(false); return true; } return false;

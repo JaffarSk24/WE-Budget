@@ -2,7 +2,7 @@
 // up: names, amounts and accounts are invented. Deterministic (seeded), so
 // two runs on the same day produce the same budget.
 
-import { emptyData, defaultCategories, makeAccount, makeDebt, makeEntry, makeGoal, makeRule, makeTemplate, nowIso } from './model.js';
+import { emptyData, defaultCategories, makeAccount, makeDebt, makeEntry, makeGoal, makeRule, makeScenario, makeTemplate, nowIso } from './model.js';
 import { addMonthsToMonth, firstDayOfMonth, monthOf, addDays, dayInMonth, lastDayOfMonth } from './dates.js';
 import { pendingGeneration, generationHorizon } from './schedule.js';
 
@@ -166,6 +166,12 @@ export function buildDemo(today, lang = 'en') {
     balanceDate: lentFrom, payment: 10000, paymentDay: 25, accountId: main.id, categoryId: cat(L('Other income', 'Прочие доходы'))
   });
   data.debts.push(car, lent);
+
+  // A what-if draft to try on the forecast; off until switched on.
+  data.scenarios.push(makeScenario({
+    title: L('New laptop', 'Новый ноутбук'), amount: 120000, date: dayInMonth(addMonthsToMonth(month, 2), 12),
+    accountId: main.id, categoryId: cat(L('Other', 'Прочее')), active: false
+  }));
   const backOn = dayInMonth(addMonthsToMonth(month, -1), 25);
   if (backOn <= today) {
     data.entries.push(makeEntry({

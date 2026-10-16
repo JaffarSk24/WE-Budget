@@ -11,11 +11,13 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 ## What it does
 
 - **Payment calendar.** Each month is a list of payments and incomes with a status: planned, set aside, done or cancelled. Payments still waiting for money are highlighted, done rows fold away under one line, and the balance column shows what is left on the row's own account after each payment. Click an amount to change it right in the row; the arrow keys move between rows and months.
+- **Month as a calendar.** The List / Calendar switch on the Month screen shows the same month as weeks from Monday to Sunday: up to three items per day with their status and amount (income with a plus, payments with a minus, transfers with an arrow), "+2 more" when there are more, and the day's total. The account filter and "Show cancelled" work there too. Click a day for its list with the usual actions (mark done, set aside, edit), click an item to edit it, drag a planned or set-aside item to another day to move it. The app remembers the choice; the phone always shows the list.
 - **Envelopes.** Accounts can hold envelopes (sub-accounts, like the spaces of a banking app). Money set aside on an envelope belongs to its payments and never counts as free money for anything else.
 - **Splitting income.** When income arrives, the app proposes how much to move to each envelope to cover the payments until the next income, and marks those payments as set aside.
 - **Checking against the bank.** Type what your bank shows and any difference becomes a visible adjustment, so balances and the forecast stay true without guesswork.
 - **Recurring payments.** Monthly, every few months (optionally shown in the other months with a zero amount), yearly, weekly or once. The plan for the next months builds itself; approximate amounts are confirmed when a payment is marked done.
 - **Overview.** Free money right now and its runway (how many days it lasts at the average spending of the last 90 days), the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
+- **What if.** The What if button on the forecast tries out a purchase or a new regular payment without adding it to the plan: "a new laptop for 1 200€ in December", "a gym for 40€ a month for 6 months". Switched-on drafts draw a second, dashed line on the forecast chart, with the lowest free money they lead to and a warning when it goes below zero. Balances, Month, totals, alerts and reminders never see drafts. "Add to the plan" turns a draft into a planned item (once) or a recurring payment (monthly), with undo.
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
 - **Search** across the whole plan by name, note, category, account or amount (`12,50`, `12.50` or just `12`), ignoring case and accents, with filters by dates, type, account (envelopes included), category, status and quick entries, and the totals of what was found. Click a result to edit it.
 - **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A limit can roll over: what is left this month adds to the next one, and optionally overspending takes off from it ("this month: 54€ with 14€ carried over"). Carrying starts in the month the option is switched on. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
@@ -152,6 +154,7 @@ A typical routine:
 | Enter | Edit the row |
 | Delete | Delete the row |
 | Left, Right | Previous or next month |
+| Arrows, Enter, N | In the calendar: move between days, open the day, new item on the day |
 
 Shift-click on a checkbox ticks a range. Every destructive action can be undone from the message that appears at the bottom.
 
@@ -248,6 +251,8 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | `main/` | Electron main process: Google sign-in and Drive transport, updater |
 | `src/import/`, `src/statement.js` | Spreadsheet import, bank statement import and matching to the plan |
 | `src/rules.js`, `src/views/rules.js` | Category rules |
+| `src/calendar.js`, `src/views/month-calendar.js` | The month as a calendar grid |
+| `src/views/whatif.js` | What-if drafts on the forecast |
 | `tests/` | Unit tests |
 | `site/` | The website on GitHub Pages: the app page and the privacy policy |
 | `scripts/check-windows-install.ps1` | Install check on a clean Windows machine, run by CI |
