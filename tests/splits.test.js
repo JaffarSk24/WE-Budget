@@ -166,3 +166,14 @@ describe('store keeps parts in line with the amount', () => {
     expect(data.tags).toEqual([]);
   });
 });
+
+describe('csvParts', () => {
+  it('gives one line per part with a mark, or one plain line', async () => {
+    const { csvParts } = await import('../src/splits.js');
+    const { receipt, plain, food, kids } = fixture();
+    const lines = csvParts(receipt);
+    expect(lines.map(l => l.part)).toEqual(['1/3', '2/3', '3/3']);
+    expect(lines[2]).toEqual({ categoryId: kids.id, amount: 800, note: 'crayons', part: '3/3' });
+    expect(csvParts(plain)).toEqual([{ categoryId: food.id, amount: 500, note: '', part: '' }]);
+  });
+});

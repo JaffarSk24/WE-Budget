@@ -5,17 +5,21 @@
 
 import { store } from '../store.js';
 import { t, tn } from '../i18n.js';
-import { h, clear, icon, money, moneyEl, moneyInput, accountLabel, categoryName, selectEl, accountOptions, refreshIcons, topModal, lang, badge } from '../ui.js';
+import { h, clear, icon, money, moneyEl, moneyInput, accountLabel, selectEl, accountOptions, refreshIcons, topModal, lang, badge } from '../ui.js';
 import { showToast } from '../toast.js';
 import { accountRunning, budgetFlow, frozenAccounts, monthRows, monthSummary, overdueEntries } from '../ledger.js';
 import { addMonthsToMonth, formatDay, formatMonth, monthOf, todayKey, firstDayOfMonth, lastDayOfMonth, parseDayKey } from '../dates.js';
 import { statusButton, reserveButton, toggleDone, toggleReserve, cancelEntry, deleteEntry, entryListItem } from '../actions.js';
 import { openEntryModal, openAllocationModal, openBulkDateModal, openBulkAccountModal, withUndo } from '../modals.js';
 import { live } from '../model.js';
+import { categoryLabel } from '../split-editor.js';
+import { tagChips, tagFilterOptions, openBulkTagModal } from '../tag-ui.js';
+import { entryHasTag } from '../tags.js';
 
 const state = {
   month: null,
   accountId: '',
+  tagId: '',
   showCancelled: true,
   // Done rows sit folded under one line so the plan ahead stays in focus.
   showDone: false,
@@ -114,6 +118,8 @@ function selectionBar() {
       action('ban', t('sel-cancel'), () => bulk('toast-bulk-cancelled', ids => store.bulkSetStatus(ids, 'cancelled'))),
       action('calendar', t('sel-date'), () => openBulkDateModal(entries.map(e => e.id))),
       action('wallet', t('sel-account'), () => openBulkAccountModal(entries.map(e => e.id))),
+      action('tag', t('sel-tag-add'), () => openBulkTagModal(entries.map(e => e.id), 'add')),
+      entries.some(e => (e.tagIds || []).length) ? action('tag', t('sel-tag-remove'), () => openBulkTagModal(entries.map(e => e.id), 'remove')) : null,
       plannedExpenses.length ? action('split', t('sel-split'), () => openAllocationModal({ preselect: plannedExpenses })) : null,
       action('trash-2', t('delete'), () => { bulk('toast-bulk-deleted', ids => store.bulkRemove(ids)); state.checked.clear(); }, 'btn-danger'),
       h('button', { type: 'button', class: 'icon-btn', title: t('sel-clear'), 'aria-label': t('sel-clear'), onclick: () => setAll(false) }, icon('x'))));
@@ -170,7 +176,10 @@ function rowFor({ entry: e, running }, today, showRunning, runningFor) {
 
   const meta = [];
   if (e.type === 'transfer') meta.push(h('span', {}, t('transfer-to', { name: accountLabel(e.toAccountId) })));
-  if (e.categoryId) meta.push(h('span', {}, categoryName(e.categoryId)));
+  const category = categoryLabel(e);
+  if (category) meta.push(category);
+  const chips = tagChips(e);
+  if (chips) meta.push(chips);
   if (e.templateId) meta.push(h('span', { class: 'meta-icon', title: t('from-template') }, icon('repeat')));
   if (e.isTransit) meta.push(badge(t('badge-transit'), 'badge-muted'));
   if (e.isAdjustment) meta.push(badge(t('badge-adjustment'), 'badge-warning'));
@@ -255,6 +264,9 @@ export function renderMonth(root) {
   if (state.accountId) {
     rows = rows.filter(r => r.entry.accountId === state.accountId || r.entry.toAccountId === state.accountId);
   }
+  // A tag that was deleted meanwhile filters nothing.
+  if (state.tagId && !store.find('tags', state.tagId)) state.tagId = '';
+  if (state.tagId) rows = rows.filter(r => entryHasTag(r.entry, state.tagId));
   if (!state.showCancelled) rows = rows.filter(r => r.entry.status !== 'cancelled');
   const doneRows = rows.filter(r => r.entry.status === 'done');
   const openRows = rows.filter(r => r.entry.status !== 'done');
@@ -310,6 +322,9 @@ export function renderMonth(root) {
 
   const accountFilter = selectEl(accountOptions({ emptyLabel: t('all-accounts'), includeArchived: true }), state.accountId);
   accountFilter.addEventListener('change', () => { state.accountId = accountFilter.value; state.checked.clear(); renderMonth(root); });
+  const hasTags = store.list('tags').length > 0;
+  const tagFilter = hasTags ? selectEl(tagFilterOptions(t('all-tags'), state.tagId), state.tagId, { 'aria-label': t('field-tag') }) : null;
+  if (tagFilter) tagFilter.addEventListener('change', () => { state.tagId = tagFilter.value; state.checked.clear(); renderMonth(root); });
   const cancelledToggle = h('input', { type: 'checkbox', checked: state.showCancelled });
   cancelledToggle.addEventListener('change', () => { state.showCancelled = cancelledToggle.checked; renderMonth(root); });
 
@@ -353,6 +368,7 @@ export function renderMonth(root) {
   root.appendChild(h('div', { class: 'card table-card' },
     h('div', { class: 'table-toolbar' },
       accountFilter,
+      tagFilter,
       h('label', { class: 'checkbox-row' }, cancelledToggle, h('span', {}, t('show-cancelled'))),
       h('div', { class: 'spacer' }),
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openAllocationModal() }, icon('split'), t('alloc-open')),

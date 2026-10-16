@@ -14,6 +14,8 @@ import { accountSummaries, canSaveAhead, categorySpentInMonth, saveAheadGoal } f
 import { openSaveAheadModal, stopSaveAhead } from './views/save-ahead.js';
 import { applyRules } from './rules.js';
 import { allocationCandidates, defaultAllocationEnd, planForSelection, suggestAllocation } from './allocation.js';
+import { splitEditor } from './split-editor.js';
+import { tagPicker } from './tag-ui.js';
 
 const LAST_QUICK_ACCOUNT = 'we-budget-last-quick-account';
 const LAST_QUICK_CATEGORY = 'we-budget-last-quick-category';
@@ -99,12 +101,16 @@ export function openEntryModal(entry = null, defaults = {}) {
   const accountField = field(t('field-account'), account);
   const toField = field(t('field-to-account'), toAccount);
   const categoryField = field(t('field-category'), category);
+  const split = splitEditor({ entry, type, amount, category, categoryField });
+  categoryField.appendChild(split.button);
+  const tags = tagPicker(src.tagIds || defaults.tagIds || []);
 
   function syncType() {
     const opts = type === 'transfer' ? [] : categoryOptions(type, { emptyLabel: t('no-category') });
     clear(category);
     opts.forEach(o => category.appendChild(h('option', { value: o.value }, o.label)));
     category.value = src.type === type ? (src.categoryId || '') : '';
+    split.reset(type);
     toField.style.display = type === 'transfer' ? '' : 'none';
     categoryField.style.display = type === 'transfer' ? 'none' : '';
     accountField.querySelector('label').textContent = type === 'transfer' ? t('field-from-account') : t('field-account');
@@ -124,9 +130,11 @@ export function openEntryModal(entry = null, defaults = {}) {
     h('div', { class: 'form-row' }, field(t('field-date'), date), field(t('field-amount'), amount)),
     field(t('field-title'), title),
     h('div', { class: 'form-row' }, accountField, toField, categoryField),
+    split.panel,
     field(t('field-status'), status),
     transit.el,
     field(t('field-note'), note),
+    field(t('field-tags'), tags.el),
     template ? h('p', { class: 'field-hint' }, icon('repeat'), ' ', t('entry-from-template', { name: template.title })) : null,
     entry && entry.isAdjustment ? h('p', { class: 'field-hint' }, t('entry-is-adjustment')) : null
   );
@@ -150,6 +158,8 @@ export function openEntryModal(entry = null, defaults = {}) {
       if (cents === null || cents < 0) return fail(t('err-amount'));
       if (!account.value) return fail(t('err-account'));
       if (type === 'transfer' && (!toAccount.value || toAccount.value === account.value)) return fail(t('err-to-account'));
+      const parts = split.read();
+      if (parts && parts.error) return fail(parts.error);
       const patch = {
         type,
         date: date.value,
@@ -157,7 +167,9 @@ export function openEntryModal(entry = null, defaults = {}) {
         amount: cents,
         accountId: account.value,
         toAccountId: type === 'transfer' ? toAccount.value : null,
-        categoryId: type === 'transfer' ? null : (category.value || null),
+        categoryId: type === 'transfer' ? null : (parts ? parts.categoryId : (category.value || null)),
+        splits: parts ? parts.splits : null,
+        tagIds: tags.save(),
         status: status.value,
         isTransit: transit.input.checked,
         note: note.value.trim()
@@ -302,6 +314,17 @@ export function openQuickEntry({ type: startType = 'expense', amount: startAmoun
   let linkCategory = startCategory ? { type, id: startCategory } : null;
   const limitHint = h('div', { class: 'field-hint' });
   const ruleHint = h('div', { class: 'field-hint rule-hint' });
+  // Tags fold away under "More": most quick payments need none, and on a
+  // phone the amount and the buttons keep the screen.
+  const tags = tagPicker([]);
+  const moreBox = h('div', { class: 'quick-more', hidden: true }, field(t('field-tags'), tags.el));
+  const moreBtn = h('button', {
+    type: 'button', class: 'link-btn quick-more-toggle', 'aria-expanded': 'false',
+    onclick: () => {
+      moreBox.hidden = !moreBox.hidden;
+      moreBtn.setAttribute('aria-expanded', moreBox.hidden ? 'false' : 'true');
+    }
+  }, icon('tag'), t('quick-more'));
   // A category the person picked (or one that came with a link) is theirs;
   // until then the category follows the first rule that matches the note.
   let categoryTouched = !!linkCategory;
@@ -386,7 +409,7 @@ export function openQuickEntry({ type: startType = 'expense', amount: startAmoun
     remember(categoryKey(), category.value);
     const added = store.addQuickEntry({
       type, amount: cents, categoryId: category.value || null, accountId: account.value,
-      note: note.value.trim(), date: date.value
+      note: note.value.trim(), date: date.value, tagIds: tags.save()
     });
     showToast(t(type === 'income' ? 'toast-quick-income' : 'toast-quick-added', { amount: money(cents) }), {
       type: 'success', actionLabel: t('undo'), onAction: () => store.remove('entries', added.id)
@@ -414,7 +437,9 @@ export function openQuickEntry({ type: startType = 'expense', amount: startAmoun
       h('div', { class: 'form-row' }, field(t('field-category'), category), field(t('field-account'), account)),
       limitHint,
       h('div', { class: 'form-row' }, field(t('field-date'), date), field(t('field-note'), note)),
-      ruleHint
+      ruleHint,
+      moreBtn,
+      moreBox
     ),
     actions: [
       { label: t('quick-save-more'), onClick: (m) => save(m, true) },
@@ -654,6 +679,7 @@ export function openTemplateModal(template = null) {
 
   const toField = field(t('field-to-account'), toAccount);
   const categoryField = field(t('field-category'), category);
+  const tags = tagPicker(src.tagIds || []);
   const dayField = field(t('template-day'), day, t('template-day-hint'));
   const intervalField = field(t('template-interval'), interval);
   const weekdaysField = field(t('template-weekdays'), h('div', { class: 'weekday-row' }, weekdays.map(w => w.el)));
@@ -733,6 +759,7 @@ export function openTemplateModal(template = null) {
         toAccountId: type === 'transfer' ? toAccount.value : null,
         categoryId: type === 'transfer' ? null : (category.value || null),
         schedule,
+        tagIds: tags.save(),
         isTransit: transit.input.checked,
         active: active.input.checked
       };
@@ -766,6 +793,7 @@ export function openTemplateModal(template = null) {
       fillGaps.el,
       weekdaysField,
       h('div', { class: 'form-row' }, field(t('template-start'), startDate), field(t('template-end'), endDate, t('template-end-hint'))),
+      field(t('field-tags'), tags.el, t('template-tags-hint')),
       h('div', { class: 'checkbox-group' }, transit.el, active.el, saveAhead.el, isNew ? null : applyFuture.el)),
     actions
   });

@@ -90,3 +90,17 @@ export function fitSplits(entry) {
 export function splitRemainder(amount, splits) {
   return (amount || 0) - splitsTotal(splits);
 }
+
+// Lines of the CSV export for one entry: one per part, each with "2/3" to
+// show which payment it belongs to; a payment without parts is one line
+// with an empty mark. The note of a part falls back to the entry's note.
+export function csvParts(entry) {
+  if (!hasSplits(entry)) return [{ categoryId: entry.categoryId || null, amount: entry.amount || 0, note: entry.note || '', part: '' }];
+  const parts = categoryParts(entry);
+  return parts.map((p, i) => ({
+    categoryId: p.categoryId,
+    amount: p.amount,
+    note: (entry.splits[i] && entry.splits[i].note) || entry.note || '',
+    part: `${i + 1}/${parts.length}`
+  }));
+}

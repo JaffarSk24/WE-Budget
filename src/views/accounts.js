@@ -3,10 +3,12 @@
 
 import { store } from '../store.js';
 import { t } from '../i18n.js';
-import { h, clear, icon, money, refreshIcons, lang, emptyState, badge, accountLabel, categoryName } from '../ui.js';
+import { h, clear, icon, money, refreshIcons, lang, emptyState, badge, accountLabel } from '../ui.js';
 import { accountSummaries, accountEffect, compareEntries } from '../ledger.js';
 import { formatDay, todayKey } from '../dates.js';
 import { live } from '../model.js';
+import { categoryText } from '../split-editor.js';
+import { tagChips } from '../tag-ui.js';
 import { openAccountModal, openAllocationModal, openEntryModal } from '../modals.js';
 import { openBalancesModal } from '../balances.js';
 import { openStatementImport } from '../statement.js';
@@ -81,9 +83,9 @@ function history(accountId) {
         h('td', {}, h('div', { class: 'row-title' }, e.title || (e.type === 'transfer' ? t('transfer-label') : t('untitled'))),
           h('div', { class: 'row-meta' }, [
             e.type === 'transfer' ? (e.accountId === accountId ? t('transfer-to', { name: accountLabel(e.toAccountId) }) : t('transfer-from', { name: accountLabel(e.accountId) })) : null,
-            e.categoryId ? categoryName(e.categoryId) : null,
+            categoryText(e) || null,
             e.isAdjustment ? t('badge-adjustment') : null
-          ].filter(Boolean).join(' · '))),
+          ].filter(Boolean).join(' · '), tagChips(e) ? [' ', tagChips(e)] : null)),
         h('td', {}, badge(t(`status-${e.status}`), `badge-status-${e.status}`)),
         h('td', { class: `num money ${effect > 0 ? 'positive' : ''}` }, money(effect, { signed: effect > 0 })));
     })));

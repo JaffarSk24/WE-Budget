@@ -10,6 +10,7 @@ import { h, clear, icon, money, refreshIcons, lang, emptyState, categoryName } f
 import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, firstFlowMonth } from '../ledger.js';
 import { addMonthsToMonth, firstDayOfMonth, formatMonth, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { live } from '../model.js';
+import { tagsAnalyticsCard } from './tags.js';
 
 const PERIODS = ['3', '6', '12', 'all'];
 const TOP_CATEGORIES = 8;
@@ -202,6 +203,9 @@ export function renderAnalytics(root) {
 
   if (!first) {
     root.appendChild(h('div', { class: 'card' }, emptyState(t('an-empty'), 'chart-column')));
+    // A trip planned ahead has a budget before anything is spent.
+    const tags = tagsAnalyticsCard(today);
+    if (tags) root.appendChild(tags);
     refreshIcons();
     return;
   }
@@ -256,6 +260,8 @@ export function renderAnalytics(root) {
 
   const limits = limitsCard(month);
   if (limits) root.appendChild(limits);
+  const tags = tagsAnalyticsCard(today);
+  if (tags) root.appendChild(tags);
   refreshIcons();
 
   // Charts need their canvas in the page to measure it.

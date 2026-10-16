@@ -17,6 +17,8 @@ import { reminderState, requestCalendarAccess, turnOffReminders, run as runRemin
 import { APP_URL } from '../reminders.js';
 import { quickLinkBase } from '../quicklink.js';
 import { rulesSection } from './rules.js';
+import { tagsSection } from './tags.js';
+import { csvParts, hasSplits } from '../splits.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
@@ -39,15 +41,19 @@ export function csvCell(value) {
   return '"' + s.replace(/"/g, '""') + '"';
 }
 
+// A split payment comes out as one line per part, so a spreadsheet sums
+// the categories right; the "part" column tells which lines are one payment.
 function exportCsv() {
-  const rows = [[t('col-date'), t('col-item'), t('csv-type'), t('col-amount'), t('col-account'), t('field-to-account'), t('field-category'), t('field-status'), t('field-note')]];
+  const rows = [[t('col-date'), t('col-item'), t('csv-type'), t('col-amount'), t('col-account'), t('field-to-account'), t('field-category'), t('field-status'), t('field-note'), t('csv-part'), t('field-tags')]];
+  const tagName = (id) => { const tag = store.find('tags', id); return tag ? tag.name : ''; };
   live(store.data.entries)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
-    .forEach(e => rows.push([
-      e.date, e.title, t(`type-${e.type}`), (e.amount / 100).toFixed(2).replace('.', lang() === 'ru' ? ',' : '.'),
+    .forEach(e => csvParts(e).forEach(p => rows.push([
+      e.date, e.title, t(`type-${e.type}`), (p.amount / 100).toFixed(2).replace('.', lang() === 'ru' ? ',' : '.'),
       accountLabel(e.accountId), e.toAccountId ? accountLabel(e.toAccountId) : '',
-      e.categoryId ? categoryName(e.categoryId) : '', t(`status-${e.status}`), e.note
-    ]));
+      p.categoryId ? categoryName(p.categoryId) : '', t(`status-${e.status}`), p.note, p.part,
+      (e.tagIds || []).map(tagName).filter(Boolean).join(', ')
+    ])));
   const sep = lang() === 'ru' ? ';' : ',';
   download(`we-budget-${todayKey()}.csv`, '\ufeff' + rows.map(r => r.map(csvCell).join(sep)).join('\r\n'), 'text/csv;charset=utf-8');
 }
@@ -226,7 +232,8 @@ function categoriesSection(root) {
         store.update('categories', c.id, { monthlyLimit: v || null });
       });
     }
-    const used = live(store.data.entries).some(e => e.categoryId === c.id) || live(store.data.templates).some(x => x.categoryId === c.id);
+    const used = live(store.data.entries).some(e => e.categoryId === c.id || (hasSplits(e) && e.splits.some(p => p.categoryId === c.id)))
+      || live(store.data.templates).some(x => x.categoryId === c.id);
     return h('tr', { class: c.archived ? 'is-archived' : '' },
       h('td', {}, name),
       h('td', {}, t(`type-${c.type}`)),
@@ -308,6 +315,7 @@ export function renderSettings(root) {
     settingRow(t('settings-currency'), currency)));
 
   root.appendChild(categoriesSection(root));
+  root.appendChild(tagsSection(section, () => renderSettings(root)));
   root.appendChild(rulesSection(section));
 
   const isElectron = !!window.weStorage;

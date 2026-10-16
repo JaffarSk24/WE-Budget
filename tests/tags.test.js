@@ -134,3 +134,18 @@ describe('tags in search and the store', () => {
     expect(after.every(e => e.tagIds.length === 1 && e.tagIds[0] === 't2')).toBe(true);
   });
 });
+
+describe('the demo trip', () => {
+  it('has a tag with a budget, spending and a planned payment', async () => {
+    const { buildDemo } = await import('../src/demo.js');
+    ['en', 'ru'].forEach(lang => {
+      const demo = buildDemo('2026-10-25', lang);
+      expect(demo.tags.length).toBe(1);
+      const s = tagSummary(demo, demo.tags[0].id, '2026-10-25');
+      expect(s.spent).toBe(3890 + 21400 + 9650 + 1800);
+      expect(s.planned).toBe(3890);
+      expect(s.byCategory.length).toBe(3);
+      expect(demo.entries.filter(e => e.splits).length).toBe(2);
+    });
+  });
+});

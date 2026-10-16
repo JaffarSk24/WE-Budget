@@ -2,9 +2,10 @@
 // up: names, amounts and accounts are invented. Deterministic (seeded), so
 // two runs on the same day produce the same budget.
 
-import { emptyData, defaultCategories, makeAccount, makeEntry, makeGoal, makeRule, makeTemplate, nowIso } from './model.js';
+import { emptyData, defaultCategories, makeAccount, makeEntry, makeGoal, makeRule, makeTag, makeTemplate, nowIso } from './model.js';
 import { addMonthsToMonth, firstDayOfMonth, monthOf, addDays, dayInMonth, lastDayOfMonth } from './dates.js';
 import { pendingGeneration, generationHorizon } from './schedule.js';
+import { categorySpentInMonth } from './ledger.js';
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -110,12 +111,43 @@ export function buildDemo(today, lang = 'en') {
     }));
   }
 
+  // A weekend trip under way: a tag with a budget and dates, a few payments
+  // already made (one receipt split over two categories) and the train back
+  // still planned.
+  const vienna = makeTag({ name: L('Weekend in Vienna', 'Выходные в Вене'), color: 'teal', budget: 60000, startDate: addDays(today, -1), endDate: addDays(today, 1) });
+  data.tags.push(vienna);
+  const tripEntry = (f) => makeEntry({ type: 'expense', accountId: main.id, status: 'done', doneAt: nowIso(), tagIds: [vienna.id], ...f });
+  data.entries.push(
+    tripEntry({ date: addDays(today, -6), title: L('Train to Vienna', 'Поезд в Вену'), amount: 3890, categoryId: cat(L('Travel', 'Путешествия')) }),
+    tripEntry({ date: addDays(today, -1), title: L('Hotel, two nights', 'Отель, две ночи'), amount: 21400, categoryId: cat(L('Travel', 'Путешествия')) }),
+    tripEntry({
+      date: addDays(today, -1), title: L('Dinner and concert', 'Ужин и концерт'), amount: 9650, categoryId: cat(L('Eating out', 'Кафе и рестораны')),
+      splits: [
+        { categoryId: cat(L('Eating out', 'Кафе и рестораны')), amount: 5850, note: '' },
+        { categoryId: cat(L('Entertainment', 'Развлечения')), amount: 3800, note: L('Concert tickets', 'Билеты на концерт') }
+      ]
+    }),
+    tripEntry({ date: today, title: L('Museum', 'Музей'), amount: 1800, categoryId: cat(L('Entertainment', 'Развлечения')), isQuick: true }),
+    tripEntry({ date: addDays(today, 1), title: L('Train back', 'Поезд обратно'), amount: 3890, categoryId: cat(L('Travel', 'Путешествия')), status: 'planned', doneAt: null }));
+
+  // A supermarket receipt split over groceries, the kids and the pharmacy
+  // shelf: one payment on the account, three categories in the figures.
+  const receiptParts = [
+    { categoryId: cat(L('Groceries', 'Продукты')), amount: 4230, note: '' },
+    { categoryId: cat(L('Kids', 'Дети')), amount: 890, note: L('Crayons and a sketchbook', 'Карандаши и альбом') },
+    { categoryId: cat(L('Health', 'Здоровье')), amount: 650, note: L('Vitamins', 'Витамины') }
+  ];
+  data.entries.push(makeEntry({
+    date: addDays(today, -3), title: L('Supermarket', 'Супермаркет'), type: 'expense', amount: 5770, accountId: food.id,
+    categoryId: receiptParts[0].categoryId, splits: receiptParts, status: 'done', doneAt: nowIso(), isQuick: true
+  }));
+
   // Eating out has a monthly limit and is close to it this month, so the
   // alerts have something to show; entertainment has room left.
   const limited = (catName, share) => {
     const c = data.categories.find(x => x.name === catName);
-    const spent = data.entries.filter(e => e.categoryId === c.id && e.status === 'done' && monthOf(e.date) === month)
-      .reduce((sum, e) => sum + e.amount, 0);
+    // Counted the way the alerts count it: parts of split payments apart.
+    const spent = categorySpentInMonth(data, c.id, month);
     c.monthlyLimit = spent > 0 ? Math.ceil(spent / share / 100) * 100 : 5000;
   };
   limited(L('Eating out', 'Кафе и рестораны'), 0.85);
