@@ -486,11 +486,12 @@ export class Store {
     });
   }
 
-  addQuickExpense({ amount, categoryId, accountId, note = '', date = this.today() }) {
+  // A payment or an income outside the plan, done at once.
+  addQuickEntry({ type = 'expense', amount, categoryId, accountId, note = '', date = this.today() }) {
     return this.add('entries', makeEntry({
       date,
       title: note,
-      type: 'expense',
+      type: type === 'income' ? 'income' : 'expense',
       amount,
       accountId,
       categoryId,

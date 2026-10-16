@@ -17,13 +17,13 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Recurring payments.** Monthly, every few months (optionally shown in the other months with a zero amount), yearly, weekly or once. The plan for the next months builds itself; approximate amounts are confirmed when a payment is marked done.
 - **Overview.** Free money right now, the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
-- **Small expenses** with optional monthly limits per category.
+- **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category.
 - **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
 - **Goals**: an amount, the envelope you save on and a date; the app shows how far you are and how much to set aside per month. A goal can put its monthly contribution into the plan as a transfer to the envelope, tells you whether the plan makes the amount by the date and raises the contribution in one click when it does not.
-- **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick expense in its menu.
+- **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick entry in its menu.
 - **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
 - **Sync** between computers and the phone through a hidden app folder on your Google Drive.
-- **Phone app**: today's and overdue payments, marking them, quick expenses and what is free, added to the home screen of an iPhone or an Android phone.
+- **Phone app**: today's and overdue payments, marking them, quick entries of expenses and income, and what is free, added to the home screen of an iPhone or an Android phone. Made for iPhone screens from the SE to the Pro Max: no zooming into fields, room for the notch and the home indicator.
 - **Reminders** in Google Calendar at the time you choose, so they reach your phone even when every computer is off, and notifications on the computer while the app is open.
 - **Updates** from GitHub Releases, offered right in the app.
 - English and Russian, dark and light theme.
@@ -72,7 +72,7 @@ Every change to the code is checked on a clean Windows machine: the installer an
 
 ### On your phone
 
-The phone app is the same app in a browser, made for a phone: today's and overdue payments, marking them, quick expenses and what is free on the accounts. The plan, recurring payments and accounts are edited on the computer.
+The phone app is the same app in a browser, made for a phone: today's and overdue payments, marking them, quick entries of expenses and unplanned income, and what is free on the accounts. The plan, recurring payments and accounts are edited on the computer.
 
 1. Open [jaffarsk24.github.io/WE-Budget/app](https://jaffarsk24.github.io/WE-Budget/app/) in Safari on the iPhone, or in Chrome on Android.
 2. Tap Share, then Add to Home Screen (Chrome: the menu, then Add to Home screen).
@@ -95,7 +95,7 @@ A typical routine:
 2. Add your recurring payments and incomes (Recurring). The months ahead fill themselves.
 3. When income arrives, mark it done. The app offers to split it: confirm, and the money for the coming payments is set aside on their envelopes.
 4. Mark payments done as they go out: the circle on the row, or Space on the selected row.
-5. Record small spending with Quick expense (Cmd+N on macOS, Ctrl+N on Windows).
+5. Record small spending or money that came in outside the plan with Quick entry (Cmd+N on macOS, Ctrl+N on Windows).
 6. Every now and then, use Check against the bank on the Accounts screen and type in what your banks show.
 
 ## How the numbers work
@@ -117,7 +117,7 @@ A typical routine:
 
 | Key | Action |
 |---|---|
-| Cmd/Ctrl+N | Quick expense |
+| Cmd/Ctrl+N | Quick entry |
 | Shift+Cmd/Ctrl+N | New item |
 | Cmd/Ctrl+1 to 7 | Switch section |
 | Up, Down | Move between rows of the month |

@@ -1,7 +1,7 @@
 {
   "name": "WE Budget",
   "short_name": "WE Budget",
-  "description": "Payments of today, set aside money and quick expenses, synced with the WE Budget desktop app through your Google Drive.",
+  "description": "Payments of today, set aside money and quick entries of expenses and income, synced with the WE Budget desktop app through your Google Drive.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",

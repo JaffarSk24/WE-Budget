@@ -8,7 +8,7 @@ import { accountSummaries, entriesOn, forecast, grandTotals, monthPlanFact, over
 import { addDays, formatDate, formatDay, formatDayLong, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { generationHorizon } from '../schedule.js';
 import { entryListItem } from '../actions.js';
-import { openAllocationModal, openQuickExpense } from '../modals.js';
+import { openAllocationModal, openQuickEntry } from '../modals.js';
 import { live } from '../model.js';
 
 let chart = null;
@@ -174,7 +174,7 @@ export function renderOverview(root) {
       h('p', { class: 'view-subtitle' }, formatDayLong(today, lang()))),
     h('div', { class: 'header-actions' },
       h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openAllocationModal() }, icon('split'), t('alloc-open')),
-      h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openQuickExpense() }, icon('plus'), t('quick-add')))));
+      h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openQuickEntry() }, icon('plus'), t('quick-add')))));
 
   root.appendChild(h('div', { class: 'dashboard-grid kpi-grid' },
     kpi(t('kpi-free'), moneyEl(totals.free, { colored: true }), t('kpi-free-desc'), totals.free < 0 ? 'alert' : 'primary'),
