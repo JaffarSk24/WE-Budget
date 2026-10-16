@@ -6,7 +6,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 
 // Files that come from public/ as they are (not part of the bundle) and the
 // phone app needs offline.
-const PUBLIC_FILES = ['manifest.webmanifest', 'favicon.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'white-eagles-logo-white.webp'];
+const PUBLIC_FILES = ['manifest.webmanifest', 'favicon.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'white-eagles-logo-white.webp'];
 
 // Service worker of the phone app: keeps every built file, serves them
 // offline, and lets requests to Google go to the network untouched. The page
