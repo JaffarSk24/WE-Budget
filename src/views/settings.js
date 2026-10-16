@@ -16,6 +16,7 @@ import { checkForUpdates, updateState, updatesAvailable } from '../updates.js';
 import { reminderState, requestCalendarAccess, turnOffReminders, run as runReminders, reminderStatusText } from '../reminder-sync.js';
 import { APP_URL } from '../reminders.js';
 import { quickLinkBase } from '../quicklink.js';
+import { rulesSection } from './rules.js';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CZK', 'PLN', 'UAH'];
 
@@ -307,6 +308,7 @@ export function renderSettings(root) {
     settingRow(t('settings-currency'), currency)));
 
   root.appendChild(categoriesSection(root));
+  root.appendChild(rulesSection(section));
 
   const isElectron = !!window.weStorage;
   root.appendChild(section(t('settings-data'), 'database',

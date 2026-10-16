@@ -12,6 +12,7 @@ import { makeAccount, makeEntry, makeTemplate, nowIso, live } from './model.js';
 import { todayKey, isDayKey, formatDay, monthOf, addDays } from './dates.js';
 import { accountSummaries, canSaveAhead, categorySpentInMonth, saveAheadGoal } from './ledger.js';
 import { openSaveAheadModal, stopSaveAhead } from './views/save-ahead.js';
+import { applyRules } from './rules.js';
 import { allocationCandidates, defaultAllocationEnd, planForSelection, suggestAllocation } from './allocation.js';
 
 const LAST_QUICK_ACCOUNT = 'we-budget-last-quick-account';
@@ -300,6 +301,33 @@ export function openQuickEntry({ type: startType = 'expense', amount: startAmoun
   // The category from a link wins only for the type it was given with.
   let linkCategory = startCategory ? { type, id: startCategory } : null;
   const limitHint = h('div', { class: 'field-hint' });
+  const ruleHint = h('div', { class: 'field-hint rule-hint' });
+  // A category the person picked (or one that came with a link) is theirs;
+  // until then the category follows the first rule that matches the note.
+  let categoryTouched = !!linkCategory;
+  let accountTouched = !!startAccount;
+  let ruleDefault = null;
+
+  function followRules() {
+    if (categoryTouched) return;
+    const text = note.value.trim();
+    const cents = amount.readCents();
+    const rule = text ? applyRules(store.list('rules'), { text, note: text, type, amount: cents }) : null;
+    const known = rule && rule.categoryId && [...category.options].some(o => o.value === rule.categoryId);
+    if (known) {
+      if (ruleDefault === null) ruleDefault = { category: category.value, account: account.value };
+      category.value = rule.categoryId;
+      if (!accountTouched && rule.accountId && store.find('accounts', rule.accountId)) account.value = rule.accountId;
+      ruleHint.textContent = t('quick-rule-applied', { text: rule.text });
+    } else if (ruleDefault !== null) {
+      // The note no longer matches: back to what was there before the rule.
+      category.value = ruleDefault.category;
+      if (!accountTouched) account.value = ruleDefault.account;
+      ruleDefault = null;
+      ruleHint.textContent = '';
+    }
+    updateLimit();
+  }
 
   function fillCategories() {
     clear(category);
@@ -326,15 +354,29 @@ export function openQuickEntry({ type: startType = 'expense', amount: startAmoun
     type = value;
     fillCategories();
     account.value = accountFor() || account.value;
-    updateLimit();
+    ruleDefault = null;
+    ruleHint.textContent = '';
+    // The new type brings its own category list: a pick made for the other
+    // type is gone, so the rules decide again.
+    categoryTouched = !!(linkCategory && linkCategory.type === type);
+    followRules();
     amount.focus();
   });
   typeSwitch.classList.add('quick-type');
 
   fillCategories();
-  category.addEventListener('change', updateLimit);
+  category.addEventListener('change', () => {
+    categoryTouched = true;
+    ruleDefault = null;
+    ruleHint.textContent = '';
+    updateLimit();
+  });
+  account.addEventListener('change', () => { accountTouched = true; });
+  note.addEventListener('input', followRules);
+  amount.addEventListener('input', () => { if (note.value.trim()) followRules(); });
   date.addEventListener('change', updateLimit);
-  updateLimit();
+  // A link from a Shortcut can bring the merchant as the note.
+  followRules();
 
   function save(m, again) {
     const cents = amount.readCents();
@@ -351,6 +393,9 @@ export function openQuickEntry({ type: startType = 'expense', amount: startAmoun
     });
     if (again) {
       linkCategory = null;
+      categoryTouched = false;
+      ruleDefault = null;
+      ruleHint.textContent = '';
       amount.value = '';
       note.value = '';
       amount.focus();
@@ -368,7 +413,8 @@ export function openQuickEntry({ type: startType = 'expense', amount: startAmoun
       field(t('field-amount'), amount),
       h('div', { class: 'form-row' }, field(t('field-category'), category), field(t('field-account'), account)),
       limitHint,
-      h('div', { class: 'form-row' }, field(t('field-date'), date), field(t('field-note'), note))
+      h('div', { class: 'form-row' }, field(t('field-date'), date), field(t('field-note'), note)),
+      ruleHint
     ),
     actions: [
       { label: t('quick-save-more'), onClick: (m) => save(m, true) },

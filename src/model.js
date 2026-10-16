@@ -5,12 +5,15 @@
 
 export const SCHEMA_VERSION = 1;
 
-export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders'];
+export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules'];
 
 export const ENTRY_TYPES = ['expense', 'income', 'transfer'];
 export const ENTRY_STATUSES = ['planned', 'reserved', 'done', 'cancelled'];
 export const ACCOUNT_KINDS = ['current', 'savings', 'credit', 'cash'];
 export const SCHEDULE_FREQS = ['monthly', 'everyNMonths', 'yearly', 'weekly', 'once'];
+export const RULE_FIELDS = ['title', 'note', 'any'];
+export const RULE_MATCHES = ['contains', 'startsWith', 'exact'];
+export const RULE_TYPES = ['expense', 'income', 'any'];
 
 export const DEFAULT_SETTINGS = {
   language: 'ru',
@@ -36,6 +39,10 @@ export const DEFAULT_SETTINGS = {
   alertLargePayment: 50000,
   // Free money in the menu bar of the Mac (the notification area on Windows).
   menuBarFree: true,
+  // Bank statement import: the column mapping last used for each account,
+  // { [accountId]: { columns: { date: 'Completed Date', ... }, dateOrder } }.
+  // Columns are kept by header name so a file with reordered columns still fits.
+  importMappings: {},
   onboarded: false
 };
 
@@ -133,6 +140,9 @@ export function makeEntry(f = {}) {
     isTransit: !!f.isTransit,
     isAdjustment: !!f.isAdjustment,
     isQuick: !!f.isQuick,
+    // Set on entries created or settled by a bank statement import: a hash
+    // of the bank row, so importing the same statement again finds it.
+    importKey: f.importKey || null,
     note: f.note || ''
   });
 }
@@ -164,6 +174,26 @@ export function makeGoal(f = {}) {
   });
 }
 
+// A category rule: when a payment's text matches, it gets this category (and
+// optionally an account and a clean title). Rules are tried in `order`, the
+// first active match wins.
+export function makeRule(f = {}) {
+  const cents = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Math.abs(Math.round(Number(v))));
+  return base({
+    text: f.text || '',
+    field: RULE_FIELDS.includes(f.field) ? f.field : 'any',
+    match: RULE_MATCHES.includes(f.match) ? f.match : 'contains',
+    type: RULE_TYPES.includes(f.type) ? f.type : 'any',
+    minAmount: cents(f.minAmount),
+    maxAmount: cents(f.maxAmount),
+    categoryId: f.categoryId || null,
+    accountId: f.accountId || null,
+    title: f.title || '',
+    order: Number.isFinite(f.order) ? f.order : 0,
+    active: f.active !== false
+  });
+}
+
 export function emptyData() {
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -179,7 +209,8 @@ export function emptyData() {
     goals: [],
     checks: [],
     reminders: [],
-    settings: { ...DEFAULT_SETTINGS, updatedAt: nowIso() }
+    rules: [],
+    settings: { ...DEFAULT_SETTINGS, importMappings: {}, updatedAt: nowIso() }
   };
 }
 
@@ -198,6 +229,8 @@ export function normalizeData(raw) {
     data.datasetAt = raw.datasetAt || data.datasetAt;
   }
   data.settings = { ...DEFAULT_SETTINGS, ...(raw.settings || {}) };
+  const mappings = data.settings.importMappings;
+  data.settings.importMappings = mappings && typeof mappings === 'object' && !Array.isArray(mappings) ? { ...mappings } : {};
   if (!data.settings.updatedAt) data.settings.updatedAt = nowIso();
   data.entries.forEach(e => {
     if (e.plannedAmount === undefined) e.plannedAmount = e.amount || 0;
