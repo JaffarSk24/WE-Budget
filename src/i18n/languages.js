@@ -22,7 +22,7 @@ export const LANGUAGES = [
   { code: 'en', name: 'English', english: 'English', dir: 'ltr', locale: 'en-GB', decimal: '.', ready: true },
   { code: 'de', name: 'Deutsch', english: 'German', dir: 'ltr', locale: 'de-DE', decimal: ',', ready: false, load: () => import('./de.js') },
   { code: 'es', name: 'Español', english: 'Spanish', dir: 'ltr', locale: 'es-ES', decimal: ',', ready: true, load: () => import('./es.js') },
-  { code: 'sk', name: 'Slovenčina', english: 'Slovak', dir: 'ltr', locale: 'sk-SK', decimal: ',', ready: false, load: () => import('./sk.js') },
+  { code: 'sk', name: 'Slovenčina', english: 'Slovak', dir: 'ltr', locale: 'sk-SK', decimal: ',', ready: true, load: () => import('./sk.js') },
   { code: 'cs', name: 'Čeština', english: 'Czech', dir: 'ltr', locale: 'cs-CZ', decimal: ',', ready: true, load: () => import('./cs.js') },
   { code: 'fr', name: 'Français', english: 'French', dir: 'ltr', locale: 'fr-FR', decimal: ',', ready: true, load: () => import('./fr.js') },
   { code: 'pt', name: 'Português', english: 'Portuguese (Brazil)', dir: 'ltr', locale: 'pt-BR', decimal: ',', ready: true, load: () => import('./pt.js') },
