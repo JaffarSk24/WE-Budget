@@ -14,22 +14,16 @@
 //            English and Russian have none: i18n.js bundles them, so the
 //            fallback and the oldest default are there from the start
 //
-// Arabic and Urdu use Latin digits (-u-nu-latn) in amounts and dates: sums
-// then read the same as on bank statements and in the other languages.
+// Right to left support (dir 'rtl') stays in the code for a future
+// language, though none of the current ones needs it.
 export const LANGUAGES = [
-  { code: 'en', name: 'English', english: 'English', dir: 'ltr', locale: 'en-GB', decimal: '.', ready: true },
   { code: 'ru', name: 'Русский', english: 'Russian', dir: 'ltr', locale: 'ru-RU', decimal: ',', ready: true },
-  { code: 'sk', name: 'Slovenčina', english: 'Slovak', dir: 'ltr', locale: 'sk-SK', decimal: ',', ready: false, load: () => import('./sk.js') },
-  { code: 'cs', name: 'Čeština', english: 'Czech', dir: 'ltr', locale: 'cs-CZ', decimal: ',', ready: false, load: () => import('./cs.js') },
   { code: 'uk', name: 'Українська', english: 'Ukrainian', dir: 'ltr', locale: 'uk-UA', decimal: ',', ready: false, load: () => import('./uk.js') },
+  { code: 'en', name: 'English', english: 'English', dir: 'ltr', locale: 'en-GB', decimal: '.', ready: true },
+  { code: 'de', name: 'Deutsch', english: 'German', dir: 'ltr', locale: 'de-DE', decimal: ',', ready: false, load: () => import('./de.js') },
   { code: 'es', name: 'Español', english: 'Spanish', dir: 'ltr', locale: 'es-ES', decimal: ',', ready: false, load: () => import('./es.js') },
-  { code: 'fr', name: 'Français', english: 'French', dir: 'ltr', locale: 'fr-FR', decimal: ',', ready: false, load: () => import('./fr.js') },
-  { code: 'pt', name: 'Português', english: 'Portuguese (Brazil)', dir: 'ltr', locale: 'pt-BR', decimal: ',', ready: false, load: () => import('./pt.js') },
-  { code: 'zh', name: '中文 简体', english: 'Chinese (Simplified)', dir: 'ltr', locale: 'zh-CN', decimal: '.', ready: false, load: () => import('./zh.js') },
-  { code: 'hi', name: 'हिन्दी', english: 'Hindi', dir: 'ltr', locale: 'hi-IN', decimal: '.', ready: false, load: () => import('./hi.js') },
-  { code: 'bn', name: 'বাংলা', english: 'Bengali', dir: 'ltr', locale: 'bn-BD', decimal: '.', ready: false, load: () => import('./bn.js') },
-  { code: 'ar', name: 'العربية', english: 'Arabic', dir: 'rtl', locale: 'ar-u-nu-latn', decimal: '.', ready: false, load: () => import('./ar.js') },
-  { code: 'ur', name: 'اردو', english: 'Urdu', dir: 'rtl', locale: 'ur-PK-u-nu-latn', decimal: '.', ready: false, load: () => import('./ur.js') }
+  { code: 'sk', name: 'Slovenčina', english: 'Slovak', dir: 'ltr', locale: 'sk-SK', decimal: ',', ready: false, load: () => import('./sk.js') },
+  { code: 'cs', name: 'Čeština', english: 'Czech', dir: 'ltr', locale: 'cs-CZ', decimal: ',', ready: false, load: () => import('./cs.js') }
 ];
 
 export const DEFAULT_LANGUAGE = 'en';

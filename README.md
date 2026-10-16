@@ -41,7 +41,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Reminders** in Google Calendar at the time you choose, so they reach your phone even when every computer is off, and notifications on the computer while the app is open.
 - **Updates** from GitHub Releases, offered right in the app.
 - **Features**: a screen (on the phone, a row on the More tab) that lists everything the app can do with a short line each; click one for how to use it and a button to the place where it lives. Search it, or filter to what is new.
-- **Languages**: English and Russian today; Slovak, Czech, Ukrainian, Spanish, French, Portuguese (Brazil), Chinese (Simplified), Hindi, Bengali, Arabic and Urdu are being translated, Arabic and Urdu right to left. On the first start the app takes the language of the system or browser when it has it, otherwise English; Settings changes it at any time. Dark and light theme.
+- **Languages**: Russian, Ukrainian, English, German, Spanish, Slovak and Czech. On the first start the app takes the language of the system or browser when it has it, otherwise English; Settings changes it at any time. Dark and light theme.
 
 ## Screenshots
 

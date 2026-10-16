@@ -2723,40 +2723,7 @@ button.tag-chip:hover { opacity: 1; }
   .help-body { padding: 0 14px 14px; }
   .help-intro { font-size: 0.88rem; }
 }
-/* ==================== OTHER SCRIPTS AND RIGHT TO LEFT ==================== */
-/* Inter and Outfit cover Latin and Cyrillic only. For the other scripts the
-   stacks name good system fonts of macOS, iOS, Windows and Android after
-   them, so Latin letters and digits keep Inter and Outfit and the rest
-   falls through glyph by glyph. No web fonts: the app works offline and
-   every system the app runs on has these. */
-:root:lang(zh) {
-  --font-script: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC';
-}
-:root:lang(hi) {
-  --font-script: 'Kohinoor Devanagari', 'Devanagari Sangam MN', 'Nirmala UI', 'Mangal', 'Noto Sans Devanagari';
-}
-:root:lang(bn) {
-  --font-script: 'Kohinoor Bangla', 'Bangla Sangam MN', 'Nirmala UI', 'Vrinda', 'Noto Sans Bengali';
-}
-:root:lang(ar) {
-  --font-script: 'SF Arabic', 'Geeza Pro', 'Segoe UI', 'Noto Naskh Arabic', 'Noto Sans Arabic', 'Tahoma';
-}
-/* Urdu is set in Naskh first: Nastaliq needs nearly twice the line height
-   and would be cut off in the app's compact rows. Nastaliq still serves
-   where no Naskh font is installed. */
-:root:lang(ur) {
-  --font-script: 'Noto Naskh Arabic', 'SF Arabic', 'Geeza Pro', 'Segoe UI', 'Noto Nastaliq Urdu', 'Tahoma';
-}
-:root:is(:lang(zh), :lang(hi), :lang(bn), :lang(ar), :lang(ur)) {
-  --font-body: 'Inter', var(--font-script), system-ui, sans-serif;
-  --font-display: 'Outfit', var(--font-script), system-ui, sans-serif;
-}
-/* Marks above and below the line (Devanagari, Bengali, Arabic) need more
-   room than the tight Latin headings and two line titles give them. */
-:root:is(:lang(hi), :lang(bn), :lang(ar), :lang(ur)) :is(.phone-entry-title, .search-row-title, .tag-chip) {
-  line-height: 1.5;
-}
-
+/* ==================== RIGHT TO LEFT ==================== */
 /* Right to left: the layout mirrors through the logical properties above.
    Only what they cannot express is set here. */
 /* Arrows and chevrons that point along the reading direction. */

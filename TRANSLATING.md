@@ -47,7 +47,7 @@ A text that depends on a number comes as a family of keys with suffixes, used th
 | many | `-many` |
 | other | `-many` |
 
-`other` is written as `-many` because the keys started with Russian and English. Every family in `en.js` has `-one`, `-few` and `-many`. Fill the forms your language uses (as `Intl.PluralRules` reports them) and put your best general form into the ones it does not use: Chinese needs only `-many` (fill `-one` and `-few` with the same text), English and Hindi use `-one` and `-many`, Russian, Ukrainian, Czech and Slovak `-one`, `-few` and `-many`. Arabic may add `-zero` and `-two` keys to each family; no other extra keys are allowed. A form that is missing at run time falls back to `-many`.
+`other` is written as `-many` because the keys started with Russian and English. Every family in `en.js` has `-one`, `-few` and `-many`. Fill the forms your language uses (as `Intl.PluralRules` reports them) and put your best general form into the ones it does not use: English, German and Spanish use `-one` and `-many` (fill `-few` with the `-many` text), Russian, Ukrainian, Czech and Slovak `-one`, `-few` and `-many`. A language that needs `-zero` or `-two` may add them to each family; no other extra keys are allowed. A form that is missing at run time falls back to `-many`.
 
 To see the categories of a language:
 
@@ -65,7 +65,7 @@ new Intl.PluralRules('cs-CZ').resolvedOptions().pluralCategories
 - No space before `%` or `€`: "84%", "12€". Amounts in the app always carry the symbol attached; texts follow the same rule.
 - No invisible characters (no-break spaces, zero-width spaces, bidi marks). Where a language would normally use a narrow no-break space, write a plain space. The hygiene test scans every file.
 - Quotation marks of your language are welcome ("...", «...», „...“), as long as they are used the same way throughout the file.
-- Arabic and Urdu: write the texts in their natural order; the app sets `dir="rtl"`, mirrors the layout and keeps amounts and dates left to right. Amounts and dates use Latin digits.
+- A right to left language would get `dir: 'rtl'` in the registry; the layout already mirrors through logical properties.
 
 ## The app's own terms
 

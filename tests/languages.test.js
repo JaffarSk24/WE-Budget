@@ -6,7 +6,7 @@ import {
 } from '../src/i18n/languages.js';
 import { en } from '../src/i18n/en.js';
 import { formatMoney, centsToInput, parseMoney } from '../src/money.js';
-import { formatDate, formatDay, formatDayYear, formatMonth, formatMonthShort, formatTime } from '../src/dates.js';
+import { formatDate, formatDayYear, formatMonth, formatMonthShort, formatTime } from '../src/dates.js';
 import { normalizeData } from '../src/model.js';
 
 const dicts = {};
@@ -19,7 +19,7 @@ beforeAll(async () => {
 
 describe('language registry', () => {
   it('lists the languages in picker order with unique codes', () => {
-    expect(LANGUAGES.map(l => l.code)).toEqual(['en', 'ru', 'sk', 'cs', 'uk', 'es', 'fr', 'pt', 'zh', 'hi', 'bn', 'ar', 'ur']);
+    expect(LANGUAGES.map(l => l.code)).toEqual(['ru', 'uk', 'en', 'de', 'es', 'sk', 'cs']);
     expect(new Set(LANGUAGES.map(l => l.code)).size).toBe(LANGUAGES.length);
   });
 
@@ -37,16 +37,10 @@ describe('language registry', () => {
     });
   });
 
-  it('writes right to left only for Arabic and Urdu', () => {
-    expect(LANGUAGES.filter(l => l.dir === 'rtl').map(l => l.code)).toEqual(['ar', 'ur']);
+  it('writes every current language left to right', () => {
+    expect(LANGUAGES.filter(l => l.dir === 'rtl').map(l => l.code)).toEqual([]);
   });
 
-  it('uses Latin digits for Arabic and Urdu amounts and dates', () => {
-    ['ar', 'ur'].forEach(code => {
-      expect(new Intl.NumberFormat(localeOf(code)).format(1234567890)).toMatch(/^[0-9,.]+$/);
-      expect(formatDay('2026-10-16', code)).toMatch(/16/);
-    });
-  });
 
   it('types the decimal separator the locale itself writes', () => {
     LANGUAGES.forEach(l => {
@@ -59,7 +53,7 @@ describe('language registry', () => {
     expect(languageInfo('xx').code).toBe('en');
     expect(localeOf(undefined)).toBe('en-GB');
     expect(decimalOf('ru')).toBe(',');
-    expect(dirOf('ar')).toBe('rtl');
+    expect(dirOf('sk')).toBe('ltr');
   });
 
   it('offers only ready languages, plus a saved one that is not ready yet', () => {
@@ -67,7 +61,7 @@ describe('language registry', () => {
     expect(ready).toContain('en');
     expect(ready).toContain('ru');
     expect(languageOptions().map(o => o.value)).toEqual(ready);
-    expect(languageOptions('en')[0]).toEqual({ value: 'en', label: 'English' });
+    expect(languageOptions('en')).toContainEqual({ value: 'en', label: 'English' });
     const notReady = LANGUAGES.find(l => !l.ready);
     if (notReady) expect(languageOptions(notReady.code).map(o => o.value)).toContain(notReady.code);
   });
@@ -171,10 +165,6 @@ describe('formatting in every language', () => {
     expect(formatMoney(-1200, { lang: 'en', decimals: false })).toBe('-12€');
   });
 
-  it('isolates amounts left to right in Arabic and Urdu', () => {
-    expect(formatMoney(-3890, { lang: 'ar' })).toBe('\u2066-38.90€\u2069');
-    expect(formatMoney(3890, { lang: 'ur', signed: true })).toBe('\u2066+38.90€\u2069');
-  });
 
   it('writes input values with the decimal separator people type', () => {
     expect(centsToInput(4735, 'ru')).toBe('47,35');
@@ -196,7 +186,6 @@ describe('formatting in every language', () => {
     });
     expect(formatDate('2026-11-01', 'ru')).toBe('1 ноября 2026');
     expect(formatDate('2026-11-01', 'en')).toBe('1 November 2026');
-    expect(formatDate('2026-11-01', 'ar')).toMatch(/2026/);
   });
 
   it('keeps the Russian day with year as before', () => {

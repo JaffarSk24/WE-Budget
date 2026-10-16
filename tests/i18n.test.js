@@ -40,13 +40,13 @@ describe('translations', () => {
 describe('plurals', () => {
   let saved;
   beforeAll(() => { saved = store.settings.language; });
-  afterAll(() => { store.settings.language = saved; delete translations.ar; });
+  afterAll(() => { store.settings.language = saved; delete translations.de; });
 
   it('maps CLDR categories to key suffixes', () => {
     expect([1, 2, 5, 11, 21, 22, 1.5].map(n => pluralSuffix('ru', n))).toEqual(['one', 'few', 'many', 'many', 'one', 'few', 'many']);
     expect([0, 1, 2, 1.5].map(n => pluralSuffix('en', n))).toEqual(['many', 'one', 'many', 'many']);
-    expect([0, 1, 2, 3, 11, 100].map(n => pluralSuffix('ar', n))).toEqual(['zero', 'one', 'two', 'few', 'many', 'many']);
-    expect([1, 2].map(n => pluralSuffix('zh', n))).toEqual(['many', 'many']);
+    expect([1, 2, 5, 1.5].map(n => pluralSuffix('cs', n))).toEqual(['one', 'few', 'many', 'many']);
+    expect([1, 2, 5].map(n => pluralSuffix('de', n))).toEqual(['one', 'many', 'many']);
   });
 
   it('keeps Russian and English plural texts as before', () => {
@@ -60,9 +60,9 @@ describe('plurals', () => {
   });
 
   it('falls back to the -many form when a language has no key for a form', () => {
-    // The Arabic file is English until it is translated: no -two keys.
-    store.settings.language = 'ar';
-    translations.ar = en;
+    // A German file without a -few key falls back to -many.
+    store.settings.language = 'de';
+    translations.de = { ...en, 'cal-entries-few': undefined };
     expect(tn('cal-entries', 2)).toBe(en['cal-entries-many'].replace('{n}', '2'));
     expect(t('nav-month')).toBe(en['nav-month']);
   });
@@ -79,8 +79,8 @@ describe('plurals', () => {
   });
 
   it('a registered language is the current one even before it is ready', () => {
-    store.settings.language = 'ur';
-    expect(currentLang()).toBe('ur');
+    store.settings.language = 'de';
+    expect(currentLang()).toBe('de');
     store.settings.language = 'xx';
     expect(LANGUAGES.map(l => l.code)).toContain(currentLang());
   });
@@ -95,7 +95,5 @@ describe('plurals', () => {
   it('points the arrow between two accounts the way the text reads', () => {
     store.settings.language = 'en';
     expect(flow('Main', 'Bills')).toBe('Main \u2192 Bills');
-    store.settings.language = 'ar';
-    expect(flow('Main', 'Bills')).toBe('\u2068Main\u2069 \u2190 \u2068Bills\u2069');
   });
 });
