@@ -3,6 +3,8 @@
 // or the page, so the search screens and the tests share one behaviour.
 
 import { live } from './model.js';
+import { hasSplits } from './splits.js';
+import { entryHasTag } from './tags.js';
 
 // Lower case without diacritics, so "kava" finds "Káva" and "ЁЛКА" finds
 // "елка". NFD splits a letter from its accents, which are then dropped.
@@ -38,7 +40,7 @@ export function queryTokens(query) {
 // Filters with no value set do not narrow anything.
 export function hasActiveFilters(filters = {}) {
   const f = filters || {};
-  return Boolean(f.from || f.to || f.type || f.accountId || f.categoryId || f.status || f.quickOnly);
+  return Boolean(f.from || f.to || f.type || f.accountId || f.categoryId || f.tagId || f.status || f.quickOnly);
 }
 
 // Newest first; inside one day the latest created comes first.
@@ -50,19 +52,30 @@ export function compareNewestFirst(a, b) {
   return 0;
 }
 
-// Text of everything the query may hit, folded once per entry.
-function haystack(entry, accountNames, categoryNames) {
+// Text of everything the query may hit, folded once per entry: the parts
+// of a split payment bring their categories and notes, tags their names.
+function haystack(entry, accountNames, categoryNames, tagNames) {
+  const parts = hasSplits(entry) ? entry.splits : [];
   return foldText([
     entry.title,
     entry.note,
     categoryNames.get(entry.categoryId),
+    ...parts.map(p => categoryNames.get(p.categoryId)),
+    ...parts.map(p => p.note),
+    ...(entry.tagIds || []).map(id => tagNames.get(id)),
     accountNames.get(entry.accountId),
     accountNames.get(entry.toAccountId)
   ].filter(Boolean).join('\n'));
 }
 
+// A split payment is in a category when any of its parts is.
+function inCategory(entry, categoryId) {
+  if (entry.categoryId === categoryId) return true;
+  return hasSplits(entry) && entry.splits.some(p => p.categoryId === categoryId);
+}
+
 // filters: { from, to (day keys, inclusive), type, accountId, categoryId,
-// status, quickOnly }. An envelope belongs to its account: filtering by the
+// tagId, status, quickOnly }. An envelope belongs to its account: filtering by the
 // account also finds what was paid from or to its envelopes.
 // Totals leave cancelled entries out: they never move any money.
 export function searchEntries(data, query = '', filters = {}) {
@@ -77,6 +90,7 @@ export function searchEntries(data, query = '', filters = {}) {
     return [a.id, parent ? `${parent.name} ${a.name}` : a.name];
   }));
   const categoryNames = new Map(live(data && data.categories).map(c => [c.id, c.name]));
+  const tagNames = new Map(live(data && data.tags).map(x => [x.id, x.name]));
 
   const inAccount = (id) => Boolean(id) && (id === f.accountId || parentOf.get(id) === f.accountId);
   const tokens = queryTokens(query).map(word => ({ word, amount: parseAmountToken(word) }));
@@ -86,11 +100,12 @@ export function searchEntries(data, query = '', filters = {}) {
     if (f.to && e.date > f.to) return false;
     if (f.type && e.type !== f.type) return false;
     if (f.status && e.status !== f.status) return false;
-    if (f.categoryId && e.categoryId !== f.categoryId) return false;
+    if (f.categoryId && !inCategory(e, f.categoryId)) return false;
+    if (f.tagId && !entryHasTag(e, f.tagId)) return false;
     if (f.quickOnly && !e.isQuick) return false;
     if (f.accountId && !inAccount(e.accountId) && !inAccount(e.toAccountId)) return false;
     if (!tokens.length) return true;
-    const text = haystack(e, accountNames, categoryNames);
+    const text = haystack(e, accountNames, categoryNames, tagNames);
     // Every word has to be found somewhere: in the text or as the amount.
     return tokens.every(tk => text.includes(tk.word) || (tk.amount !== null && amountMatches(e.amount, tk.amount)));
   }).sort(compareNewestFirst);
