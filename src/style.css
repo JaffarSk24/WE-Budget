@@ -2774,3 +2774,5 @@ button.tag-chip:hover { opacity: 1; }
 [dir="rtl"] :is(input[type="date"], input[type="time"], .money-input) { direction: ltr; text-align: end; }
 /* The corner before a sub-account opens toward the start of the line. */
 [dir="rtl"] .tree-mark { display: inline-block; transform: scaleX(-1); }
+/* Arabic: the quick entry link pattern with translated variables is a URL and reads left to right. */
+:root:lang(ar) .qlink-pattern { direction: ltr; }
