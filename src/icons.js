@@ -6,8 +6,8 @@ import {
   Circle, Cloud, CloudOff, Copy, Database, Download, ExternalLink, Eye, FileSpreadsheet, FolderOpen,
   FolderPlus, Gauge, History, Inbox, Info, Languages, LayoutDashboard, Loader, LogIn,
   LogOut, MinusCircle, Monitor, Palette, Pencil, PiggyBank, Plus, RefreshCw,
-  Repeat, RotateCcw, Scale, Settings, ShieldCheck, Smartphone, Sparkle, Sparkles, Split,
-  Tags, Target, Trash2, TrendingUp, Upload, Wallet
+  Repeat, RotateCcw, Scale, Search, Settings, ShieldCheck, SlidersHorizontal, Smartphone, Sparkle, Sparkles, Split,
+  Tags, Target, Trash2, TrendingUp, Upload, Wallet, X
 } from 'lucide';
 
 export const usedIcons = {
@@ -16,6 +16,6 @@ export const usedIcons = {
   Circle, Cloud, CloudOff, Copy, Database, Download, ExternalLink, Eye, FileSpreadsheet, FolderOpen,
   FolderPlus, Gauge, History, Inbox, Info, Languages, LayoutDashboard, Loader, LogIn,
   LogOut, MinusCircle, Monitor, Palette, Pencil, PiggyBank, Plus, RefreshCw,
-  Repeat, RotateCcw, Scale, Settings, ShieldCheck, Smartphone, Sparkle, Sparkles, Split,
-  Tags, Target, Trash2, TrendingUp, Upload, Wallet
+  Repeat, RotateCcw, Scale, Search, Settings, ShieldCheck, SlidersHorizontal, Smartphone, Sparkle, Sparkles, Split,
+  Tags, Target, Trash2, TrendingUp, Upload, Wallet, X
 };

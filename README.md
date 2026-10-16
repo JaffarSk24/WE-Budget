@@ -17,6 +17,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Recurring payments.** Monthly, every few months (optionally shown in the other months with a zero amount), yearly, weekly or once. The plan for the next months builds itself; approximate amounts are confirmed when a payment is marked done.
 - **Overview.** Free money right now and its runway (how many days it lasts at the average spending of the last 90 days), the first payment there will not be enough money for, the next seven days, a forecast of free money and how far this month's income and expenses are against the plan.
 - **Bulk actions.** Tick several rows to mark them done, set money aside, move dates or change accounts at once. The bar at the bottom adds the ticked payments up per account.
+- **Search** across the whole plan by name, note, category, account or amount (`12,50`, `12.50` or just `12`), ignoring case and accents, with filters by dates, type, account (envelopes included), category, status and quick entries, and the totals of what was found. Click a result to edit it.
 - **Quick entry** of small expenses and unplanned income, with optional monthly limits per expense category. A link can open it filled in, from an iPhone Shortcut, Siri or right after a card payment in Apple Wallet.
 - **Alerts**: an Attention card on the overview and the phone's Today tab when a category reaches 80% or 100% of its monthly limit, free money drops below a threshold or a large payment is due within 3 days; on the computer each also comes as a notification, at most once a day.
 - **Analytics**: income and expenses month by month, expenses by category with averages over 3, 6 and 12 months, income by source, plan against fact, and how this month's limits stand.
@@ -26,7 +27,7 @@ Website: [jaffarsk24.github.io/WE-Budget](https://jaffarsk24.github.io/WE-Budget
 - **Menu bar**: free money next to an icon in the Mac menu bar (the notification area on Windows), with a quick entry in its menu.
 - **Pass-through money**, such as money someone sends you to pay a bill on their behalf, is kept out of income and expense totals.
 - **Sync** between computers and the phone through a hidden app folder on your Google Drive.
-- **Phone app**: today's and overdue payments, marking them, quick entries of expenses and income, and what is free, added to the home screen of an iPhone or an Android phone. Made for iPhone screens from the SE to the Pro Max: no zooming into fields, room for the notch and the home indicator.
+- **Phone app**: today's and overdue payments, marking them, search, quick entries of expenses and income, and what is free, added to the home screen of an iPhone or an Android phone. Made for iPhone screens from the SE to the Pro Max: no zooming into fields, room for the notch and the home indicator.
 - **Reminders** in Google Calendar at the time you choose, so they reach your phone even when every computer is off, and notifications on the computer while the app is open.
 - **Updates** from GitHub Releases, offered right in the app.
 - English and Russian, dark and light theme.
@@ -139,6 +140,7 @@ A typical routine:
 | Cmd/Ctrl+N | Quick entry |
 | Shift+Cmd/Ctrl+N | New item |
 | Cmd/Ctrl+1 to 7 | Switch section |
+| Cmd/Ctrl+F | Search |
 | Up, Down | Move between rows of the month |
 | Space | Mark the row done, or undo |
 | R | Set money aside for the row, or undo |
@@ -218,6 +220,7 @@ Builds go to `release.nosync/`. Google sign-in needs an OAuth client of the Desk
 | Path | What is there |
 |---|---|
 | `src/model.js`, `src/store.js` | Data model and the store that changes and saves it |
+| `src/ledger.js` | Balances, money set aside, month totals, forecast |
 | `src/ledger.js` | Balances, money set aside, month totals, forecast, goals, recurring costs, runway, alerts |
 | `src/quicklink.js`, `src/insights.js` | Quick entry links, texts of the runway and alerts |
 | `src/schedule.js`, `src/allocation.js`, `src/reconcile.js` | Recurring payments, splitting income, checking against the bank |

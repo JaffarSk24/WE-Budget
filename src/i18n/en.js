@@ -691,5 +691,31 @@ export const en = {
   'ovr-price-varies': 'varies',
   'ovr-all-categories': 'All categories',
   'ovr-empty': 'No recurring expenses here',
-  'ovr-hint': 'Per month: a yearly payment counts a twelfth, every N months an Nth, weekly ones 52 times a year divided by 12. Prices come from payments marked done.'
+  'ovr-hint': 'Per month: a yearly payment counts a twelfth, every N months an Nth, weekly ones 52 times a year divided by 12. Prices come from payments marked done.',
+
+  // Search
+  'search-open': 'Search',
+  'search-hint': 'Search payments and incomes (Cmd/Ctrl+F)',
+  'search-title': 'Search',
+  'search-placeholder': 'Name, note, category, account or amount',
+  'search-filters': 'Filters',
+  'search-from': 'From',
+  'search-to': 'To',
+  'search-type': 'Type',
+  'search-any-type': 'Any type',
+  'search-any-account': 'All accounts',
+  'search-any-category': 'All categories',
+  'search-any-status': 'Any status',
+  'search-quick-only': 'Quick entries only',
+  'search-reset': 'Reset filters',
+  'search-found-one': 'Found {n} entry',
+  'search-found-few': 'Found {n} entries',
+  'search-found-many': 'Found {n} entries',
+  'search-sum-expense': 'expenses',
+  'search-sum-income': 'income',
+  'search-more-one': '{n} more entry not shown, narrow the search to see it',
+  'search-more-few': '{n} more entries not shown, narrow the search to see them',
+  'search-more-many': '{n} more entries not shown, narrow the search to see them',
+  'search-none': 'Nothing found. Try another word or loosen the filters.',
+  'search-empty': 'No payments or incomes yet.'
 };

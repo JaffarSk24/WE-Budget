@@ -35,6 +35,7 @@ import { initTray } from './tray.js';
 import { finishRedirectSignIn } from './web/cloud-web.js';
 import { isPhoneLayout, initPhone } from './views/phone.js';
 import { parseQuickLink, stripQuickParams } from './quicklink.js';
+import { openSearch, isSearchOpen } from './views/search.js';
 
 window.lucide = { createIcons: () => createIcons({ icons: usedIcons }) };
 
@@ -122,6 +123,17 @@ function checkDay() {
 function initKeys() {
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
+    // Cmd+F on the Mac, Ctrl+F on Windows. Inside another field the key
+    // stays with that field, and over another dialog nothing opens.
+    if (mod && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А')) {
+      const tag = (e.target && e.target.tagName) || '';
+      const inField = ['INPUT', 'SELECT', 'TEXTAREA'].includes(tag) || (e.target && e.target.isContentEditable);
+      const top = topModal();
+      if (isSearchOpen() ? !top || !top.content.classList.contains('search-modal') : inField || top || needsWelcome()) return;
+      e.preventDefault();
+      openSearch({ phone: isPhoneLayout() });
+      return;
+    }
     if (mod && !topModal() && (e.key === 'n' || e.key === 'N' || e.key === 'т' || e.key === 'Т')) {
       e.preventDefault();
       if (e.shiftKey) openEntryModal(null, {});
@@ -161,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
     a.setAttribute('href', '#' + a.dataset.view);
   });
   document.getElementById('quick-add-btn').addEventListener('click', () => openQuickEntry());
+  document.getElementById('search-btn').addEventListener('click', () => openSearch());
   window.addEventListener('hashchange', () => { if (!phone) show(viewFromHash() || 'month'); });
   setNavigator((name) => show(name));
 

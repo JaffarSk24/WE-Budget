@@ -15,6 +15,7 @@ import { syncSection, remindersSection, quickLinkSection, section, settingRow } 
 import { alertRows, runwayHint, runwayText } from '../insights.js';
 import { buildDemo } from '../demo.js';
 import { selectEl } from '../ui.js';
+import { openSearch } from './search.js';
 
 const TABS = [
   { id: 'today', icon: 'calendar-check', label: 'today-title' },
@@ -189,6 +190,7 @@ function render() {
   const content = empty ? welcome() : tab === 'accounts' ? accountsTab() : tab === 'more' ? moreTab() : todayTab();
   content.filter(Boolean).forEach(el => parts.main.appendChild(el));
   parts.fab.hidden = empty || tab === 'more';
+  parts.search.hidden = empty;
   parts.tabs.hidden = empty;
   parts.tabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   refreshIcons();
@@ -200,6 +202,10 @@ export function initPhone(root) {
   const chip = h('div', { class: 'phone-chip' });
   const banner = h('div', { class: 'sync-banner', role: 'alert', hidden: true });
   const main = h('div', { class: 'phone-main' });
+  const search = h('button', {
+    type: 'button', class: 'phone-search-btn', 'aria-label': t('search-open'), title: t('search-open'),
+    onclick: () => openSearch({ phone: true })
+  }, icon('search'));
   const fab = h('button', { type: 'button', class: 'phone-fab', 'aria-label': t('quick-add'), onclick: () => openQuickEntry() }, icon('plus'));
   const tabs = h('nav', { class: 'phone-tabs' }, TABS.map(x => h('button', {
     type: 'button', 'data-tab': x.id,
@@ -208,10 +214,10 @@ export function initPhone(root) {
   root.append(
     h('header', { class: 'phone-top' },
       h('div', { class: 'phone-brand' }, h('img', { src: './white-eagles-logo-white.webp', alt: '', width: 22, height: 22 }), h('span', {}, 'WE Budget')),
-      chip),
+      h('div', { class: 'phone-top-actions' }, chip, search)),
     banner, main, fab, tabs);
   root.hidden = false;
-  parts = { chip, main, fab, tabs };
+  parts = { chip, main, fab, tabs, search };
   initSyncBanner(banner);
   store.subscribe(render);
   sync.onChange(render);
