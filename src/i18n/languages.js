@@ -18,7 +18,7 @@
 // language, though none of the current ones needs it.
 export const LANGUAGES = [
   { code: 'ru', name: 'Русский', english: 'Russian', dir: 'ltr', locale: 'ru-RU', decimal: ',', ready: true },
-  { code: 'uk', name: 'Українська', english: 'Ukrainian', dir: 'ltr', locale: 'uk-UA', decimal: ',', ready: false, load: () => import('./uk.js') },
+  { code: 'uk', name: 'Українська', english: 'Ukrainian', dir: 'ltr', locale: 'uk-UA', decimal: ',', ready: true, load: () => import('./uk.js') },
   { code: 'en', name: 'English', english: 'English', dir: 'ltr', locale: 'en-GB', decimal: '.', ready: true },
   { code: 'de', name: 'Deutsch', english: 'German', dir: 'ltr', locale: 'de-DE', decimal: ',', ready: false, load: () => import('./de.js') },
   { code: 'es', name: 'Español', english: 'Spanish', dir: 'ltr', locale: 'es-ES', decimal: ',', ready: true, load: () => import('./es.js') },
