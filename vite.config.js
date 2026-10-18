@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { readFileSync } from 'fs';
 import { URL } from 'url';
+import { touchIconInPage } from './scripts/touch-icon.js';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
@@ -77,7 +78,7 @@ export default defineConfig(({ mode }) => {
       __APP_VERSION__: JSON.stringify(pkg.version),
       __WEB_BUILD__: JSON.stringify(web)
     },
-    plugins: web ? [serviceWorker(pkg.version)] : [],
+    plugins: web ? [serviceWorker(pkg.version), touchIconInPage()] : [],
     build: {
       outDir: web ? 'dist-web' : 'dist',
       rollupOptions: {
