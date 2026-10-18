@@ -125,7 +125,9 @@ async function encryptedPair(drive) {
   return { a, b };
 }
 
-describe('encrypted sync', () => {
+// Each test derives keys with 600 000 PBKDF2 rounds on purpose; on a busy
+// machine that alone can take longer than the default 5 seconds.
+describe('encrypted sync', { timeout: 30000 }, () => {
   it('turning encryption on renames the one file and seals it', async () => {
     const drive = fakeDrive();
     const { a } = await encryptedPair(drive);
