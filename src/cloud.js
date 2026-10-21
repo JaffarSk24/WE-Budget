@@ -2,7 +2,7 @@
 // line in the sidebar and the sign-in.
 
 import { store } from './store.js';
-import { t } from './i18n.js';
+import { t, whenLanguageLoaded } from './i18n.js';
 import { SyncEngine } from './sync/engine.js';
 import { h, lang, icon, refreshIcons, clear } from './ui.js';
 import { formatTimestamp } from './dates.js';
@@ -133,8 +133,11 @@ export function initSyncStatus(el) {
     else if (sync.state.status === 'locked') promptUnlock();
     else window.location.hash = '#settings';
   });
-  sync.onChange(render);
-  store.subscribe(render);
+  // A language chosen just now may still be loading: the line is drawn
+  // again once it is there, like the rest of the page.
+  const redraw = () => { whenLanguageLoaded(render); render(); };
+  sync.onChange(redraw);
+  store.subscribe(redraw);
   render();
 }
 
