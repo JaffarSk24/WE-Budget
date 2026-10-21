@@ -2776,3 +2776,7 @@ button.tag-chip:hover { opacity: 1; }
 [dir="rtl"] .tree-mark { display: inline-block; transform: scaleX(-1); }
 /* Arabic: the quick entry link pattern with translated variables is a URL and reads left to right. */
 :root:is(:lang(ar), :lang(ur)) .qlink-pattern { direction: ltr; }
+/* German: "Zurückgelegt" and "Verfügbar" in capitals made the accounts
+   table wider than its card at 1024px. Its headers set a little tighter
+   keep the terms whole and the table inside the card. */
+:root:lang(de) .acc-table th { letter-spacing: 0; padding-inline: 8px; }

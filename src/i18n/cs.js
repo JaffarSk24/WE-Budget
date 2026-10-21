@@ -507,7 +507,7 @@ export const cs = {
   'sync-banner-later': 'Později',
   'sync-scope-missing': 'Google nepovolil přístup k Disku. Přihlas se znovu a zaškrtni oprávnění pro Disk Google.',
   'sync-error': 'Chyba synchronizace',
-  'sync-off': 'Sync vypnutá',
+  'sync-off': 'Vypnuto',
   'sync-login-ok': 'Přihlášeno: {email}',
   'sync-login-pulled': 'Přihlášeno: {email}. Rozpočet načten z cloudu.',
   'sync-login-merged': 'Přihlášeno jako {email}. Rozpočet na tomto počítači byl sloučen s cloudem, nic se neztratilo.',
