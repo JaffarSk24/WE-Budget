@@ -8,7 +8,7 @@ import { store } from '../store.js';
 import { t } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, categoryName } from '../ui.js';
 import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, effectiveLimit, firstFlowMonth, limitCarry } from '../ledger.js';
-import { addMonthsToMonth, firstDayOfMonth, formatMonth, formatMonthShort, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
+import { addMonthsToMonth, firstDayOfMonth, formatMonth, formatMonthInText, formatMonthShort, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
 import { live } from '../model.js';
 import { tagsAnalyticsCard } from './tags.js';
 import { moneyFlowCard } from './money-flow.js';
@@ -28,8 +28,19 @@ function destroyCharts() {
 }
 
 function monthLabel(month) {
-  const text = formatMonth(month, lang());
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return formatMonth(month, lang());
+}
+
+// A month inside a sentence keeps the language's own case.
+function monthInText(month) {
+  return formatMonthInText(month, lang());
+}
+
+// "marzo de 2026 a octubre de 2026" starts a line, so its first letter is
+// a capital one, whichever placeholder the language puts first.
+function rangeText(from, to) {
+  const s = t('an-range', { from: monthInText(from), to: monthInText(to) });
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function shortMonth(month) {
@@ -176,7 +187,7 @@ function limitsCard(month) {
   const cats = live(store.data.categories).filter(c => c.type === 'expense' && c.monthlyLimit && !c.archived);
   if (!cats.length) return null;
   return h('div', { class: 'card' },
-    h('div', { class: 'card-title-row' }, icon('gauge'), h('h3', {}, t('an-limits', { month: monthLabel(month) }))),
+    h('div', { class: 'card-title-row' }, icon('gauge'), h('h3', {}, t('an-limits', { month: monthInText(month) }))),
     h('div', { class: 'an-limits' }, cats.map(c => {
       const spent = categorySpentInMonth(store.data, c.id, month);
       const limit = effectiveLimit(store.data, c.id, month);
@@ -230,8 +241,8 @@ export function renderAnalytics(root) {
   const avgExpense = fullMonths.length ? Math.round(fullMonths.reduce((s, r) => s + r.expense, 0) / fullMonths.length) : null;
 
   root.appendChild(h('div', { class: 'dashboard-grid kpi-grid' },
-    tile(t('an-income'), money(income), t('an-range', { from: monthLabel(fromMonth), to: monthLabel(month) })),
-    tile(t('an-expense'), money(expense), t('an-range', { from: monthLabel(fromMonth), to: monthLabel(month) })),
+    tile(t('an-income'), money(income), rangeText(fromMonth, month)),
+    tile(t('an-expense'), money(expense), rangeText(fromMonth, month)),
     tile(t('an-result'), money(income - expense, { signed: true }), t('an-result-desc'), income - expense < 0 ? 'is-negative' : ''),
     tile(t('an-avg-expense'), avgExpense === null ? '' : money(avgExpense), t('an-avg-expense-desc', { n: fullMonths.length }))));
 

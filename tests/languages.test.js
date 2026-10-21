@@ -6,7 +6,7 @@ import {
 } from '../src/i18n/languages.js';
 import { en } from '../src/i18n/en.js';
 import { formatMoney, centsToInput, parseMoney } from '../src/money.js';
-import { formatDate, formatDayYear, formatMonth, formatMonthShort, formatTime } from '../src/dates.js';
+import { formatDate, formatDayYear, formatMonth, formatMonthInText, formatMonthShort, formatTime } from '../src/dates.js';
 import { normalizeData } from '../src/model.js';
 
 const dicts = {};
@@ -210,6 +210,29 @@ describe('formatting in every language', () => {
     expect(formatDayYear('2026-10-05', 'ru')).toBe('05.10.2026');
     expect(formatDayYear('2026-10-05', 'ru', { shortYear: true })).toBe('05.10.26');
     expect(formatDayYear('2026-10-05', 'en')).toBe('05/10/2026');
+  });
+});
+
+describe('month names', () => {
+  it('capitalises a month that stands alone', () => {
+    expect(formatMonth('2029-03', 'es')).toBe('Marzo de 2029');
+    expect(formatMonth('2029-03', 'fr')).toBe('Mars 2029');
+    expect(formatMonth('2029-03', 'ru')).toBe('Март 2029');
+  });
+
+  it('keeps the language\'s own case inside a sentence', () => {
+    expect(formatMonthInText('2029-03', 'es')).toBe('marzo de 2029');
+    expect(formatMonthInText('2029-03', 'fr')).toBe('mars 2029');
+    expect(formatMonthInText('2029-03', 'de')).toBe('März 2029');
+    expect(formatMonthInText('2029-03', 'en')).toBe('March 2029');
+    expect(formatMonthInText('2029-03', 'ru')).toBe('март 2029');
+  });
+
+  it('fills a lower case month into the Spanish and French payoff texts', () => {
+    const fill = (code, key) => dicts[code][key].replace('{month}', formatMonthInText('2029-03', code));
+    expect(fill('es', 'debt-payoff')).toMatch(/ marzo de 2029/);
+    expect(fill('fr', 'debt-payoff')).toMatch(/ mars 2029/);
+    expect(fill('fr', 'planner-total')).not.toMatch(/Mars/);
   });
 });
 

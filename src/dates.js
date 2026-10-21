@@ -99,9 +99,17 @@ export function formatDate(key, lang = 'ru') {
   return parseDayKey(key).toLocaleDateString(locale(lang), { day: 'numeric', month: 'long', year: 'numeric' }).replace(/\s*г\.$/, '');
 }
 
+// "Март 2026" / "Marzo de 2026": a month standing alone, as a heading, a
+// chart label or a table cell, with a capital first letter.
 export function formatMonth(month, lang = 'ru') {
-  const s = parseDayKey(firstDayOfMonth(month)).toLocaleDateString(locale(lang), { month: 'long', year: 'numeric' });
-  return s.charAt(0).toUpperCase() + s.slice(1).replace(/\s*г\.$/, '');
+  const s = formatMonthInText(month, lang);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// "март 2026" / "marzo de 2026" / "März 2026": a month inside a sentence,
+// in the case the language itself writes it.
+export function formatMonthInText(month, lang = 'ru') {
+  return parseDayKey(firstDayOfMonth(month)).toLocaleDateString(locale(lang), { month: 'long', year: 'numeric' }).replace(/\s*г\.$/, '');
 }
 
 // "16.10.2026" / "16/10/2026": a day with its year in short numeric form;

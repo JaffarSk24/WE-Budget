@@ -36,18 +36,14 @@ function svg(tag, attrs = {}, ...children) {
   return el;
 }
 
-function capitalized(text) {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 // From and to of each range. 'last' is the last full month: the month in
 // progress would show half a picture.
 export function flowRange(which, today, periodFrom, periodTo) {
   const month = monthOf(today);
-  if (which === 'this') return { from: firstDayOfMonth(month), to: lastDayOfMonth(month), label: capitalized(formatMonth(month, lang())) };
+  if (which === 'this') return { from: firstDayOfMonth(month), to: lastDayOfMonth(month), label: formatMonth(month, lang()) };
   if (which === 'period') return { from: periodFrom, to: periodTo, label: t('flow-range-period') };
   const last = addMonthsToMonth(month, -1);
-  return { from: firstDayOfMonth(last), to: lastDayOfMonth(last), label: capitalized(formatMonth(last, lang())) };
+  return { from: firstDayOfMonth(last), to: lastDayOfMonth(last), label: formatMonth(last, lang()) };
 }
 
 function nodeLabel(node) {
