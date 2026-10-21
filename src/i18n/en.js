@@ -31,7 +31,9 @@ export const en = {
   'choose-account': 'Choose an account',
   'no-category': 'No category',
   'all-accounts': 'All accounts',
-  'months-n': '{n} mo.',
+  'months-n-one': '{n} month',
+  'months-n-few': '{n} months',
+  'months-n-many': '{n} months',
 
   // Statuses
   'status-planned': 'Planned',

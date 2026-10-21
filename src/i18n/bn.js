@@ -32,7 +32,9 @@ export const bn = {
   'choose-account': 'অ্যাকাউন্ট বাছুন',
   'no-category': 'ক্যাটাগরি নেই',
   'all-accounts': 'সব অ্যাকাউন্ট',
-  'months-n': '{n} মাস',
+  'months-n-one': '{n} মাস',
+  'months-n-few': '{n} মাস',
+  'months-n-many': '{n} মাস',
 
   // Statuses
   'status-planned': 'পরিকল্পিত',

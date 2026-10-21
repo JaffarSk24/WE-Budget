@@ -32,7 +32,9 @@ export const uk = {
   'choose-account': 'Виберіть рахунок',
   'no-category': 'Без категорії',
   'all-accounts': 'Усі рахунки',
-  'months-n': '{n} міс.',
+  'months-n-one': '{n} місяць',
+  'months-n-few': '{n} місяці',
+  'months-n-many': '{n} місяців',
 
   // Statuses
   'status-planned': 'План',

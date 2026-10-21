@@ -32,7 +32,9 @@ export const ur = {
   'choose-account': 'اکاؤنٹ منتخب کریں',
   'no-category': 'کوئی زمرہ نہیں',
   'all-accounts': 'تمام اکاؤنٹس',
-  'months-n': '{n} ماہ',
+  'months-n-one': '{n} مہینہ',
+  'months-n-few': '{n} مہینے',
+  'months-n-many': '{n} مہینے',
 
   // Statuses
   'status-planned': 'طے شدہ',

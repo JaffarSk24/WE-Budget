@@ -32,7 +32,9 @@ export const sk = {
   'choose-account': 'Vyberte účet',
   'no-category': 'Bez kategórie',
   'all-accounts': 'Všetky účty',
-  'months-n': '{n} mes.',
+  'months-n-one': '{n} mesiac',
+  'months-n-few': '{n} mesiace',
+  'months-n-many': '{n} mesiacov',
 
   // Statuses
   'status-planned': 'Plánované',

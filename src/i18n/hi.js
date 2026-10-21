@@ -32,7 +32,9 @@ export const hi = {
   'choose-account': 'खाता चुनें',
   'no-category': 'कोई श्रेणी नहीं',
   'all-accounts': 'सभी खाते',
-  'months-n': '{n} माह',
+  'months-n-one': '{n} महीना',
+  'months-n-few': '{n} महीने',
+  'months-n-many': '{n} महीने',
 
   // Statuses
   'status-planned': 'नियोजित',

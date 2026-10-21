@@ -5,7 +5,7 @@
 
 import Chart from 'chart.js/auto';
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, tn } from '../i18n.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, categoryName } from '../ui.js';
 import { analyticsByMonth, categoryAverages, categoryBreakdown, categorySpentInMonth, effectiveLimit, firstFlowMonth, limitCarry } from '../ledger.js';
 import { addMonthsToMonth, firstDayOfMonth, formatMonth, formatMonthInText, formatMonthShort, lastDayOfMonth, monthOf, todayKey } from '../dates.js';
@@ -140,7 +140,7 @@ function periodControl(root) {
     type: 'button', role: 'radio', 'aria-checked': String(p === period),
     class: `segmented-item ${p === period ? 'active' : ''}`,
     onclick: () => { period = p; renderAnalytics(root); }
-  }, p === 'all' ? t('an-all') : t('months-n', { n: Number(p) }))));
+  }, p === 'all' ? t('an-all') : tn('months-n', Number(p)))));
 }
 
 function categoryTable(items, month, total) {

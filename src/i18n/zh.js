@@ -32,7 +32,9 @@ export const zh = {
   'choose-account': '选择账户',
   'no-category': '无分类',
   'all-accounts': '所有账户',
-  'months-n': '{n} 个月',
+  'months-n-one': '{n} 个月',
+  'months-n-few': '{n} 个月',
+  'months-n-many': '{n} 个月',
 
   // Statuses
   'status-planned': '计划中',

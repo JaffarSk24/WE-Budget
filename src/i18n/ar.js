@@ -32,7 +32,11 @@ export const ar = {
   'choose-account': 'اختر حسابًا',
   'no-category': 'بلا فئة',
   'all-accounts': 'كل الحسابات',
-  'months-n': '{n} شهر',
+  'months-n-zero': '{n} شهر',
+  'months-n-one': '{n} شهر',
+  'months-n-two': '{n} شهر',
+  'months-n-few': '{n} أشهر',
+  'months-n-many': '{n} شهرًا',
 
   // Statuses
   'status-planned': 'مخطط',

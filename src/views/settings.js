@@ -1,7 +1,7 @@
 // Settings: language and theme, accounting basics, categories, data files.
 
 import { store } from '../store.js';
-import { t } from '../i18n.js';
+import { t, tn } from '../i18n.js';
 import { decimalOf, languageOptions } from '../i18n/languages.js';
 import { showToast } from '../toast.js';
 import {
@@ -323,7 +323,7 @@ export function renderSettings(root) {
   currency.addEventListener('change', () => store.updateSettings({ currency: currency.value }));
   const incomeAccount = selectEl(accountOptions({ emptyLabel: t('choose-account') }), s.defaultIncomeAccountId || '');
   incomeAccount.addEventListener('change', () => store.updateSettings({ defaultIncomeAccountId: incomeAccount.value || null }));
-  const horizon = selectEl([1, 2, 3, 6, 12].map(n => ({ value: String(n), label: t('months-n', { n }) })), String(s.forecastMonths || 3));
+  const horizon = selectEl([1, 2, 3, 6, 12].map(n => ({ value: String(n), label: tn('months-n', n) })), String(s.forecastMonths || 3));
   horizon.addEventListener('change', () => { store.updateSettings({ forecastMonths: Number(horizon.value) }); store.generate(); });
   const tracking = h('input', { type: 'date', value: s.trackingStart || '' });
   tracking.addEventListener('change', async () => {

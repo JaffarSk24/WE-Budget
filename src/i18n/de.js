@@ -32,7 +32,9 @@ export const de = {
   'choose-account': 'Konto wählen',
   'no-category': 'Ohne Kategorie',
   'all-accounts': 'Alle Konten',
-  'months-n': '{n} Mon.',
+  'months-n-one': '{n} Monat',
+  'months-n-few': '{n} Monate',
+  'months-n-many': '{n} Monate',
 
   // Statuses
   'status-planned': 'Geplant',

@@ -31,7 +31,9 @@ export const ru = {
   'choose-account': 'Выберите счёт',
   'no-category': 'Без категории',
   'all-accounts': 'Все счета',
-  'months-n': '{n} мес.',
+  'months-n-one': '{n} месяц',
+  'months-n-few': '{n} месяца',
+  'months-n-many': '{n} месяцев',
 
   // Statuses
   'status-planned': 'План',

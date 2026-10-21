@@ -32,7 +32,9 @@ export const cs = {
   'choose-account': 'Vyber účet',
   'no-category': 'Bez kategorie',
   'all-accounts': 'Všechny účty',
-  'months-n': '{n} měs.',
+  'months-n-one': '{n} měsíc',
+  'months-n-few': '{n} měsíce',
+  'months-n-many': '{n} měsíců',
 
   // Statuses
   'status-planned': 'Plánováno',
