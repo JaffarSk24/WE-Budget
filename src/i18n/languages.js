@@ -14,8 +14,10 @@
 //            English and Russian have none: i18n.js bundles them, so the
 //            fallback and the oldest default are there from the start
 //
-// Arabic and Urdu use Latin digits (-u-nu-latn) in amounts and dates: sums
-// then read the same as on bank statements and in the other languages.
+// Arabic, Urdu and Bengali use Latin digits (-u-nu-latn) in amounts and
+// dates: sums then read the same as on bank statements and in the other
+// languages, and match what people type into the fields and what {n} fills
+// into the texts (Bengali would otherwise mix its own digits with Latin ones).
 export const LANGUAGES = [
   { code: 'ru', name: 'Русский', english: 'Russian', dir: 'ltr', locale: 'ru-RU', decimal: ',', ready: true },
   { code: 'uk', name: 'Українська', english: 'Ukrainian', dir: 'ltr', locale: 'uk-UA', decimal: ',', ready: true, load: () => import('./uk.js') },
@@ -28,7 +30,7 @@ export const LANGUAGES = [
   { code: 'pt', name: 'Português', english: 'Portuguese (Brazil)', dir: 'ltr', locale: 'pt-BR', decimal: ',', ready: true, load: () => import('./pt.js') },
   { code: 'zh', name: '中文 简体', english: 'Chinese (Simplified)', dir: 'ltr', locale: 'zh-CN', decimal: '.', ready: true, load: () => import('./zh.js') },
   { code: 'hi', name: 'हिन्दी', english: 'Hindi', dir: 'ltr', locale: 'hi-IN', decimal: '.', ready: true, load: () => import('./hi.js') },
-  { code: 'bn', name: 'বাংলা', english: 'Bengali', dir: 'ltr', locale: 'bn-BD', decimal: '.', ready: true, load: () => import('./bn.js') },
+  { code: 'bn', name: 'বাংলা', english: 'Bengali', dir: 'ltr', locale: 'bn-BD-u-nu-latn', decimal: '.', ready: true, load: () => import('./bn.js') },
   { code: 'ar', name: 'العربية', english: 'Arabic', dir: 'rtl', locale: 'ar-u-nu-latn', decimal: '.', ready: true, load: () => import('./ar.js') },
   { code: 'ur', name: 'اردو', english: 'Urdu', dir: 'rtl', locale: 'ur-PK-u-nu-latn', decimal: '.', ready: true, load: () => import('./ur.js') }
 ];

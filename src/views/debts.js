@@ -9,7 +9,7 @@ import { t, tn } from '../i18n.js';
 import { decimalOf, localeOf } from '../i18n/languages.js';
 import { h, clear, icon, money, refreshIcons, lang, emptyState, field, moneyInput, selectEl, accountOptions, categoryOptions, openModal, accountLabel, badge } from '../ui.js';
 import { debtOutlook, nextPaymentMonth, payoffPlan, planDebts } from '../debts.js';
-import { firstDayOfMonth, formatDate, formatMonth, isDayKey, monthOf, todayKey } from '../dates.js';
+import { firstDayOfMonth, formatDate, formatMonth, formatMonthInText, isDayKey, monthOf, todayKey } from '../dates.js';
 import { live, makeDebt, makeTemplate } from '../model.js';
 import { showToast } from '../toast.js';
 import { segmented, withUndo } from '../modals.js';
@@ -221,7 +221,7 @@ function payoffLine(debt, o) {
   if (!(debt.payment > 0)) return h('div', { class: 'goal-plan' }, icon('info'), t('debt-no-payment'));
   if (o.schedule.never) return h('div', { class: 'goal-plan is-late' }, icon('alert-triangle'), t('debt-never', { amount: money(o.schedule.firstInterest || 0) }));
   return h('div', { class: 'goal-plan' }, icon('calendar'),
-    t(debt.kind === 'owed' ? 'debt-payoff-owed' : 'debt-payoff', { month: formatMonth(o.schedule.payoffMonth, lang()), n: o.schedule.months }));
+    t(debt.kind === 'owed' ? 'debt-payoff-owed' : 'debt-payoff', { month: formatMonthInText(o.schedule.payoffMonth, lang()), n: o.schedule.months }));
 }
 
 function recurringBlock(debt) {
@@ -299,7 +299,7 @@ function plannerResult(plan) {
         h('th', { class: 'num' }, t('planner-col-interest')))),
       h('tbody', {}, rows))),
     h('div', { class: 'planner-summary' },
-      h('div', { class: 'goal-plan' }, icon('calendar'), t('planner-total', { month: formatMonth(plan.payoffMonth, lang()), amount: money(plan.totalInterest), budget: money(plan.budget) })),
+      h('div', { class: 'goal-plan' }, icon('calendar'), t('planner-total', { month: formatMonthInText(plan.payoffMonth, lang()), amount: money(plan.totalInterest), budget: money(plan.budget) })),
       h('div', { class: 'goal-plan is-reached' }, icon('trending-up'), saved))
   ];
 }

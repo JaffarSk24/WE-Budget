@@ -4,13 +4,13 @@
 // their locales live in i18n/languages.js.
 
 import { store } from './store.js';
-import { ru } from './i18n/ru.js';
 import { en } from './i18n/en.js';
+import { translations, fillText } from './i18n/dictionaries.js';
 import { LANGUAGES, localeOf, dirOf, resolveLanguage } from './i18n/languages.js';
 
-// Dictionaries loaded so far. English is the fallback and Russian the oldest
-// default, so both are bundled; the others come in on first use.
-export const translations = { ru, en };
+// Dictionaries loaded so far (i18n/dictionaries.js): English and Russian
+// from the start, the others on first use.
+export { translations };
 const loading = new Map();
 
 function browserLanguages() {
@@ -51,11 +51,7 @@ export function whenLanguageLoaded(redraw) {
 
 export function t(key, params = null) {
   const dict = translations[currentLang()] || en;
-  let s = dict[key] ?? en[key] ?? key;
-  if (params) {
-    s = s.replace(/\{(\w+)\}/g, (m, name) => (params[name] !== undefined ? String(params[name]) : m));
-  }
-  return s;
+  return fillText(dict[key] ?? en[key] ?? key, params);
 }
 
 // CLDR plural categories as key suffixes. "other" is written as -many: the

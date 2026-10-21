@@ -2212,6 +2212,9 @@ body.is-welcome .search-btn { visibility: hidden; }
   text-overflow: ellipsis;
 }
 .tag-chip.is-small { padding: 0 7px; font-size: 0.7rem; }
+/* A tag shown on an entry is text only: as a block its long name ends in an
+   ellipsis instead of being cut off ("Fin de semana en Sevilla" at 320px). */
+span.tag-chip { display: inline-block; }
 button.tag-chip { cursor: pointer; }
 button.tag-chip:not(.is-on) { background: transparent; opacity: 0.75; }
 button.tag-chip:hover { opacity: 1; }
@@ -2776,3 +2779,12 @@ button.tag-chip:hover { opacity: 1; }
 [dir="rtl"] .tree-mark { display: inline-block; transform: scaleX(-1); }
 /* Arabic: the quick entry link pattern with translated variables is a URL and reads left to right. */
 :root:is(:lang(ar), :lang(ur)) .qlink-pattern { direction: ltr; }
+/* The accounts table fits its card at 1024px in every language: headers of
+   several words ("Dernière vérification") wrap, cells sit closer in a
+   narrow window, and the German capitals "Zurückgelegt" and "Verfügbar"
+   drop their letter spacing, so the terms stay whole. */
+.acc-table th { white-space: normal; }
+@media (max-width: 1100px) {
+  .acc-table :is(th, td) { padding-inline: 8px; }
+}
+:root:lang(de) .acc-table th { letter-spacing: 0; }
