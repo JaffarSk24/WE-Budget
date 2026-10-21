@@ -3,6 +3,8 @@
 // their copies record by record. Deleted records are kept as tombstones;
 // dropping them would let another device resurrect the record on sync.
 
+import { textsIn } from './i18n/dictionaries.js';
+
 export const SCHEMA_VERSION = 1;
 
 export const COLLECTIONS = ['accounts', 'categories', 'templates', 'entries', 'goals', 'checks', 'reminders', 'rules', 'debts', 'tags', 'scenarios', 'assets'];
@@ -372,16 +374,19 @@ export function live(list) {
   return (list || []).filter(r => !r.deleted);
 }
 
+// The categories a new budget starts with, named in its language (keys
+// defcat-* of the interface texts). Existing budgets keep their names: this
+// runs only when a budget is created.
+export const DEFAULT_CATEGORIES = {
+  expense: ['housing', 'groceries', 'transport', 'car', 'phone', 'health', 'kids', 'loans', 'eating-out', 'entertainment', 'clothing', 'gifts', 'travel', 'taxes', 'bank-fees', 'other'],
+  income: ['salary', 'side-income', 'royalties', 'benefits', 'refunds', 'other-income']
+};
+
+export function defaultCategoryName(key, lang = 'ru') {
+  return textsIn(lang)(`defcat-${key}`);
+}
+
 export function defaultCategories(lang = 'ru') {
-  const ru = lang === 'ru';
-  const expense = ru
-    ? ['Жильё', 'Продукты', 'Транспорт', 'Авто', 'Связь и подписки', 'Здоровье', 'Дети', 'Кредиты', 'Кафе и рестораны', 'Развлечения', 'Одежда', 'Подарки', 'Путешествия', 'Налоги и сборы', 'Банковские комиссии', 'Прочее']
-    : ['Housing', 'Groceries', 'Transport', 'Car', 'Phone and subscriptions', 'Health', 'Kids', 'Loans', 'Eating out', 'Entertainment', 'Clothing', 'Gifts', 'Travel', 'Taxes and fees', 'Bank fees', 'Other'];
-  const income = ru
-    ? ['Зарплата', 'Подработка', 'Лицензии и роялти', 'Пособия', 'Возвраты', 'Прочие доходы']
-    : ['Salary', 'Side income', 'Licensing and royalties', 'Benefits', 'Refunds', 'Other income'];
-  return [
-    ...expense.map((name, i) => makeCategory({ name, type: 'expense', order: i })),
-    ...income.map((name, i) => makeCategory({ name, type: 'income', order: i }))
-  ];
+  return Object.entries(DEFAULT_CATEGORIES).flatMap(([type, keys]) =>
+    keys.map((key, i) => makeCategory({ name: defaultCategoryName(key, lang), type, order: i })));
 }

@@ -33,6 +33,7 @@ Only two places, so several languages can be translated at the same time without
 - Every key of `en.js` must be there, and no others. The tests fail on a missing or an unknown key. When a new feature adds keys to `en.js` and `ru.js`, they have to be added to every translated file as well.
 - Translate the meaning for this app, not word by word. Keep texts about as short as the English ones: they sit in buttons, table headers and phone tabs.
 - Keys ending in `-title` are tooltips, `-hint` are explanations under a field, `-placeholder` go inside empty fields.
+- `defcat-*` name the categories a new budget starts with, `demo-*` the records of the demo household. Local first names, shops and places are welcome there; amounts stay in euros. Budgets already created keep their names.
 
 ## Plurals
 

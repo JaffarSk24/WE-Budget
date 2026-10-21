@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const { signInPage } = require('./signin-page.cjs');
 const { DRIVE_SCOPE, grantsDrive, isInsufficientScope, pendingSignIn, PLAIN_NAME, ENCRYPTED_NAME, pickMain } = require('./cloud-utils.cjs');
 
 const SCOPES = [
@@ -33,33 +34,6 @@ const CALENDAR = 'https://www.googleapis.com/calendar/v3';
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const TIMEOUT_MS = 30000;
-
-const PAGE_TEXT = {
-  ru: {
-    okTitle: 'Готово',
-    ok: 'Google-аккаунт подключён. Эту вкладку можно закрыть и вернуться в WE Budget.',
-    failTitle: 'Не получилось',
-    fail: 'Закройте вкладку и попробуйте войти ещё раз из приложения.',
-    scopeTitle: 'Нет доступа к Google Диску',
-    scope: 'На странице Google не была отмечена галочка доступа к Google Диску, а без неё синхронизация не работает. Закройте вкладку, нажмите в приложении «Войти через Google» ещё раз и отметьте доступ к Диску.'
-  },
-  en: {
-    okTitle: 'Signed in',
-    ok: 'Your Google account is connected. You can close this tab and return to WE Budget.',
-    failTitle: 'Sign-in failed',
-    fail: 'Close this tab and try again from the app.',
-    scopeTitle: 'No access to Google Drive',
-    scope: 'The Google Drive permission was not ticked on the Google page, and sync cannot work without it. Close this tab, choose Sign in with Google in the app again and tick the Google Drive permission.'
-  }
-};
-
-function page(title, message, color) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f172a;color:#e2e8f0">
-<div style="background:#1e293b;padding:40px;border-radius:16px;max-width:420px;text-align:center">
-<h2 style="color:${color};margin:0 0 12px">${title}</h2>
-<p style="color:#94a3b8;font-size:14px;margin:0;line-height:1.5">${message}</p></div></body></html>`;
-}
 
 // Network failures look different on every platform; anything that is not
 // an HTTP answer counts as "offline".
@@ -221,7 +195,6 @@ class Cloud {
       try { this.server.close(); } catch (e) { /* an earlier attempt */ }
       this.server = null;
     }
-    const text = PAGE_TEXT[lang === 'ru' ? 'ru' : 'en'];
     const verifier = crypto.randomBytes(32).toString('base64url');
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
     const state = crypto.randomBytes(16).toString('hex');
@@ -246,7 +219,7 @@ class Cloud {
         const error = url.searchParams.get('error');
         if (error || !code || url.searchParams.get('state') !== state) {
           res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end(page(text.failTitle, text.fail, '#f43f5e'));
+          res.end(signInPage(lang, 'fail'));
           finish({ ok: false, error: error || 'invalid_response' });
           return;
         }
@@ -261,7 +234,7 @@ class Cloud {
             // here and the grant dropped.
             revoke(tokenData.refresh_token || tokenData.access_token);
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(page(text.scopeTitle, text.scope, '#f59e0b'));
+            res.end(signInPage(lang, 'scope'));
             finish({ ok: false, error: 'drive_scope_missing' });
             return;
           }
@@ -278,11 +251,11 @@ class Cloud {
           this.writeJson(this.tokensPath, this.tokens);
           this.setState({ signInNeeded: null });
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end(page(text.okTitle, text.ok, '#22c55e'));
+          res.end(signInPage(lang, 'ok'));
           finish({ ok: true, email });
         } catch (e) {
           res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end(page(text.failTitle, text.fail, '#f43f5e'));
+          res.end(signInPage(lang, 'fail'));
           finish({ ok: false, error: e.message, offline: isNetworkError(e) });
         }
       });
