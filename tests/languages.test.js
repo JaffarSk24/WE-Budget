@@ -154,13 +154,26 @@ describe('locale files', () => {
 });
 
 describe('formatting in every language', () => {
-  it('formats money with Latin or native digits and the symbol attached', () => {
+  it('formats money with Latin digits and the symbol attached', () => {
     LANGUAGES.forEach(l => {
       const s = formatMoney(-245050, { lang: l.code }).replace(/[\u2066\u2069]/g, '');
-      expect(s, l.code).toMatch(/^-.+€$/);
+      expect(s, l.code).toMatch(/^-[0-9].*€$/);
       expect(s, l.code).not.toMatch(/\s€/);
-      // What the app writes, the app reads back (Bengali digits aside).
-      if (/^-[0-9]/.test(s)) expect(parseMoney(formatMoney(-245050, { lang: l.code })), l.code).toBe(-245050);
+      // What the app writes, the app reads back.
+      expect(parseMoney(formatMoney(-245050, { lang: l.code })), l.code).toBe(-245050);
+    });
+  });
+
+  it('writes dates in Latin digits in every language', () => {
+    LANGUAGES.forEach(l => {
+      expect(formatDayYear('2026-11-05', l.code), l.code).toMatch(/^[^\p{Nd}]*(?:[0-9][^\p{Nd}]*)+$/u);
+      expect(formatDate('2026-11-05', l.code), l.code).toMatch(/2026/);
+    });
+  });
+
+  it('keeps the Bengali texts (help included) in Latin digits, like the amounts', () => {
+    Object.entries(dicts.bn).forEach(([key, value]) => {
+      expect(value, `bn ${key}`).not.toMatch(/[\u09E6-\u09EF]/);
     });
   });
 
