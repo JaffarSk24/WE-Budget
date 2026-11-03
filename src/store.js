@@ -13,7 +13,7 @@ import { goalContribution, saveAheadDeadline, saveAheadRoll, suggestedContributi
 import { generationHorizon, pendingGeneration, futureOpenEntries, amountFor } from './schedule.js';
 import { buildAllocation } from './allocation.js';
 import { buildReconciliation } from './reconcile.js';
-import { todayKey, addDays } from './dates.js';
+import { todayKey, addDays, dayKey } from './dates.js';
 import { fitSplits } from './splits.js';
 
 const STORAGE_KEY = 'we_budget_data';
@@ -48,6 +48,7 @@ export class Store {
     this.needsSave = false;
     this.data = this.load();
     if (!this.loadError && this.repairTransit()) this.needsSave = true;
+    if (!this.loadError && this.repairFunding()) this.needsSave = true;
     // A file written before datasets existed gets its id once and keeps it;
     // a fresh id on every start would look like a new budget to sync.
     if (this.needsSave && !this.loadError) this.save();
@@ -165,6 +166,16 @@ export class Store {
   }
 
   remove(collection, id) {
+    if (collection === 'entries') {
+      return this.commit(data => {
+        const e = data.entries.find(x => x.id === id);
+        if (!e) return null;
+        const now = nowIso();
+        Store.unfund(data, e, now);
+        Object.assign(e, { deleted: true, updatedAt: now });
+        return e;
+      });
+    }
     return this.update(collection, id, { deleted: true });
   }
 
@@ -492,6 +503,54 @@ export class Store {
     return fixed;
   }
 
+  // ---------- money set aside on envelopes ----------
+
+  // Setting a payment aside means its money waits on its account. On an
+  // envelope that money first has to get there: "Split income" moves it
+  // with transfers of its own, but a payment set aside right in its row did
+  // not move anything, so the envelope showed nothing (or less than zero)
+  // in the bank check. Now such a payment moves its amount from the account
+  // the envelope belongs to, as a done transfer marked with `fundingFor`.
+  // Back to plan, cancelled or deleted takes the transfer away; done keeps
+  // it, the money was spent from the envelope.
+  static fund(data, e, now, day) {
+    if (e.type !== 'expense' || e.isTransit || e.allocationId || !(e.amount > 0)) return false;
+    const envelope = data.accounts.find(a => a.id === e.accountId && !a.deleted);
+    if (!envelope || !envelope.parentId) return false;
+    if (data.entries.some(x => !x.deleted && x.fundingFor === e.id)) return false;
+    // One id per payment: two computers that both add the transfer (each
+    // repairing old data on start) write the same record, and sync keeps one.
+    const id = `fund-${e.id}`;
+    const fields = {
+      date: day, title: e.title, type: 'transfer', amount: e.amount, plannedAmount: e.amount,
+      accountId: envelope.parentId, toAccountId: envelope.id,
+      status: 'done', doneAt: now, fundingFor: e.id, deleted: false, updatedAt: now
+    };
+    const old = data.entries.find(x => x.id === id);
+    if (old) Object.assign(old, fields);
+    else data.entries.push({ ...makeEntry(fields), id, createdAt: now, updatedAt: now });
+    return true;
+  }
+
+  static unfund(data, e, now) {
+    data.entries.forEach(x => {
+      if (!x.deleted && x.fundingFor === e.id) Object.assign(x, { deleted: true, updatedAt: now });
+    });
+  }
+
+  // Payments set aside on envelopes before the rule above get their
+  // transfer once, dated the day they were set aside.
+  repairFunding() {
+    const now = nowIso();
+    let fixed = 0;
+    (this.data.entries || []).slice().forEach(e => {
+      if (e.deleted || e.status !== 'reserved') return;
+      const day = e.reservedAt ? dayKey(new Date(e.reservedAt)) : todayKey();
+      if (Store.fund(this.data, e, now, day)) fixed++;
+    });
+    return fixed;
+  }
+
   // ---------- entry statuses ----------
 
   // `today`: marking done something dated later means it happened today, so
@@ -529,12 +588,15 @@ export class Store {
         e.status = 'reserved';
         e.reservedAt = now;
         e.doneAt = null;
+        Store.fund(data, e, now, today || this.today());
       } else if (status === 'planned') {
+        Store.unfund(data, e, now);
         e.status = 'planned';
         e.doneAt = null;
         e.reservedAt = null;
         e.allocationId = null;
       } else if (status === 'cancelled') {
+        Store.unfund(data, e, now);
         e.status = 'cancelled';
         e.doneAt = null;
       }
@@ -564,10 +626,13 @@ export class Store {
           e.doneAt = now;
           Store.settle(e, this.today());
         } else if (status === 'planned') {
+          Store.unfund(data, e, now);
           Object.assign(e, { doneAt: null, reservedAt: null, allocationId: null });
         } else if (status === 'reserved') {
           e.reservedAt = now;
+          Store.fund(data, e, now, this.today());
         } else if (status === 'cancelled') {
+          Store.unfund(data, e, now);
           e.doneAt = null;
         }
         e.status = status;
@@ -603,6 +668,7 @@ export class Store {
       ids.forEach(id => {
         const e = data.entries.find(x => x.id === id && !x.deleted);
         if (!e) return;
+        Store.unfund(data, e, now);
         Object.assign(e, { deleted: true, updatedAt: now });
         changed++;
       });

@@ -165,6 +165,9 @@ export function makeEntry(f = {}) {
     // Set on entries created or settled by a bank statement import: a hash
     // of the bank row, so importing the same statement again finds it.
     importKey: f.importKey || null,
+    // On a transfer: the payment it moved money into an envelope for, when
+    // that payment was set aside right in its row (see Store.fund).
+    fundingFor: f.fundingFor || null,
     // The loan or debt this payment pays off (or the money that came back).
     debtId: f.debtId || null,
     // A payment spread over several categories, see splits.js; null when
