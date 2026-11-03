@@ -3,6 +3,7 @@ import js from '@eslint/js';
 const browserGlobals = {
   window: 'readonly',
   document: 'readonly',
+  ResizeObserver: 'readonly',
   localStorage: 'readonly',
   navigator: 'readonly',
   console: 'readonly',
