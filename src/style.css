@@ -1511,6 +1511,23 @@ body.is-welcome aside nav, body.is-welcome .quick-add-btn, body.is-welcome .sync
 .update-banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .update-progress { flex-basis: 100%; height: 6px; border-radius: 999px; background: var(--overlay-04); overflow: hidden; }
 .update-progress-bar { height: 100%; background: var(--grad-primary); transition: width 0.2s ease; }
+/* The large window about a new version (update-popup.js), after WE Invoice. */
+.update-popup { display: flex; flex-direction: column; gap: 16px; }
+.update-popup-hero { display: flex; gap: 14px; align-items: center; padding: 16px; border-radius: var(--radius-md); background: var(--overlay-04); border: 1px solid var(--border-color); }
+.update-popup-hero > i, .update-popup-hero > svg { width: 36px; height: 36px; flex: none; color: var(--accent-indigo); }
+.update-popup-lead { margin: 0; font-size: 1.05rem; font-weight: 600; line-height: 1.45; }
+.update-popup-subtitle { margin: 0; font-size: 0.95rem; }
+.update-popup-notes { max-height: 42vh; overflow-y: auto; color: var(--text-secondary); line-height: 1.55; font-size: 0.9rem; padding-inline-end: 4px; }
+.update-popup-notes h4 { margin: 12px 0 4px; font-size: 0.92rem; color: var(--text-primary); }
+.update-popup-notes h4:first-child { margin-top: 0; }
+.update-popup-notes p { margin: 0 0 8px; }
+.update-popup-notes ul { margin: 0 0 8px; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 4px; }
+.update-popup-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.update-popup-actions p { margin: 0; flex: 1 1 260px; }
+.update-popup-progress { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+/* In this column the banner's flex-basis would set the height to nothing. */
+.update-popup-progress .update-progress { flex: none; height: 8px; }
+.btn-lg { padding: 12px 22px; font-size: 1rem; }
 .release-notes { white-space: pre-wrap; line-height: 1.55; color: var(--text-secondary); max-height: 50vh; overflow-y: auto; }
 
 /* Choosing between two budgets */
