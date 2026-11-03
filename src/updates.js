@@ -4,6 +4,7 @@
 import { t } from './i18n.js';
 import { h, clear, icon, refreshIcons, openModal } from './ui.js';
 import { showToast } from './toast.js';
+import { createUpdatePopup } from './update-popup.js';
 
 const bridge = typeof window !== 'undefined' ? window.weUpdates || null : null;
 const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
@@ -127,6 +128,7 @@ export function initUpdates(bannerEl) {
     notify();
   });
   onUpdateChange(() => renderUpdateBanner(bannerEl));
+  createUpdatePopup({ onUpdateChange, updateState, startDownload, install });
   setTimeout(() => checkForUpdates(), 2500);
   setInterval(() => checkForUpdates(), CHECK_EVERY_MS);
 }
