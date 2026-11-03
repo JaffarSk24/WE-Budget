@@ -90,6 +90,23 @@ function show(name) {
   if (main) main.scrollTop = 0;
 }
 
+// The promo footer is fixed to the bottom of the window and its height
+// changes with the width (it wraps) and the language. Bars and toasts that
+// float at the bottom read it from --promo-footer-h so they always sit above
+// it; on the phone the footer is hidden and the height is 0.
+function trackPromoFooter() {
+  const footer = document.querySelector('.promo-footer');
+  const root = document.documentElement;
+  const update = () => {
+    // A fixed element has no offsetParent; a hidden one has no boxes.
+    const h = footer && footer.getClientRects().length ? footer.getBoundingClientRect().height : 0;
+    root.style.setProperty('--promo-footer-h', `${Math.ceil(h)}px`);
+  };
+  update();
+  if (footer && typeof ResizeObserver === 'function') new ResizeObserver(update).observe(footer);
+  window.addEventListener('resize', update);
+}
+
 function render() {
   if (!current) return;
   // A language chosen just now (or by another device) may still be loading;
@@ -257,6 +274,7 @@ function start() {
     });
   initNotifications();
   if (!phone) initTray();
+  trackPromoFooter();
   registerServiceWorker();
   setInterval(checkDay, 60 * 1000);
   window.addEventListener('focus', checkDay);

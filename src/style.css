@@ -301,7 +301,8 @@ main {
   flex-grow: 1;
   margin-inline-start: var(--sidebar-width);
   padding: 32px 40px;
-  padding-bottom: 120px; /* room for the promo footer */
+  /* Room for the promo footer and a bar floating above it. */
+  padding-bottom: calc(var(--promo-footer-h, 64px) + 56px);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -811,7 +812,8 @@ textarea:focus {
 /* ==================== TOASTS ==================== */
 #toast-container {
   position: fixed;
-  bottom: 24px;
+  /* Above the promo footer, never under it. */
+  bottom: calc(var(--promo-footer-h, 0px) + 24px);
   inset-inline-end: 24px;
   z-index: 9999;
   display: flex;
@@ -1525,7 +1527,8 @@ body.is-welcome aside nav, body.is-welcome .quick-add-btn, body.is-welcome .sync
 
 .selection-bar {
   position: sticky;
-  bottom: 14px;
+  /* Sits whole above the promo footer, which stays at the very bottom. */
+  bottom: calc(var(--promo-footer-h, 64px) + 14px);
   z-index: 60;
   display: flex;
   align-items: center;
